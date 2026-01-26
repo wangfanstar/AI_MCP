@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYNCE模块详细说明 - 与RLM关系框图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #3498db;
+        }
+
+        .section h2 {
+            color: #2980b9;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .diagram {
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .module-box {
+            display: inline-block;
+            background: #e8f4f8;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 15px 25px;
+            margin: 10px;
+            min-width: 150px;
+        }
+
+        .module-box.rlm {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .arrow {
+            font-size: 24px;
+            color: #3498db;
+            margin: 0 10px;
+        }
+
+        .relationship-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .relationship-table th,
+        .relationship-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .relationship-table th {
+            background: #3498db;
+            color: white;
+        }
+
+        .relationship-table tr:nth-child(even) {
+            background: #f2f2f2;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        .back-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .back-btn:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="报文收发链路层物理层标准处理流程.html" class="back-btn">← 返回主页面</a>
+        <h1>⏰ SYNCE模块详细说明</h1>
+
+        <div class="section">
+            <h2>1. SYNCE模块功能原理</h2>
+            <h3>1.1 基本概念</h3>
+            <p><strong>SYNCE (Synchronous Ethernet)</strong> - 同步以太网，是一种从以太网数据流中恢复同步时钟信号的技术，用于网络时钟同步和频率传递。</p>
+            
+            <h3>1.2 功能描述</h3>
+            <ul style="line-height: 2; margin-left: 20px;">
+                <li><strong>位置:</strong> 仅在RX PCS层，在AM Detection之后、AM Removal之前</li>
+                <li><strong>机制:</strong> 基于64B/66B编码的同步头进行时钟恢复</li>
+                <li><strong>标准:</strong> ITU-T G.8261/G.8262, IEEE 802.3 Clause 82</li>
+                <li><strong>输出:</strong> 恢复的时钟信号用于系统时钟同步</li>
+                <li><strong>应用:</strong> 网络时钟同步、频率传递、时间同步基础（为1588提供时钟源）</li>
+            </ul>
+
+            <h3>1.3 时钟恢复原理</h3>
+            <div class="code-block">
+SYNCE时钟恢复机制:<br>
+• 基于64B/66B编码的Sync Header (01/10)<br>
+• 使用CDR (Clock Data Recovery) 电路<br>
+• 从数据流中提取时钟边沿<br>
+• 通过PLL (Phase Locked Loop) 锁定频率<br>
+• 输出稳定的系统时钟信号
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>2. SYNCE与RLM关系框图</h2>
+            <div class="diagram">
+                <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap;">
+                    <div class="module-box">
+                        <strong>SerDes RX</strong>
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box rlm">
+                        <strong>RLM RX</strong><br>
+                        Lane Extend
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box">
+                        <strong>PCS RX</strong><br>
+                        AM Detection
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box" style="background: #d4edda; border-color: #28a745;">
+                        <strong>SYNCE</strong><br>
+                        Clock Recovery<br>
+                        <small>从数据流恢复时钟</small>
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box">
+                        <strong>系统时钟</strong><br>
+                        用于1588等模块
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>3. RLM对SYNCE的影响</h2>
+            <table class="relationship-table">
+                <thead>
+                    <tr>
+                        <th>影响方面</th>
+                        <th>详细说明</th>
+                        <th>解决方案</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>时钟源选择</strong></td>
+                        <td>配置同步以太前需考虑是否使能RLM。如果开启RLM使能，并且是800GR8/400GR4/200GR2这三种速率的lane，从RLM里出；如果RLM使能关闭，或者非上述三种速率的lane，从PCS的lane出</td>
+                        <td>根据RLM使能状态和速率配置，动态选择时钟源（rlm_sd_sync_ok信号）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>时钟精度</strong></td>
+                        <td>RLM lane缩减后，同步以太恢复的时钟可能不准，因为数据流速率发生变化</td>
+                        <td>在RLM稳定状态下进行时钟恢复，或使用多lane时钟平均算法</td>
+                    </tr>
+                    <tr>
+                        <td><strong>频率选择</strong></td>
+                        <td>RLM提供rlm_sd_sync_ok信号用于SYNCE模块的频率选择</td>
+                        <td>SYNCE模块需要根据RLM状态和rlm_sd_sync_ok信号选择正确的时钟源</td>
+                    </tr>
+                    <tr>
+                        <td><strong>切换期间</strong></td>
+                        <td>RLM切换过程中，数据流可能中断，影响时钟恢复的连续性</td>
+                        <td>使用时钟保持电路，在切换期间保持时钟输出稳定</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>4. SYNCE在系统中的位置</h2>
+            <h3>4.1 RX路径（唯一位置）</h3>
+            <div class="code-block">
+SerDes RX → PMA → FEC<br>
+  ↓<br>
+RLM RX (Lane Extend)<br>
+  ↓<br>
+PCS RX:<br>
+  ├─ AM Detection & Lane Alignment<br>
+  ├─ <b>[SYNCE Clock Recovery]</b> ← 在这里恢复时钟<br>
+  ├─ Lane De-skew<br>
+  ├─ AM Removal<br>
+  ├─ Descrambler<br>
+  └─ 64B/66B Decoder
+            </div>
+
+            <h3>4.2 时钟输出应用</h3>
+            <ul style="line-height: 2; margin-left: 20px;">
+                <li>为1588 PTP模块提供高精度时钟源</li>
+                <li>为系统其他模块提供同步时钟</li>
+                <li>网络频率同步和传递</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>5. SYNCE与RLM交互流程</h2>
+            <h3>5.1 RLM未使能模式</h3>
+            <ol style="line-height: 2; margin-left: 20px;">
+                <li>数据从SerDes直接到PCS RX</li>
+                <li>SYNCE从PCS lane恢复时钟</li>
+                <li>rlm_sd_sync_ok信号指示使用PCS时钟源</li>
+                <li>恢复的时钟用于系统同步</li>
+            </ol>
+
+            <h3>5.2 RLM使能模式（800GR8/400GR4/200GR2）</h3>
+            <ol style="line-height: 2; margin-left: 20px;">
+                <li>数据从SerDes经过RLM RX（Lane Extend）</li>
+                <li>RLM提供rlm_sd_sync_ok信号</li>
+                <li>SYNCE从RLM lane恢复时钟（根据rlm_sd_sync_ok选择）</li>
+                <li>恢复的时钟用于系统同步</li>
+            </ol>
+
+            <h3>5.3 RLM Lane缩减模式</h3>
+            <ol style="line-height: 2; margin-left: 20px;">
+                <li>RLM进行Lane Extend，数据恢复到8条lane</li>
+                <li>SYNCE从恢复后的数据流恢复时钟</li>
+                <li>时钟精度可能受影响（因为数据流速率变化）</li>
+                <li>需要时钟保持电路维持稳定性</li>
+            </ol>
+
+            <h3>5.4 关键注意事项</h3>
+            <ul style="line-height: 2; margin-left: 20px; color: #e74c3c;">
+                <li><strong>时钟源选择:</strong> 必须根据RLM使能状态和速率配置正确选择时钟源</li>
+                <li><strong>时钟精度:</strong> RLM lane缩减后时钟精度可能下降，需要评估影响</li>
+                <li><strong>切换稳定性:</strong> RLM切换期间需要保持时钟输出稳定，避免系统时钟抖动</li>
+                <li><strong>1588依赖:</strong> 1588 PTP模块依赖SYNCE恢复的时钟，时钟质量直接影响时间戳精度</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>6. 标准引用</h2>
+            <ul style="line-height: 2; margin-left: 20px;">
+                <li><strong>ITU-T G.8261:</strong> Timing and synchronization aspects in packet networks</li>
+                <li><strong>ITU-T G.8262:</strong> Timing characteristics of synchronous Ethernet equipment slave clock</li>
+                <li><strong>IEEE 802.3 Clause 82:</strong> PCS层规范，包含时钟恢复机制</li>
+                <li><strong>Internal RLM Specification:</strong> RLM模块对SYNCE的影响和时钟源选择要求</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

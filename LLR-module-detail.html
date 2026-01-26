@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLR模块详细说明 - 与RLM关系框图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #9b59b6;
+        }
+
+        .section h2 {
+            color: #7d3c98;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .diagram {
+            background: white;
+            border: 2px solid #9b59b6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .module-box {
+            display: inline-block;
+            background: #f4ecf7;
+            border: 2px solid #9b59b6;
+            border-radius: 8px;
+            padding: 15px 25px;
+            margin: 10px;
+            min-width: 150px;
+        }
+
+        .module-box.rlm {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .arrow {
+            font-size: 24px;
+            color: #9b59b6;
+            margin: 0 10px;
+        }
+
+        .relationship-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .relationship-table th,
+        .relationship-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .relationship-table th {
+            background: #9b59b6;
+            color: white;
+        }
+
+        .relationship-table tr:nth-child(even) {
+            background: #f2f2f2;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        .back-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #9b59b6;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .back-btn:hover {
+            background: #7d3c98;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="报文收发链路层物理层标准处理流程.html" class="back-btn">← 返回主页面</a>
+        <h1>🔄 LLR模块详细说明 (UEC标准)</h1>
+
+        <div class="section">
+            <h2>1. LLR模块功能原理</h2>
+            <h3>1.1 基本概念</h3>
+            <p><strong>LLR (Link Layer Retransmission)</strong> - 链路层重传，是UEC (Ultra Ethernet Consortium) 标准中定义的链路层可靠性机制，提供无丢失链路操作。</p>
+            
+            <h3>1.2 功能描述</h3>
+            <ul style="line-height: 2; margin-left: 20px;">
+                <li><strong>标准:</strong> UEC Specification 6.11.25</li>
+                <li><strong>位置:</strong> 位于MAC Client和MAC Control之间</li>
+                <li><strong>功能:</strong> 为数据包分配序列号，提供链路层重传机制保证可靠性</li>
+                <li><strong>模式:</strong> LLR-eligible（需要重传）和LLR-ineligible（标准传输）</li>
+                <li><strong>机制:</strong> 基于序列号的ACK/NACK反馈和重传</li>
+            </ul>
+
+            <h3>1.3 LLR工作原理</h3>
+            <div class="code-block">
+TX路径:<br>
+• MAC Client发送帧到LLR<br>
+• LLR为LLR-eligible帧分配序列号(SN)<br>
+• 帧存储在重传缓冲区(Replay Buffer)<br>
+• 发送到MAC Control层，SN放在preamble中<br>
+• 收到ACK后释放缓冲区，收到NACK或超时触发重传<br><br>
+RX路径:<br>
+• MAC Control接收帧并提取SN<br>
+• LLR检查SN是否为期望的序列号<br>
+• 期望的帧发送到MAC Client<br>
+• 非期望的帧丢弃并发送NACK<br>
+• 定期发送ACK确认成功接收的帧
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>2. LLR与RLM关系框图</h2>
+            <div class="diagram">
+                <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap;">
+                    <div class="module-box">
+                        <strong>MAC Client</strong>
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box" style="background: #f4ecf7; border-color: #9b59b6;">
+                        <strong>LLR TX</strong><br>
+                        SN分配<br>
+                        重传缓冲区
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box">
+                        <strong>MAC Control</strong>
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box">
+                        <strong>RS → PCS</strong>
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box rlm">
+                        <strong>RLM TX</strong><br>
+                        Lane Reduce
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box">
+                        <strong>FEC → SerDes</strong>
+                    </div>
+                </div>
+                <div style="margin-top: 30px; display: flex; justify-content: center; align-items: center; flex-wrap: wrap;">
+                    <div class="module-box">
+                        <strong>SerDes → FEC</strong>
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box rlm">
+                        <strong>RLM RX</strong><br>
+                        Lane Extend
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box">
+                        <strong>PCS → RS</strong>
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box">
+                        <strong>MAC Control</strong>
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box" style="background: #f4ecf7; border-color: #9b59b6;">
+                        <strong>LLR RX</strong><br>
+                        SN检查<br>
+                        重排序
+                    </div>
+                    <span class="arrow">→</span>
+                    <div class="module-box">
+                        <strong>MAC Client</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>3. RLM对LLR的影响</h2>
+            <table class="relationship-table">
+                <thead>
+                    <tr>
+                        <th>影响方面</th>
+                        <th>详细说明</th>
+                        <th>解决方案</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>数据路径</strong></td>
+                        <td>LLR处理的数据需要经过RLM层，RLM的Lane Reduce/Extend会影响数据流</td>
+                        <td>LLR在RLM之前处理，不受RLM lane缩减影响</td>
+                    </tr>
+                    <tr>
+                        <td><strong>重传机制</strong></td>
+                        <td>RLM lane缩减可能导致数据包丢失，触发LLR重传</td>
+                        <td>LLR的重传机制可以补偿RLM lane缩减导致的数据丢失</td>
+                    </tr>
+                    <tr>
+                        <td><strong>序列号</strong></td>
+                        <td>LLR的序列号管理不受RLM影响，序列号在MAC层处理</td>
+                        <td>LLR和RLM是独立的层，互不干扰</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ACK/NACK</strong></td>
+                        <td>LLR的ACK/NACK消息通过反向通道传输，不经过RLM数据路径</td>
+                        <td>ACK/NACK使用独立的控制通道，不受RLM影响</td>
+                    </tr>
+                    <tr>
+                        <td><strong>时延影响</strong></td>
+                        <td>RLM切换过程可能增加数据路径时延，影响LLR的超时判断</td>
+                        <td>LLR的超时定时器需要考虑RLM切换时延，适当调整RTO值</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>4. LLR在系统中的位置</h2>
+            <h3>4.1 TX路径</h3>
+            <div class="code-block">
+MAC Client<br>
+  ↓<br>
+<b>[LLR TX]</b> ← UEC标准模块<br>
+  • SN分配<br>
+  • 重传缓冲区<br>
+  • ACK/NACK处理<br>
+  ↓<br>
+MAC Control<br>
+  ↓<br>
+RS → PCS → FEC → RLM → PMA → SerDes → PMD
+            </div>
+
+            <h3>4.2 RX路径</h3>
+            <div class="code-block">
+PMD → SerDes → PMA → RLM → FEC → PCS → RS<br>
+  ↓<br>
+MAC Control<br>
+  ↓<br>
+<b>[LLR RX]</b> ← UEC标准模块<br>
+  • SN检查<br>
+  • 重排序缓冲区<br>
+  • ACK/NACK生成<br>
+  ↓<br>
+MAC Client
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>5. LLR与RLM交互流程</h2>
+            <h3>5.1 正常传输流程</h3>
+            <ol style="line-height: 2; margin-left: 20px;">
+                <li>MAC Client发送LLR-eligible帧到LLR TX</li>
+                <li>LLR TX分配序列号，存储在重传缓冲区</li>
+                <li>帧通过MAC Control、RS、PCS、FEC到达RLM TX</li>
+                <li>RLM TX进行Lane Reduce（如果使能）</li>
+                <li>数据通过SerDes传输</li>
+                <li>接收端RLM RX进行Lane Extend</li>
+                <li>数据通过FEC、PCS、RS、MAC Control到达LLR RX</li>
+                <li>LLR RX检查序列号，发送ACK确认</li>
+            </ol>
+
+            <h3>5.2 重传流程</h3>
+            <ol style="line-height: 2; margin-left: 20px;">
+                <li>如果RLM lane缩减导致数据包丢失</li>
+                <li>LLR RX检测到序列号缺失，发送NACK</li>
+                <li>LLR TX收到NACK，从重传缓冲区重传数据包</li>
+                <li>重传的数据包再次经过RLM层传输</li>
+                <li>LLR RX成功接收后发送ACK</li>
+            </ol>
+
+            <h3>5.3 关键注意事项</h3>
+            <ul style="line-height: 2; margin-left: 20px; color: #e74c3c;">
+                <li><strong>独立性:</strong> LLR和RLM是独立的层，LLR在MAC层，RLM在PCS和SerDes之间</li>
+                <li><strong>重传补偿:</strong> LLR的重传机制可以补偿RLM lane缩减导致的数据丢失</li>
+                <li><strong>时延考虑:</strong> RLM切换时延可能影响LLR的超时判断，需要适当调整</li>
+                <li><strong>ACK/NACK:</strong> LLR的控制消息不经过RLM数据路径，使用独立通道</li>
+                <li><strong>协同工作:</strong> LLR提供链路层可靠性，RLM提供物理层容错，两者协同保证系统可靠性</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>6. 标准引用</h2>
+            <ul style="line-height: 2; margin-left: 20px;">
+                <li><strong>UEC Specification 6.11.25:</strong> Link Layer Retransmission (LLR)</li>
+                <li><strong>IEEE 802.3:</strong> 标准以太网MAC层规范</li>
+                <li><strong>Internal RLM Specification:</strong> RLM模块与LLR的交互要求</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
