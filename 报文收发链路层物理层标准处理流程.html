@@ -1214,14 +1214,15 @@ Interval (800G): 16383 blocks ≈ 21μs
                         </div>  
                     </div>
 
-                    <div class="sublayer">  
-                        <div class="sublayer-name">🔸 PRBS Generator (伪随机二进制序列生成器)</div>  
+                    <div class="sublayer" style="border-left: 3px dashed #f39c12; background: #fffbf0;">  
+                        <div class="sublayer-name">🔸 PRBS Generator (伪随机二进制序列生成器) [测试模式]</div>  
                         <div class="sublayer-desc">  
                             • 功能: 生成PRBS测试模式用于链路测试和误码率检测<br>  
                             • 标准: IEEE 802.3 Clause 82.2.4<br>  
                             • 多项式: PRBS31 (x³¹ + x²⁸ + 1) 或 PRBS7/9/11/15/23<br>  
-                            • 模式: 可配置为测试模式或正常数据模式<br>  
-                            • 应用: 链路质量测试、误码率(BER)测量、眼图测试  
+                            • 模式: <strong>测试模式时替代MAC Client作为数据源（起始点）</strong><br>  
+                            • 应用: 链路质量测试、误码率(BER)测量、眼图测试<br>  
+                            • <span style="color: #e74c3c;">注意: 不是正常数据流的必经路径，仅在测试模式下使用</span>  
                         </div>  
                     </div>
 
@@ -1957,14 +1958,15 @@ Invalid Block → BER++
                         </div>  
                     </div>
 
-                    <div class="sublayer">  
-                        <div class="sublayer-name">🔸 PRBS Checker (伪随机二进制序列检测器)</div>  
+                    <div class="sublayer" style="border-left: 3px dashed #f39c12; background: #fffbf0;">  
+                        <div class="sublayer-name">🔸 PRBS Checker (伪随机二进制序列检测器) [测试模式]</div>  
                         <div class="sublayer-desc">  
                             • 功能: 检测PRBS测试模式用于链路质量评估和误码率检测<br>  
                             • 标准: IEEE 802.3 Clause 82.2.4<br>  
                             • 多项式: PRBS31 (x³¹ + x²⁸ + 1) 或 PRBS7/9/11/15/23<br>  
-                            • 模式: 可配置为测试模式检测或正常数据模式<br>  
-                            • 应用: 链路质量监控、误码率(BER)测量、眼图分析  
+                            • 模式: <strong>测试模式时替代MAC Client作为数据接收（终点）</strong><br>  
+                            • 应用: 链路质量监控、误码率(BER)测量、眼图分析<br>  
+                            • <span style="color: #e74c3c;">注意: 不是正常数据流的必经路径，仅在测试模式下使用</span>  
                         </div>  
                     </div>  
 
@@ -2334,15 +2336,10 @@ Frame Format:<br>
                     
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
-                        <div class="summary-layer-desc">64B/66B编码，添加同步头和AM对齐标记，1588 PTP时间戳插入</div>
+                        <div class="summary-layer-desc">64B/66B编码，添加同步头和AM对齐标记，1588 PTP时间戳插入（PRBS测试模式时可替代MAC Client作为数据源）</div>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
-                    <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 PRBS Generator</div>
-                        <div class="summary-layer-desc">生成PRBS测试模式用于链路测试和误码率检测</div>
-                    </div>
-                    <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 FEC (Forward Error Correction)</div>
@@ -2410,7 +2407,7 @@ Frame Format:<br>
                     
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
-                        <div class="summary-layer-desc">64B/66B解码，AM检测对齐，SYNCE时钟恢复，Lane去偏移，AM移除，1588 PTP时间戳提取</div>
+                        <div class="summary-layer-desc">64B/66B解码，AM检测对齐，SYNCE时钟恢复，Lane去偏移，AM移除，1588 PTP时间戳提取（PRBS测试模式时可替代MAC Client作为数据接收）</div>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
@@ -2421,8 +2418,8 @@ Frame Format:<br>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 AM Removal & PRBS Checker</div>
-                        <div class="summary-layer-desc">AM移除，PRBS检测用于链路质量评估和误码率检测</div>
+                        <div class="summary-layer-title">🔷 AM Removal</div>
+                        <div class="summary-layer-desc">AM移除，恢复原始数据流</div>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
@@ -3074,14 +3071,14 @@ Frame Format:<br>
                 'tx-mac': `Ethernet Frame: 64-1518B, FCS=0x${Math.random().toString(16).substr(2, 8).toUpperCase()}`,
                 'tx-cbfc': `CBFC TX: VC=${Math.floor(Math.random() * 32)}, Credits=${Math.floor(Math.random() * 1000)}, CC_Update sent`,
                 'tx-llr': `LLR TX: SN=${Math.floor(Math.random() * 65535)}, Buffer=${Math.floor(Math.random() * 100)}%, ACK received`,
-                'tx-pcs': `8 Virtual Lanes, 66-bit blocks with AM markers, PRBS generated, 1588 timestamp inserted`,
+                'tx-pcs': `8 Virtual Lanes, 66-bit blocks with AM markers, 1588 timestamp inserted`,
                 'tx-fec': `RS(544,514) Codewords, Post-FEC BER ≤ 10⁻¹²`,
                 'tx-rlm': `RLM TX: Lane reduce active, ${Math.floor(Math.random() * 8)} lanes available, AM inserted`,
                 'tx-serdes': `8×106.25 Gbaud PAM4 signals`,
                 'rx-serdes': `Recovered 8×106.25 Gbaud PAM4, CDR Locked`,
                 'rx-rlm': `RLM RX: Lane extend active, ${Math.floor(Math.random() * 8)} lanes available, AM locked`,
                 'rx-fec': `FEC Decoded, Corrected errors: ${Math.floor(Math.random() * 5)}`,
-                'rx-pcs': `64B/66B Decoded, All lanes aligned, SYNCE clock recovered, 1588 timestamp extracted, PRBS checked`,
+                'rx-pcs': `64B/66B Decoded, All lanes aligned, SYNCE clock recovered, 1588 timestamp extracted`,
                 'rx-llr': `LLR RX: SN=${Math.floor(Math.random() * 65535)}, Reordered, ACK sent`,
                 'rx-cbfc': `CBFC RX: VC=${Math.floor(Math.random() * 32)}, Credits=${Math.floor(Math.random() * 1000)}, CF_Update sent`,
                 'rx-mac': `Frame received, FCS OK, Length: ${64 + Math.floor(Math.random() * 1454)}B`
