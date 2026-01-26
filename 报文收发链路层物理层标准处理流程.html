@@ -570,30 +570,127 @@
             margin-top: 10px;  
         }  
 
-        .progress-fill {  
-            height: 100%;  
-            background: linear-gradient(90deg, #27ae60, #2ecc71);  
-            width: 0%;  
-            transition: width 1s ease;  
-        }  
-    </style>  
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            width: 0%;
+            transition: width 1s ease;
+        }
+
+        /* LLR功能模块示意图样式 */
+        .llr-diagram {
+            margin: 20px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #e8f4f8 0%, #f0f8ff 100%);
+            border-radius: 10px;
+            border: 2px solid #3498db;
+            box-shadow: 0 3px 10px rgba(52, 152, 219, 0.2);
+        }
+
+        .llr-diagram-title {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+
+        .llr-block-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .llr-block-row {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .llr-block {
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 10px 12px;
+            min-width: 110px;
+            max-width: 140px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex: 1;
+        }
+
+        .llr-block:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+            border-color: #2980b9;
+            background: #f0f8ff;
+        }
+
+        .llr-block-title {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .llr-block-desc {
+            font-size: 10px;
+            color: #7f8c8d;
+            line-height: 1.4;
+        }
+
+        .llr-arrow {
+            text-align: center;
+            font-size: 18px;
+            color: #3498db;
+            margin: 5px 0;
+        }
+
+        .llr-arrow-horizontal {
+            display: inline-block;
+            font-size: 18px;
+            color: #3498db;
+            margin: 0 5px;
+        }
+
+        .llr-flow-line {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #3498db, transparent);
+            margin: 8px 0;
+        }
+
+        .llr-diagram-svg {
+            width: 100%;
+            height: auto;
+            margin: 15px 0;
+        }
+    </style>
 </head>  
 <body>  
     <div class="container">  
         <h1>🚀 800G/400G 以太网芯片报文处理流程详解</h1>  
         <p class="subtitle">从MAC到SerDes完整数据路径 | 基于IEEE 802.3df/bs标准</p>  
 
-        <!-- 参考标准 -->  
-        <div class="reference-box">  
-            <h3>📚 参考标准文献</h3>  
-            <ul>  
-                <li><strong>800GbE:</strong> IEEE 802.3df-2024 - Clause 169/170/171 (800GBASE-R, PCS, FEC)</li>  
-                <li><strong>400GbE:</strong> IEEE 802.3bs-2017 - Clause 122/123/119 (400GBASE-R, PCS, RS-FEC)</li>  
-                <li><strong>PCS编码:</strong> IEEE 802.3-2022 Clause 82 (64B/66B), Clause 49 (XGMII)</li>  
-                <li><strong>FEC:</strong> IEEE 802.3 Clause 91 (RS-FEC 544,514), Clause 119.2 (KP4 FEC)</li>  
-                <li><strong>SerDes/PMD:</strong> OIF CEI-56G/112G, IEEE 802.3 Clause 169.7/122.6</li>  
-            </ul>  
-        </div>  
+        <!-- 参考标准 -->
+        <div class="reference-box">
+            <h3>📚 参考标准文献</h3>
+            <ul>
+                <li><strong>LLR:</strong> UEC Specification 6.11.25 - Link Layer Retransmission (链路层重传)</li>
+                <li><strong>800GbE:</strong> IEEE 802.3df-2024 - Clause 169/170/171 (800GBASE-R, PCS, FEC)</li>
+                <li><strong>400GbE:</strong> IEEE 802.3bs-2017 - Clause 122/123/119 (400GBASE-R, PCS, RS-FEC)</li>
+                <li><strong>PCS编码:</strong> IEEE 802.3-2022 Clause 82 (64B/66B), Clause 49 (XGMII)</li>
+                <li><strong>FEC:</strong> IEEE 802.3 Clause 91 (RS-FEC 544,514), Clause 119.2 (KP4 FEC)</li>
+                <li><strong>SerDes/PMD:</strong> OIF CEI-56G/112G, IEEE 802.3 Clause 169.7/122.6</li>
+            </ul>
+        </div>
 
         <!-- 控制面板 -->  
         <div class="controls">  
@@ -638,6 +735,136 @@
                         </div>  
                     </div>  
                 </div>  
+
+                <div class="arrow">⬇️</div>  
+
+                <!-- LLR Layer (TX) -->
+                <div class="layer" id="tx-llr">
+                    <div class="layer-header">
+                        <span class="layer-name">
+                            <span class="status-indicator inactive" id="tx-llr-status"></span>
+                            LLR: Link Layer Retransmission (TX)
+                        </span>
+                        <span class="layer-standard">UEC Specification 6.11.25</span>
+                    </div>
+                    
+                    <!-- LLR功能模块示意图 -->
+                    <div class="llr-diagram">
+                        <div class="llr-diagram-title">📊 LLR发送端功能模块架构</div>
+                        <div class="llr-block-container">
+                            <div class="llr-block-row">
+                                <div class="llr-block">
+                                    <div class="llr-block-title">📥 数据输入</div>
+                                    <div class="llr-block-desc">来自MAC Client<br>以太网帧</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">→</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">📦 发送缓冲区</div>
+                                    <div class="llr-block-desc">TX Buffer<br>数据缓存</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">→</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">🔢 序列号管理</div>
+                                    <div class="llr-block-desc">SN Generator<br>序列号分配</div>
+                                </div>
+                            </div>
+                            <div class="llr-flow-line"></div>
+                            <div class="llr-block-row">
+                                <div class="llr-block">
+                                    <div class="llr-block-title">📤 数据发送</div>
+                                    <div class="llr-block-desc">发送到MAC Control<br>带SN数据</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">↗</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">💾 重传缓冲区</div>
+                                    <div class="llr-block-desc">Retransmission<br>Buffer</div>
+                                </div>
+                            </div>
+                            <div class="llr-flow-line"></div>
+                            <div class="llr-block-row">
+                                <div class="llr-block">
+                                    <div class="llr-block-title">📨 ACK/NACK处理</div>
+                                    <div class="llr-block-desc">接收反馈<br>ACK/NACK解析</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">↔</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">🔄 重传控制</div>
+                                    <div class="llr-block-desc">Retransmission<br>Controller</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">↔</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">⏱️ 定时器管理</div>
+                                    <div class="llr-block-desc">Timer Manager<br>超时检测</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 发送缓冲区 (TX Buffer)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 缓存待发送的数据包<br>
+                            • 容量: 可配置缓冲区大小<br>
+                            • 管理: FIFO队列管理<br>
+                            • 接口: 接收来自MAC Client的以太网帧
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 序列号管理 (SN Management)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 为每个数据包分配唯一序列号<br>
+                            • SN格式: 根据UEC标准定义<br>
+                            • SN范围: 可配置序列号空间<br>
+                            • 同步: 与接收端SN同步机制
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 重传缓冲区 (Retransmission Buffer)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 保存已发送但未确认的数据包<br>
+                            • 管理: 基于SN的索引管理<br>
+                            • 释放: 收到ACK后释放缓冲区<br>
+                            • 超时: 定时器超时触发重传
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 ACK/NACK处理</div>
+                        <div class="sublayer-desc">
+                            • 功能: 处理来自接收端的反馈信息<br>
+                            • ACK: 确认数据包成功接收<br>
+                            • NACK: 请求重传指定SN的数据包<br>
+                            • 处理: 更新重传缓冲区和发送状态
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 重传控制 (Retransmission Controller)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 控制数据包的重传逻辑<br>
+                            • 触发条件: NACK或定时器超时<br>
+                            • 重传策略: 可配置重传次数限制<br>
+                            • 优先级: 支持优先级队列管理
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 定时器管理 (Timer Manager)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 管理每个数据包的确认超时定时器<br>
+                            • 超时时间: 可配置RTO (Retransmission Timeout)<br>
+                            • 机制: 基于RTT动态调整<br>
+                            • 触发: 超时后触发重传流程
+                        </div>
+                    </div>
+
+                    <div class="data-flow">
+                        <span class="data-label">输出:</span>
+                        <span class="data-value" id="tx-llr-output">等待启动...</span>
+                    </div>
+                </div>
 
                 <div class="arrow">⬇️</div>  
 
@@ -688,12 +915,12 @@ Control: TXC[31:0] + TXD[2047:0]
                             • 数据宽度: 每Lane 128-bit  
                         </div>  
                     </div>  
-                </div>  
+                </div>
 
-                <div class="arrow">⬇️</div>  
+                <div class="arrow">⬇️</div>
 
-                <!-- PCS Layer -->  
-                <div class="layer" id="tx-pcs">  
+                <!-- PCS Layer -->
+                <div class="layer" id="tx-pcs">
                     <div class="layer-header">  
                         <span class="layer-name">  
                             <span class="status-indicator inactive" id="tx-pcs-status"></span>  
@@ -1274,16 +1501,16 @@ Invalid Block → BER++
                         </div>  
                     </div>  
 
-                    <div class="data-flow">  
-                        <span class="data-label">输出:</span>  
-                        <span class="data-value" id="rx-pcs-output">等待启动...</span>  
-                    </div>  
-                </div>  
+                    <div class="data-flow">
+                        <span class="data-label">输出:</span>
+                        <span class="data-value" id="rx-pcs-output">等待启动...</span>
+                    </div>
+                </div>
 
-                <div class="arrow rx">⬆️</div>  
+                <div class="arrow rx">⬆️</div>
 
-                <!-- RS RX -->  
-                <div class="layer" id="rx-rs">  
+                <!-- RS RX -->
+                <div class="layer" id="rx-rs">
                     <div class="layer-header">  
                         <span class="layer-name">  
                             <span class="status-indicator inactive" id="rx-rs-status"></span>  
@@ -1324,6 +1551,137 @@ Invalid Block → BER++
                         </div>  
                     </div>  
                 </div>  
+
+                <div class="arrow rx">⬆️</div>  
+
+                <!-- LLR Layer (RX) -->
+                <div class="layer" id="rx-llr">
+                    <div class="layer-header">
+                        <span class="layer-name">
+                            <span class="status-indicator inactive" id="rx-llr-status"></span>
+                            LLR: Link Layer Retransmission (RX)
+                        </span>
+                        <span class="layer-standard">UEC Specification 6.11.25</span>
+                    </div>
+                    
+                    <!-- LLR功能模块示意图 -->
+                    <div class="llr-diagram">
+                        <div class="llr-diagram-title">📊 LLR接收端功能模块架构</div>
+                        <div class="llr-block-container">
+                            <div class="llr-block-row">
+                                <div class="llr-block">
+                                    <div class="llr-block-title">📥 数据输入</div>
+                                    <div class="llr-block-desc">来自MAC Control<br>带SN数据</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">→</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">🔍 序列号检查</div>
+                                    <div class="llr-block-desc">SN Checker<br>序列号验证</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">→</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">📦 接收缓冲区</div>
+                                    <div class="llr-block-desc">RX Buffer<br>数据缓存</div>
+                                </div>
+                            </div>
+                            <div class="llr-flow-line"></div>
+                            <div class="llr-block-row">
+                                <div class="llr-block">
+                                    <div class="llr-block-title">🔄 重排序缓冲区</div>
+                                    <div class="llr-block-desc">Reordering<br>Buffer</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">→</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">✅ 数据输出</div>
+                                    <div class="llr-block-desc">发送到MAC Client<br>有序数据</div>
+                                </div>
+                            </div>
+                            <div class="llr-flow-line"></div>
+                            <div class="llr-block-row">
+                                <div class="llr-block">
+                                    <div class="llr-block-title">❌ 错误检测</div>
+                                    <div class="llr-block-desc">Error<br>Detection</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">↔</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">📨 ACK/NACK生成</div>
+                                    <div class="llr-block-desc">ACK/NACK<br>Generator</div>
+                                </div>
+                                <div class="llr-arrow-horizontal">↔</div>
+                                <div class="llr-block">
+                                    <div class="llr-block-title">📊 状态管理</div>
+                                    <div class="llr-block-desc">State<br>Manager</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 序列号检查 (SN Checker)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 检查接收数据包的序列号<br>
+                            • 验证: 检查SN的有效性和连续性<br>
+                            • 检测: 识别重复包、乱序包、丢失包<br>
+                            • 处理: 根据SN状态决定处理策略
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 接收缓冲区 (RX Buffer)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 缓存接收到的数据包<br>
+                            • 容量: 可配置缓冲区大小<br>
+                            • 管理: 基于SN的索引管理<br>
+                            • 接口: 接收来自MAC Control的数据
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 重排序缓冲区 (Reordering Buffer)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 对乱序到达的数据包进行重排序<br>
+                            • 机制: 基于SN进行排序<br>
+                            • 等待: 等待缺失的SN数据包<br>
+                            • 超时: 超时后触发NACK请求
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 错误检测 (Error Detection)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 检测数据包的完整性<br>
+                            • 校验: CRC/FCS校验<br>
+                            • 检测: 检测数据损坏、丢失等情况<br>
+                            • 标记: 标记错误数据包并触发NACK
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 ACK/NACK生成</div>
+                        <div class="sublayer-desc">
+                            • 功能: 生成发送给TX端的反馈信息<br>
+                            • ACK: 确认成功接收的数据包<br>
+                            • NACK: 请求重传丢失或错误的数据包<br>
+                            • 格式: 根据UEC标准定义的ACK/NACK格式<br>
+                            • 发送: 通过反向通道发送反馈信息
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 状态管理 (State Manager)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 管理接收端的状态信息<br>
+                            • 状态: 跟踪期望接收的SN、已接收的SN等<br>
+                            • 同步: 与发送端保持状态同步<br>
+                            • 恢复: 处理连接中断后的状态恢复
+                        </div>
+                    </div>
+
+                    <div class="data-flow">
+                        <span class="data-label">输出:</span>
+                        <span class="data-value" id="rx-llr-output">等待启动...</span>
+                    </div>
+                </div>
 
                 <div class="arrow rx">⬆️</div>  
 
@@ -2120,7 +2478,7 @@ Frame Format:<br>
             txActive = true;
 
             const txLayers = [
-                'tx-mac', 'tx-mac-ctrl', 'tx-rs', 'tx-pcs', 
+                'tx-mac', 'tx-llr', 'tx-mac-ctrl', 'tx-rs', 'tx-pcs', 
                 'tx-fec', 'tx-pma', 'tx-serdes', 'tx-pmd'
             ];
 
@@ -2140,7 +2498,7 @@ Frame Format:<br>
 
             const rxLayers = [
                 'rx-pmd', 'rx-serdes', 'rx-pma', 'rx-fec',
-                'rx-pcs', 'rx-rs', 'rx-mac-ctrl', 'rx-mac'
+                'rx-pcs', 'rx-rs', 'rx-mac-ctrl', 'rx-llr', 'rx-mac'
             ];
 
             rxLayers.forEach((layer, index) => {
@@ -2177,12 +2535,14 @@ Frame Format:<br>
 
             const outputs = {
                 'tx-mac': `Ethernet Frame: 64-1518B, FCS=0x${Math.random().toString(16).substr(2, 8).toUpperCase()}`,
+                'tx-llr': `LLR TX: SN=${Math.floor(Math.random() * 65535)}, Buffer=${Math.floor(Math.random() * 100)}%, ACK received`,
                 'tx-pcs': `${currentSpeed === '800G' ? '8' : '8'} Virtual Lanes, 66-bit blocks with AM markers`,
                 'tx-fec': `RS(544,514) Codewords, Post-FEC BER ≤ 10⁻¹²`,
                 'tx-serdes': `${currentSpeed === '800G' ? '8×106.25' : '8×53.125'} Gbaud PAM4 signals`,
                 'rx-serdes': `Recovered ${currentSpeed === '800G' ? '8×106.25' : '8×53.125'} Gbaud PAM4, CDR Locked`,
                 'rx-fec': `FEC Decoded, Corrected errors: ${Math.floor(Math.random() * 5)}`,
                 'rx-pcs': `64B/66B Decoded, All lanes aligned`,
+                'rx-llr': `LLR RX: SN=${Math.floor(Math.random() * 65535)}, Reordered, ACK sent`,
                 'rx-mac': `Frame received, FCS OK, Length: ${64 + Math.floor(Math.random() * 1454)}B`
             };
 
