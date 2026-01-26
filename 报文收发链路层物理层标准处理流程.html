@@ -208,6 +208,16 @@
             margin-left: 28px;
         }
 
+        /* 简要框图中UEC标准模块样式 */
+        .summary-layer.uec-standard {
+            border-left: 4px solid #9b59b6;
+            background: linear-gradient(to right, #f4ecf7 0%, white 100%);
+        }
+
+        .summary-layer.uec-standard .summary-layer-title {
+            color: #7d3c98;
+        }
+
         .summary-arrow {
             text-align: center;
             font-size: 20px;
@@ -1212,17 +1222,6 @@ Interval (800G): 16383 blocks ≈ 21μs
                             • 模式: 可配置为测试模式或正常数据模式<br>  
                             • 应用: 链路质量测试、误码率(BER)测量、眼图测试  
                         </div>  
-                    </div>
-
-                    <div class="sublayer">  
-                        <div class="sublayer-name">🔸 SYNCE (Synchronous Ethernet时钟恢复)</div>  
-                        <div class="sublayer-desc">  
-                            • 功能: 从接收数据流中恢复同步时钟信号<br>  
-                            • 标准: ITU-T G.8261/G.8262, IEEE 802.3 Clause 82<br>  
-                            • 机制: 基于64B/66B编码的同步头进行时钟恢复<br>  
-                            • 输出: 恢复的时钟信号用于系统时钟同步<br>  
-                            • 应用: 网络时钟同步、频率传递、时间同步基础  
-                        </div>  
                     </div>  
 
                     <div class="data-flow">  
@@ -1653,6 +1652,17 @@ AM_LOCK FSM:<br>
 INIT → SEARCH → LOCK → ALIGNED<br>  
 Lock Time: < 1ms  
                         </div>  
+                    </div>
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 SYNCE (Synchronous Ethernet时钟恢复)</div>  
+                        <div class="sublayer-desc">  
+                            • 功能: 从接收数据流中恢复同步时钟信号<br>  
+                            • 标准: ITU-T G.8261/G.8262, IEEE 802.3 Clause 82<br>  
+                            • 机制: 基于64B/66B编码的同步头进行时钟恢复<br>  
+                            • 输出: 恢复的时钟信号用于系统时钟同步<br>  
+                            • 应用: 网络时钟同步、频率传递、时间同步基础  
+                        </div>  
                     </div>  
 
                     <div class="sublayer">  
@@ -1740,17 +1750,6 @@ Invalid Block → BER++
                             • 多项式: PRBS31 (x³¹ + x²⁸ + 1) 或 PRBS7/9/11/15/23<br>  
                             • 模式: 可配置为测试模式检测或正常数据模式<br>  
                             • 应用: 链路质量监控、误码率(BER)测量、眼图分析  
-                        </div>  
-                    </div>
-
-                    <div class="sublayer">  
-                        <div class="sublayer-name">🔸 SYNCE (Synchronous Ethernet时钟恢复)</div>  
-                        <div class="sublayer-desc">  
-                            • 功能: 从接收数据流中恢复同步时钟信号<br>  
-                            • 标准: ITU-T G.8261/G.8262, IEEE 802.3 Clause 82<br>  
-                            • 机制: 基于64B/66B编码的同步头进行时钟恢复<br>  
-                            • 输出: 恢复的时钟信号用于系统时钟同步<br>  
-                            • 应用: 网络时钟同步、频率传递、时间同步基础  
                         </div>  
                     </div>  
 
@@ -2154,15 +2153,15 @@ Frame Format:<br>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
-                    <div class="summary-layer">
+                    <div class="summary-layer uec-standard">
                         <div class="summary-layer-title">🔷 CBFC (Credit-Based Flow Control)</div>
-                        <div class="summary-layer-desc">基于信用的流控，管理虚拟通道信用分配和消耗</div>
+                        <div class="summary-layer-desc">基于信用的流控，管理虚拟通道信用分配和消耗 (UEC标准)</div>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
-                    <div class="summary-layer">
+                    <div class="summary-layer uec-standard">
                         <div class="summary-layer-title">🔷 LLR (Link Layer Retransmission)</div>
-                        <div class="summary-layer-desc">为数据包分配序列号，提供链路层重传机制保证可靠性</div>
+                        <div class="summary-layer-desc">为数据包分配序列号，提供链路层重传机制保证可靠性 (UEC标准)</div>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
@@ -2180,7 +2179,13 @@ Frame Format:<br>
                     
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
-                        <div class="summary-layer-desc">64B/66B编码，添加同步头和AM对齐标记，PRBS生成，SYNCE时钟恢复</div>
+                        <div class="summary-layer-desc">64B/66B编码，添加同步头和AM对齐标记</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 PRBS Generator</div>
+                        <div class="summary-layer-desc">生成PRBS测试模式用于链路测试和误码率检测</div>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
@@ -2238,7 +2243,19 @@ Frame Format:<br>
                     
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
-                        <div class="summary-layer-desc">64B/66B解码，Lane对齐去偏移，AM移除，PRBS检测，SYNCE时钟恢复</div>
+                        <div class="summary-layer-desc">64B/66B解码，AM检测对齐，Lane去偏移，AM移除</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 SYNCE (Synchronous Ethernet)</div>
+                        <div class="summary-layer-desc">从接收数据流中恢复同步时钟信号，基于64B/66B同步头</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 PRBS Checker</div>
+                        <div class="summary-layer-desc">检测PRBS测试模式用于链路质量评估和误码率检测</div>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
@@ -2254,15 +2271,15 @@ Frame Format:<br>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
-                    <div class="summary-layer">
+                    <div class="summary-layer uec-standard">
                         <div class="summary-layer-title">🔷 LLR (Link Layer Retransmission)</div>
-                        <div class="summary-layer-desc">序列号检查，重排序，生成ACK/NACK反馈</div>
+                        <div class="summary-layer-desc">序列号检查，重排序，生成ACK/NACK反馈 (UEC标准)</div>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
-                    <div class="summary-layer">
+                    <div class="summary-layer uec-standard">
                         <div class="summary-layer-title">🔷 CBFC (Credit-Based Flow Control)</div>
-                        <div class="summary-layer-desc">接收端信用管理，生成CF_Update消息，处理CC_Update</div>
+                        <div class="summary-layer-desc">接收端信用管理，生成CF_Update消息，处理CC_Update (UEC标准)</div>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
@@ -2977,12 +2994,12 @@ Frame Format:<br>
                 'tx-1588': `1588 PTP TX: Timestamp=${Date.now()}ns, Sync message, Hardware timestamp inserted`,
                 'tx-cbfc': `CBFC TX: VC=${Math.floor(Math.random() * 32)}, Credits=${Math.floor(Math.random() * 1000)}, CC_Update sent`,
                 'tx-llr': `LLR TX: SN=${Math.floor(Math.random() * 65535)}, Buffer=${Math.floor(Math.random() * 100)}%, ACK received`,
-                'tx-pcs': `8 Virtual Lanes, 66-bit blocks with AM markers, PRBS generated, SYNCE clock recovered`,
+                'tx-pcs': `8 Virtual Lanes, 66-bit blocks with AM markers, PRBS generated`,
                 'tx-fec': `RS(544,514) Codewords, Post-FEC BER ≤ 10⁻¹²`,
                 'tx-serdes': `8×106.25 Gbaud PAM4 signals`,
                 'rx-serdes': `Recovered 8×106.25 Gbaud PAM4, CDR Locked`,
                 'rx-fec': `FEC Decoded, Corrected errors: ${Math.floor(Math.random() * 5)}`,
-                'rx-pcs': `64B/66B Decoded, All lanes aligned, PRBS checked, SYNCE clock recovered`,
+                'rx-pcs': `64B/66B Decoded, All lanes aligned, SYNCE clock recovered, PRBS checked`,
                 'rx-llr': `LLR RX: SN=${Math.floor(Math.random() * 65535)}, Reordered, ACK sent`,
                 'rx-cbfc': `CBFC RX: VC=${Math.floor(Math.random() * 32)}, Credits=${Math.floor(Math.random() * 1000)}, CF_Update sent`,
                 'rx-mac': `Frame received, FCS OK, Length: ${64 + Math.floor(Math.random() * 1454)}B`,
