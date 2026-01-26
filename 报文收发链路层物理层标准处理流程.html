@@ -859,7 +859,7 @@
         </div>  
 
         <!-- 主流程区域 -->  
-        <div class="flow-container" id="detail-flow-container">  
+        <div class="flow-container hide" id="detail-flow-container">  
             <!-- TX发送流程 -->  
             <div class="direction-column tx">  
                 <div class="direction-title tx">📤 TX 发送流程 (Host → Line)</div>  
@@ -3164,9 +3164,25 @@ Frame Format:<br>
             }
         }
         
-        // 页面加载时初始化视图
+        // 页面加载时初始化视图为简要框图模式
         window.addEventListener('DOMContentLoaded', function() {
-            toggleView(); // 初始化为简要视图
+            // 确保详细视图隐藏，简要视图显示
+            const detailFlowContainer = document.getElementById('detail-flow-container');
+            const summaryView = document.getElementById('summary-view');
+            const toggleBtn = document.getElementById('view-toggle-btn');
+            
+            if (detailFlowContainer) {
+                detailFlowContainer.classList.add('hide');
+            }
+            if (summaryView) {
+                summaryView.classList.remove('hide');
+            }
+            if (toggleBtn) {
+                toggleBtn.textContent = '📋 详细视图';
+                toggleBtn.classList.remove('btn-info');
+                toggleBtn.classList.add('btn-secondary');
+            }
+            isSummaryView = true; // 设置为简要视图状态
         });
 
         // Modal控制
