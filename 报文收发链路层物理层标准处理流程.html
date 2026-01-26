@@ -272,10 +272,28 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.15);  
         }  
 
-        .layer.active {  
-            border-left-color: #f39c12;  
-            background: linear-gradient(to right, #fff5e6 0%, white 100%);  
-        }  
+        .layer.active {
+            border-left-color: #f39c12;
+            background: linear-gradient(to right, #fff5e6 0%, white 100%);
+        }
+
+        /* UEC标准模块特殊样式 */
+        .layer.uec-standard {
+            border-left: 5px solid #9b59b6;
+            background: linear-gradient(to right, #f4ecf7 0%, white 100%);
+        }
+
+        .layer.uec-standard .layer-header {
+            border-bottom-color: #9b59b6;
+        }
+
+        .layer.uec-standard .layer-standard {
+            background: #9b59b6;
+        }
+
+        .layer.uec-standard:hover {
+            box-shadow: 0 5px 20px rgba(155, 89, 182, 0.3);
+        }
 
         .layer-header {  
             display: flex;  
@@ -796,12 +814,74 @@
                             <span class="data-value" id="tx-mac-output">等待启动...</span>  
                         </div>  
                     </div>  
+                </div>
+
+                <div class="arrow">⬇️</div>
+
+                <!-- 1588 PTP Timestamp Module (TX) -->
+                <div class="layer" id="tx-1588">
+                    <div class="layer-header">
+                        <span class="layer-name">
+                            <span class="status-indicator inactive" id="tx-1588-status"></span>
+                            1588 PTP: Precision Time Protocol Timestamp (TX)
+                        </span>
+                        <span class="layer-standard">IEEE 1588-2019</span>
+                    </div>
+                    
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 时间戳插入 (Timestamp Insertion)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 在PTP消息中插入精确时间戳<br>
+                            • 标准: IEEE 1588-2019 (PTPv2.1)<br>
+                            • 消息类型: Sync, Follow_Up, Delay_Req, Delay_Resp<br>
+                            • 精度: 纳秒级时间戳精度<br>
+                            • 位置: 在MAC层检测PTP帧并插入时间戳
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 硬件时间戳 (Hardware Timestamp)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 硬件捕获帧的发送/接收时间<br>
+                            • 触发: 检测到PTP帧的SFD (Start Frame Delimiter)<br>
+                            • 时钟源: 本地高精度时钟 (通常来自SYNCE恢复的时钟)<br>
+                            • 精度: 优于1纳秒 (硬件实现)<br>
+                            • 应用: 网络时间同步、频率同步、相位同步
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 PTP消息处理</div>
+                        <div class="sublayer-desc">
+                            • 功能: 识别和处理PTP消息<br>
+                            • 识别: EtherType 0x88F7 (PTP over Ethernet)<br>
+                            • 处理: 提取/插入时间戳字段<br>
+                            • 校正: 补偿硬件延迟和路径延迟<br>
+                            • 模式: End-to-End (E2E) 或 Peer-to-Peer (P2P)
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 时钟域管理</div>
+                        <div class="sublayer-desc">
+                            • 功能: 管理PTP时钟域和时钟质量<br>
+                            • 时钟等级: Grandmaster, Boundary Clock, Ordinary Clock<br>
+                            • 时钟质量: ClockClass, ClockAccuracy, ClockVariance<br>
+                            • 同步: 与网络中的主时钟同步<br>
+                            • 应用: 数据中心时间同步、5G基站同步、工业自动化
+                        </div>
+                    </div>
+
+                    <div class="data-flow">
+                        <span class="data-label">输出:</span>
+                        <span class="data-value" id="tx-1588-output">等待启动...</span>
+                    </div>
                 </div>  
 
                 <div class="arrow">⬇️</div>  
 
                 <!-- CBFC Layer (TX) -->
-                <div class="layer" id="tx-cbfc">
+                <div class="layer uec-standard" id="tx-cbfc">
                     <div class="layer-header">
                         <span class="layer-name">
                             <span class="status-indicator inactive" id="tx-cbfc-status"></span>
@@ -869,7 +949,7 @@
                 <div class="arrow">⬇️</div>  
 
                 <!-- LLR Layer (TX) -->
-                <div class="layer" id="tx-llr">
+                <div class="layer uec-standard" id="tx-llr">
                     <div class="layer-header">
                         <span class="layer-name">
                             <span class="status-indicator inactive" id="tx-llr-status"></span>
@@ -1120,6 +1200,28 @@ Interval (800G): 16383 blocks ≈ 21μs
                             • 每Lane独立编码链<br>  
                             • Round-Robin分配策略<br>  
                             • Lane Marker跟踪  
+                        </div>  
+                    </div>
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 PRBS Generator (伪随机二进制序列生成器)</div>  
+                        <div class="sublayer-desc">  
+                            • 功能: 生成PRBS测试模式用于链路测试和误码率检测<br>  
+                            • 标准: IEEE 802.3 Clause 82.2.4<br>  
+                            • 多项式: PRBS31 (x³¹ + x²⁸ + 1) 或 PRBS7/9/11/15/23<br>  
+                            • 模式: 可配置为测试模式或正常数据模式<br>  
+                            • 应用: 链路质量测试、误码率(BER)测量、眼图测试  
+                        </div>  
+                    </div>
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 SYNCE (Synchronous Ethernet时钟恢复)</div>  
+                        <div class="sublayer-desc">  
+                            • 功能: 从接收数据流中恢复同步时钟信号<br>  
+                            • 标准: ITU-T G.8261/G.8262, IEEE 802.3 Clause 82<br>  
+                            • 机制: 基于64B/66B编码的同步头进行时钟恢复<br>  
+                            • 输出: 恢复的时钟信号用于系统时钟同步<br>  
+                            • 应用: 网络时钟同步、频率传递、时间同步基础  
                         </div>  
                     </div>  
 
@@ -1628,6 +1730,28 @@ Invalid Block → BER++
                             • 数据重组<br>  
                             • 时钟域转换  
                         </div>  
+                    </div>
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 PRBS Checker (伪随机二进制序列检测器)</div>  
+                        <div class="sublayer-desc">  
+                            • 功能: 检测PRBS测试模式用于链路质量评估和误码率检测<br>  
+                            • 标准: IEEE 802.3 Clause 82.2.4<br>  
+                            • 多项式: PRBS31 (x³¹ + x²⁸ + 1) 或 PRBS7/9/11/15/23<br>  
+                            • 模式: 可配置为测试模式检测或正常数据模式<br>  
+                            • 应用: 链路质量监控、误码率(BER)测量、眼图分析  
+                        </div>  
+                    </div>
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 SYNCE (Synchronous Ethernet时钟恢复)</div>  
+                        <div class="sublayer-desc">  
+                            • 功能: 从接收数据流中恢复同步时钟信号<br>  
+                            • 标准: ITU-T G.8261/G.8262, IEEE 802.3 Clause 82<br>  
+                            • 机制: 基于64B/66B编码的同步头进行时钟恢复<br>  
+                            • 输出: 恢复的时钟信号用于系统时钟同步<br>  
+                            • 应用: 网络时钟同步、频率传递、时间同步基础  
+                        </div>  
                     </div>  
 
                     <div class="data-flow">
@@ -1684,7 +1808,7 @@ Invalid Block → BER++
                 <div class="arrow rx">⬆️</div>  
 
                 <!-- LLR Layer (RX) -->
-                <div class="layer" id="rx-llr">
+                <div class="layer uec-standard" id="rx-llr">
                     <div class="layer-header">
                         <span class="layer-name">
                             <span class="status-indicator inactive" id="rx-llr-status"></span>
@@ -1815,7 +1939,7 @@ Invalid Block → BER++
                 <div class="arrow rx">⬆️</div>  
 
                 <!-- CBFC Layer (RX) -->
-                <div class="layer" id="rx-cbfc">
+                <div class="layer uec-standard" id="rx-cbfc">
                     <div class="layer-header">
                         <span class="layer-name">
                             <span class="status-indicator inactive" id="rx-cbfc-status"></span>
@@ -1932,6 +2056,73 @@ Frame Format:<br>
                         <span class="data-value" id="rx-mac-output">等待启动...</span>  
                     </div>  
 
+                    <div class="data-flow">  
+                        <span class="data-label">输出:</span>  
+                        <span class="data-value" id="rx-mac-output">等待启动...</span>  
+                    </div>  
+                </div>
+
+                <div class="arrow rx">⬆️</div>
+
+                <!-- 1588 PTP Timestamp Module (RX) -->
+                <div class="layer" id="rx-1588">
+                    <div class="layer-header">
+                        <span class="layer-name">
+                            <span class="status-indicator inactive" id="rx-1588-status"></span>
+                            1588 PTP: Precision Time Protocol Timestamp (RX)
+                        </span>
+                        <span class="layer-standard">IEEE 1588-2019</span>
+                    </div>
+                    
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 时间戳提取 (Timestamp Extraction)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 从接收的PTP消息中提取精确时间戳<br>
+                            • 标准: IEEE 1588-2019 (PTPv2.1)<br>
+                            • 消息类型: Sync, Follow_Up, Delay_Req, Delay_Resp<br>
+                            • 精度: 纳秒级时间戳精度<br>
+                            • 位置: 在MAC层检测PTP帧并提取时间戳
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 硬件时间戳 (Hardware Timestamp)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 硬件捕获帧的接收时间<br>
+                            • 触发: 检测到PTP帧的SFD (Start Frame Delimiter)<br>
+                            • 时钟源: 本地高精度时钟 (通常来自SYNCE恢复的时钟)<br>
+                            • 精度: 优于1纳秒 (硬件实现)<br>
+                            • 应用: 网络时间同步、频率同步、相位同步
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 PTP消息处理</div>
+                        <div class="sublayer-desc">
+                            • 功能: 识别和处理PTP消息<br>
+                            • 识别: EtherType 0x88F7 (PTP over Ethernet)<br>
+                            • 处理: 提取时间戳字段并计算延迟<br>
+                            • 校正: 补偿硬件延迟和路径延迟<br>
+                            • 模式: End-to-End (E2E) 或 Peer-to-Peer (P2P)
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 时钟同步计算</div>
+                        <div class="sublayer-desc">
+                            • 功能: 计算与主时钟的时间偏移和频率偏移<br>
+                            • 算法: 基于Sync/Follow_Up和Delay_Req/Delay_Resp消息<br>
+                            • 输出: 时间偏移量、频率调整值<br>
+                            • 应用: 本地时钟调整、时间同步维护<br>
+                            • 精度: 亚微秒级同步精度
+                        </div>
+                    </div>
+
+                    <div class="data-flow">
+                        <span class="data-label">输出:</span>
+                        <span class="data-value" id="rx-1588-output">等待启动...</span>
+                    </div>
+
                     <div class="info-panel" style="background: #d1f2eb; border-color: #27ae60;">  
                         <div class="info-title" style="color: #145a32;">✅ RX流程完成</div>  
                         <div class="info-content" style="color: #145a32;">  
@@ -1954,6 +2145,12 @@ Frame Format:<br>
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 MAC Client</div>
                         <div class="summary-layer-desc">生成标准以太网帧，包含DA/SA/Type/Data/FCS字段</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 1588 PTP Timestamp</div>
+                        <div class="summary-layer-desc">精确时间协议时间戳插入，硬件时间戳捕获</div>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
@@ -1983,7 +2180,7 @@ Frame Format:<br>
                     
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
-                        <div class="summary-layer-desc">64B/66B编码，添加同步头和AM对齐标记</div>
+                        <div class="summary-layer-desc">64B/66B编码，添加同步头和AM对齐标记，PRBS生成，SYNCE时钟恢复</div>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
@@ -2041,7 +2238,7 @@ Frame Format:<br>
                     
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
-                        <div class="summary-layer-desc">64B/66B解码，Lane对齐去偏移，AM移除</div>
+                        <div class="summary-layer-desc">64B/66B解码，Lane对齐去偏移，AM移除，PRBS检测，SYNCE时钟恢复</div>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
@@ -2072,6 +2269,12 @@ Frame Format:<br>
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 MAC Client</div>
                         <div class="summary-layer-desc">FCS校验，帧过滤，上送完整以太网帧到上层</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 1588 PTP Timestamp</div>
+                        <div class="summary-layer-desc">精确时间协议时间戳提取，硬件时间戳捕获，时钟同步计算</div>
                     </div>
                 </div>
             </div>
@@ -2714,7 +2917,7 @@ Frame Format:<br>
             txActive = true;
 
             const txLayers = [
-                'tx-mac', 'tx-cbfc', 'tx-llr', 'tx-mac-ctrl', 'tx-rs', 'tx-pcs', 
+                'tx-mac', 'tx-1588', 'tx-cbfc', 'tx-llr', 'tx-mac-ctrl', 'tx-rs', 'tx-pcs', 
                 'tx-fec', 'tx-pma', 'tx-serdes', 'tx-pmd'
             ];
 
@@ -2734,7 +2937,7 @@ Frame Format:<br>
 
             const rxLayers = [
                 'rx-pmd', 'rx-serdes', 'rx-pma', 'rx-fec',
-                'rx-pcs', 'rx-rs', 'rx-mac-ctrl', 'rx-llr', 'rx-cbfc', 'rx-mac'
+                'rx-pcs', 'rx-rs', 'rx-mac-ctrl', 'rx-llr', 'rx-cbfc', 'rx-mac', 'rx-1588'
             ];
 
             rxLayers.forEach((layer, index) => {
@@ -2771,17 +2974,19 @@ Frame Format:<br>
 
             const outputs = {
                 'tx-mac': `Ethernet Frame: 64-1518B, FCS=0x${Math.random().toString(16).substr(2, 8).toUpperCase()}`,
+                'tx-1588': `1588 PTP TX: Timestamp=${Date.now()}ns, Sync message, Hardware timestamp inserted`,
                 'tx-cbfc': `CBFC TX: VC=${Math.floor(Math.random() * 32)}, Credits=${Math.floor(Math.random() * 1000)}, CC_Update sent`,
                 'tx-llr': `LLR TX: SN=${Math.floor(Math.random() * 65535)}, Buffer=${Math.floor(Math.random() * 100)}%, ACK received`,
-                'tx-pcs': `8 Virtual Lanes, 66-bit blocks with AM markers`,
+                'tx-pcs': `8 Virtual Lanes, 66-bit blocks with AM markers, PRBS generated, SYNCE clock recovered`,
                 'tx-fec': `RS(544,514) Codewords, Post-FEC BER ≤ 10⁻¹²`,
                 'tx-serdes': `8×106.25 Gbaud PAM4 signals`,
                 'rx-serdes': `Recovered 8×106.25 Gbaud PAM4, CDR Locked`,
                 'rx-fec': `FEC Decoded, Corrected errors: ${Math.floor(Math.random() * 5)}`,
-                'rx-pcs': `64B/66B Decoded, All lanes aligned`,
+                'rx-pcs': `64B/66B Decoded, All lanes aligned, PRBS checked, SYNCE clock recovered`,
                 'rx-llr': `LLR RX: SN=${Math.floor(Math.random() * 65535)}, Reordered, ACK sent`,
                 'rx-cbfc': `CBFC RX: VC=${Math.floor(Math.random() * 32)}, Credits=${Math.floor(Math.random() * 1000)}, CF_Update sent`,
-                'rx-mac': `Frame received, FCS OK, Length: ${64 + Math.floor(Math.random() * 1454)}B`
+                'rx-mac': `Frame received, FCS OK, Length: ${64 + Math.floor(Math.random() * 1454)}B`,
+                'rx-1588': `1588 PTP RX: Timestamp=${Date.now()}ns, Delay calculated, Clock sync updated`
             };
 
             if (outputs[layerId]) {
