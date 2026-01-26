@@ -3,7 +3,7 @@
 <head>  
     <meta charset="UTF-8">  
     <meta name="viewport" content="width=device-width, initial-scale=1.0">  
-    <title>800G/400G 以太网芯片报文处理流程详解</title>  
+    <title>800G 以太网芯片报文处理流程详解</title>  
     <style>  
         * {  
             margin: 0;  
@@ -739,7 +739,7 @@
 </head>  
 <body>  
     <div class="container">  
-        <h1>🚀 800G/400G 以太网芯片报文处理流程详解</h1>  
+        <h1>🚀 800G 以太网芯片报文处理流程详解</h1>  
         <p class="subtitle">从MAC到SerDes完整数据路径 | 基于IEEE 802.3df/bs标准</p>  
 
         <!-- 参考标准 -->
@@ -748,7 +748,6 @@
             <ul>
                 <li><strong>LLR:</strong> UEC Specification 6.11.25 - Link Layer Retransmission (链路层重传)</li>
                 <li><strong>800GbE:</strong> IEEE 802.3df-2024 - Clause 169/170/171 (800GBASE-R, PCS, FEC)</li>
-                <li><strong>400GbE:</strong> IEEE 802.3bs-2017 - Clause 122/123/119 (400GBASE-R, PCS, RS-FEC)</li>
                 <li><strong>PCS编码:</strong> IEEE 802.3-2022 Clause 82 (64B/66B), Clause 49 (XGMII)</li>
                 <li><strong>FEC:</strong> IEEE 802.3 Clause 91 (RS-FEC 544,514), Clause 119.2 (KP4 FEC)</li>
                 <li><strong>SerDes/PMD:</strong> OIF CEI-56G/112G, IEEE 802.3 Clause 169.7/122.6</li>
@@ -758,9 +757,8 @@
         <!-- 控制面板 -->  
         <div class="controls">  
             <div class="speed-selector">  
-                <span style="font-weight: bold; color: #2c3e50;">选择速率:</span>  
+                <span style="font-weight: bold; color: #2c3e50;">速率:</span>  
                 <button class="speed-btn active" onclick="selectSpeed('800G')">800GbE (8×106.25G)</button>  
-                <button class="speed-btn" onclick="selectSpeed('400G')">400GbE (8×53.125G)</button>  
             </div>  
             <button class="btn btn-primary" onclick="startTxFlow()">▶️ 启动TX发送</button>  
             <button class="btn btn-secondary" onclick="startRxFlow()">▶️ 启动RX接收</button>  
@@ -799,6 +797,74 @@
                         </div>  
                     </div>  
                 </div>  
+
+                <div class="arrow">⬇️</div>  
+
+                <!-- CBFC Layer (TX) -->
+                <div class="layer" id="tx-cbfc">
+                    <div class="layer-header">
+                        <span class="layer-name">
+                            <span class="status-indicator inactive" id="tx-cbfc-status"></span>
+                            CBFC: Credit-Based Flow Control (TX)
+                        </span>
+                        <span class="layer-standard">UEC Specification 6.11.26</span>
+                    </div>
+                    
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 信用管理 (Credit Management)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 管理虚拟通道(VC)的信用分配和消耗<br>
+                            • VC数量: 支持1-32个虚拟通道<br>
+                            • 信用计算: 基于接收端缓冲区大小和Cell Size<br>
+                            • 信用更新: 通过CC_Update和CF_Update消息同步
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 发送信用计数器 (S_VC_CC)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 跟踪每个VC已发送的数据包数量<br>
+                            • 计数: 每个数据包消耗相应信用<br>
+                            • 更新: 定期通过CC_Update消息发送给接收端<br>
+                            • 同步: 与接收端R_VC_CC计数器对比
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 流控决策 (Flow Control Decision)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 根据可用信用决定是否发送数据包<br>
+                            • 检查: 发送前检查VC是否有足够信用<br>
+                            • 阻塞: 信用不足时阻塞该VC的数据包发送<br>
+                            • 优先级: 支持不同VC的优先级调度
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 CC_Update消息生成</div>
+                        <div class="sublayer-desc">
+                            • 功能: 生成并发送信用计数器更新消息<br>
+                            • 格式: 64字节以太网帧，包含16个VC的CC值<br>
+                            • 频率: 可配置更新间隔<br>
+                            • 传输: 通过MAC Control层发送
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 CF_Update消息处理</div>
+                        <div class="sublayer-desc">
+                            • 功能: 接收并处理来自接收端的CF_Update消息<br>
+                            • 内容: 包含接收端可用信用信息<br>
+                            • 更新: 更新本地信用状态<br>
+                            • 格式: 8字节CtlOS控制有序集
+                        </div>
+                    </div>
+
+                    <div class="data-flow">
+                        <span class="data-label">输出:</span>
+                        <span class="data-value" id="tx-cbfc-output">等待启动...</span>
+                    </div>
+                </div>
 
                 <div class="arrow">⬇️</div>  
 
@@ -952,7 +1018,7 @@
                         </div>  
                         <div class="code-block">  
 CGMII Width: 32 lanes × 64-bit<br>  
-Clock: 781.25 MHz (800G) / 390.625 MHz (400G)<br>  
+Clock: 781.25 MHz<br>  
 Control: TXC[31:0] + TXD[2047:0]  
                         </div>  
                     </div>  
@@ -1175,7 +1241,6 @@ Latency: ~50-100ns</span>
                         <div class="code-block">  
 <span id="tx-serdes-detail">  
 800G: 8 Lanes × 106.25 Gbaud × 2 bit/symbol = 800G<br>  
-400G: 8 Lanes × 53.125 Gbaud × 2 bit/symbol = 400G<br>  
 PAM4 Levels: {-3σ, -σ, +σ, +3σ}</span>  
                         </div>  
                     </div>  
@@ -1749,6 +1814,74 @@ Invalid Block → BER++
 
                 <div class="arrow rx">⬆️</div>  
 
+                <!-- CBFC Layer (RX) -->
+                <div class="layer" id="rx-cbfc">
+                    <div class="layer-header">
+                        <span class="layer-name">
+                            <span class="status-indicator inactive" id="rx-cbfc-status"></span>
+                            CBFC: Credit-Based Flow Control (RX)
+                        </span>
+                        <span class="layer-standard">UEC Specification 6.11.26</span>
+                    </div>
+                    
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 接收信用计数器 (R_VC_CC)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 跟踪每个VC已接收的数据包数量<br>
+                            • 计数: 每个接收的数据包增加计数器<br>
+                            • 对比: 与发送端S_VC_CC计数器对比检测信用泄漏<br>
+                            • 更新: 通过CC_Update消息接收发送端计数
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 信用分配 (Credit Allocation)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 管理接收端缓冲区的信用分配<br>
+                            • 初始化: 根据缓冲区大小和Cell Size计算总信用<br>
+                            • 分配: 为每个Lossless VC分配信用限制<br>
+                            • 管理: 跟踪可用信用和已用信用
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 CF_Update消息生成</div>
+                        <div class="sublayer-desc">
+                            • 功能: 生成并发送可用信用更新消息<br>
+                            • 格式: 8字节CtlOS控制有序集<br>
+                            • 内容: 包含最多2个VC的可用信用信息<br>
+                            • 频率: 根据信用变化动态发送
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 CC_Update消息处理</div>
+                        <div class="sublayer-desc">
+                            • 功能: 接收并处理来自发送端的CC_Update消息<br>
+                            • 内容: 包含发送端已发送数据包的计数<br>
+                            • 对比: 与本地R_VC_CC对比检测信用泄漏<br>
+                            • 格式: 64字节以太网帧
+                        </div>
+                    </div>
+
+                    <div class="sublayer">
+                        <div class="sublayer-name">🔸 虚拟通道管理 (VC Management)</div>
+                        <div class="sublayer-desc">
+                            • 功能: 管理Lossless和Best-effort虚拟通道<br>
+                            • 配置: 支持1-32个VC的配置<br>
+                            • 状态: 跟踪每个VC的状态（Lossless/Best-effort）<br>
+                            • 初始化: 通过LLDP协议进行VC初始化协商
+                        </div>
+                    </div>
+
+                    <div class="data-flow">
+                        <span class="data-label">输出:</span>
+                        <span class="data-value" id="rx-cbfc-output">等待启动...</span>
+                    </div>
+                </div>
+
+                <div class="arrow rx">⬆️</div>  
+
                 <!-- MAC RX -->  
                 <div class="layer" id="rx-mac">  
                     <div class="layer-header">  
@@ -1821,6 +1954,12 @@ Frame Format:<br>
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 MAC Client</div>
                         <div class="summary-layer-desc">生成标准以太网帧，包含DA/SA/Type/Data/FCS字段</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 CBFC (Credit-Based Flow Control)</div>
+                        <div class="summary-layer-desc">基于信用的流控，管理虚拟通道信用分配和消耗</div>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
@@ -1925,6 +2064,12 @@ Frame Format:<br>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 CBFC (Credit-Based Flow Control)</div>
+                        <div class="summary-layer-desc">接收端信用管理，生成CF_Update消息，处理CC_Update</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
                         <div class="summary-layer-title">🔷 MAC Client</div>
                         <div class="summary-layer-desc">FCS校验，帧过滤，上送完整以太网帧到上层</div>
                     </div>
@@ -1961,7 +2106,7 @@ Frame Format:<br>
     <div id="detailModal" class="modal">  
         <div class="modal-content">  
             <span class="close" onclick="closeModal()">&times;</span>  
-            <h2 style="color: #2c3e50; margin-bottom: 20px;">📊 800G/400G 详细技术规格</h2>  
+            <h2 style="color: #2c3e50; margin-bottom: 20px;">📊 800G 详细技术规格</h2>  
             
             <div class="tabs">  
                 <div class="tab active" onclick="switchTab('spec')">技术规格对比</div>
@@ -1971,105 +2116,86 @@ Frame Format:<br>
             </div>
 
             <div id="tab-spec" class="tab-content active">
-                <h3 style="color: #3498db; margin: 20px 0 10px;">800G vs 400G 技术参数对比</h3>
+                <h3 style="color: #3498db; margin: 20px 0 10px;">800GbE 技术参数</h3>
                 <table class="specs-table">
                     <thead>
                         <tr>
                             <th>参数</th>
                             <th>800GbE (IEEE 802.3df)</th>
-                            <th>400GbE (IEEE 802.3bs)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>总速率</strong></td>
                             <td>800 Gbps</td>
-                            <td>400 Gbps</td>
                         </tr>
                         <tr>
                             <td><strong>Lane数量</strong></td>
-                            <td>8 Lanes (Physical)</td>
                             <td>8 Lanes (Physical)</td>
                         </tr>
                         <tr>
                             <td><strong>每Lane速率</strong></td>
                             <td>100 Gbps</td>
-                            <td>50 Gbps</td>
                         </tr>
                         <tr>
                             <td><strong>SerDes速率</strong></td>
                             <td>106.25 Gbaud (PAM4)</td>
-                            <td>53.125 Gbaud (PAM4)</td>
                         </tr>
                         <tr>
                             <td><strong>调制方式</strong></td>
-                            <td>PAM4 (4-level)</td>
                             <td>PAM4 (4-level)</td>
                         </tr>
                         <tr>
                             <td><strong>编码方式</strong></td>
                             <td>64B/66B</td>
-                            <td>64B/66B</td>
                         </tr>
                         <tr>
                             <td><strong>FEC类型</strong></td>
-                            <td>RS(544,514) KP4</td>
                             <td>RS(544,514) KP4</td>
                         </tr>
                         <tr>
                             <td><strong>FEC编码率</strong></td>
                             <td>94.49%</td>
-                            <td>94.49%</td>
                         </tr>
                         <tr>
                             <td><strong>FEC纠错能力</strong></td>
-                            <td>15 symbols</td>
                             <td>15 symbols</td>
                         </tr>
                         <tr>
                             <td><strong>Pre-FEC BER</strong></td>
                             <td>≤ 5×10⁻⁵</td>
-                            <td>≤ 5×10⁻⁵</td>
                         </tr>
                         <tr>
                             <td><strong>Post-FEC BER</strong></td>
-                            <td>≤ 10⁻¹²</td>
                             <td>≤ 10⁻¹²</td>
                         </tr>
                         <tr>
                             <td><strong>AM间隔</strong></td>
                             <td>16383 blocks (~21μs)</td>
-                            <td>16383 blocks (~42μs)</td>
                         </tr>
                         <tr>
                             <td><strong>CGMII宽度</strong></td>
                             <td>32 lanes × 64-bit</td>
-                            <td>16 lanes × 64-bit</td>
                         </tr>
                         <tr>
                             <td><strong>CGMII时钟</strong></td>
                             <td>781.25 MHz</td>
-                            <td>390.625 MHz</td>
                         </tr>
                         <tr>
                             <td><strong>光模块类型</strong></td>
                             <td>OSFP / QSFP-DD800</td>
-                            <td>QSFP-DD / OSFP</td>
                         </tr>
                         <tr>
                             <td><strong>电气接口</strong></td>
                             <td>CAUI-8 (CEI-112G)</td>
-                            <td>CAUI-8 (CEI-56G)</td>
                         </tr>
                         <tr>
                             <td><strong>典型功耗</strong></td>
                             <td>15-25W (芯片PHY部分)</td>
-                            <td>8-15W (芯片PHY部分)</td>
                         </tr>
                         <tr>
                             <td><strong>典型传输距离</strong></td>
                             <td>100m (SR8) / 2km (DR8) / 10km (FR8)</td>
-                            <td>100m (SR8) / 2km (DR4) / 10km (FR4)</td>
                         </tr>
                     </tbody>
                 </table>
@@ -2079,29 +2205,16 @@ Frame Format:<br>
                     <thead>
                         <tr>
                             <th>配置</th>
-                            <th>800G选项</th>
-                            <th>400G选项</th>
+                            <th>说明</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>800GBASE-R8</strong></td>
-                            <td>8 × 100G (标准)</td>
-                            <td>-</td>
-                        </tr>
-                        <tr>
-                            <td><strong>400GBASE-R8</strong></td>
-                            <td>-</td>
-                            <td>8 × 50G (标准)</td>
-                        </tr>
-                        <tr>
-                            <td><strong>400GBASE-R4</strong></td>
-                            <td>-</td>
-                            <td>4 × 100G (备选)</td>
+                            <td>8 × 100G (标准配置)</td>
                         </tr>
                         <tr>
                             <td><strong>SR8/DR8/FR8</strong></td>
-                            <td>Short/Medium/Long Reach</td>
                             <td>Short/Medium/Long Reach</td>
                         </tr>
                     </tbody>
@@ -2464,36 +2577,6 @@ Frame Format:<br>
                     </tbody>
                 </table>
 
-                <h4 style="color: #34495e; margin: 25px 0 10px;">400G PHY模块功耗分解</h4>
-                <table class="specs-table">
-                    <tbody>
-                        <tr>
-                            <td><strong>SerDes TX (8 Lanes)</strong></td>
-                            <td>3-5 W</td>
-                            <td>@53.125G</td>
-                        </tr>
-                        <tr>
-                            <td><strong>SerDes RX (8 Lanes)</strong></td>
-                            <td>4-7 W</td>
-                            <td>@53.125G</td>
-                        </tr>
-                        <tr>
-                            <td><strong>PCS + FEC</strong></td>
-                            <td>1.5-2.5 W</td>
-                            <td>编解码</td>
-                        </tr>
-                        <tr>
-                            <td><strong>其他(PMA/CLK)</strong></td>
-                            <td>1-2 W</td>
-                            <td>辅助电路</td>
-                        </tr>
-                        <tr>
-                            <td><strong>总功耗 (PHY)</strong></td>
-                            <td><strong>9.5-16.5 W</strong></td>
-                            <td><strong>单端口</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
 
                 <h4 style="color: #34495e; margin: 25px 0 10px;">光模块功耗</h4>
                 <table class="specs-table">
@@ -2590,26 +2673,6 @@ Frame Format:<br>
                 serdesDetail: '800G: 8 Lanes × 106.25 Gbaud × 2 bit/symbol = 800G\nPAM4 Levels: {-3σ, -σ, +σ, +3σ}',
                 fecDetail: 'RS(544,514) Galois Field: GF(2¹⁰)\nGenerator Polynomial: g(x) = Π(x - α^i), i=0..29\nCodeword = [Data:514 | Parity:30]\nLatency: ~50-100ns',
                 rxFecDetail: 'Correctable Errors: ≤ 15 symbols\nUE Threshold: > 15 symbols\nLatency: ~100-200ns\nPost-FEC BER: 10⁻¹² (typical)'
-            },
-            '400G': {
-                macRate: '400 Gbps',
-                lanes: '8 Lanes × 50G',
-                baudRate: '53.125 Gbaud/Lane',
-                cgmiiClock: '390.625 MHz',
-                amInterval: '16383 blocks (~42μs)',
-                fecAlgo: 'RS(544, 514) Reed-Solomon',
-                pamType: 'PAM4 (4-level)',
-                optics: 'QSFP-DD / OSFP',
-                wavelength: '850nm (SR8) / 1310nm (DR4)',
-                driverSpec: 'OIF-CEI-56G',
-                deskewDepth: '160 × 128-bit (per Lane)',
-                maxSkew: '40-80 ns',
-                sensitivity: '-8 dBm (典型)',
-                txLatency: '~250-400ns',
-                rxLatency: '~300-500ns',
-                serdesDetail: '400G: 8 Lanes × 53.125 Gbaud × 2 bit/symbol = 400G\nPAM4 Levels: {-3σ, -σ, +σ, +3σ}',
-                fecDetail: 'RS(544,514) Galois Field: GF(2¹⁰)\nGenerator Polynomial: g(x) = Π(x - α^i), i=0..29\nCodeword = [Data:514 | Parity:30]\nLatency: ~40-80ns',
-                rxFecDetail: 'Correctable Errors: ≤ 15 symbols\nUE Threshold: > 15 symbols\nLatency: ~80-160ns\nPost-FEC BER: 10⁻¹² (typical)'
             }
         };
 
@@ -2663,7 +2726,7 @@ Frame Format:<br>
             txActive = true;
 
             const txLayers = [
-                'tx-mac', 'tx-llr', 'tx-mac-ctrl', 'tx-rs', 'tx-pcs', 
+                'tx-mac', 'tx-cbfc', 'tx-llr', 'tx-mac-ctrl', 'tx-rs', 'tx-pcs', 
                 'tx-fec', 'tx-pma', 'tx-serdes', 'tx-pmd'
             ];
 
@@ -2683,7 +2746,7 @@ Frame Format:<br>
 
             const rxLayers = [
                 'rx-pmd', 'rx-serdes', 'rx-pma', 'rx-fec',
-                'rx-pcs', 'rx-rs', 'rx-mac-ctrl', 'rx-llr', 'rx-mac'
+                'rx-pcs', 'rx-rs', 'rx-mac-ctrl', 'rx-llr', 'rx-cbfc', 'rx-mac'
             ];
 
             rxLayers.forEach((layer, index) => {
@@ -2720,14 +2783,16 @@ Frame Format:<br>
 
             const outputs = {
                 'tx-mac': `Ethernet Frame: 64-1518B, FCS=0x${Math.random().toString(16).substr(2, 8).toUpperCase()}`,
+                'tx-cbfc': `CBFC TX: VC=${Math.floor(Math.random() * 32)}, Credits=${Math.floor(Math.random() * 1000)}, CC_Update sent`,
                 'tx-llr': `LLR TX: SN=${Math.floor(Math.random() * 65535)}, Buffer=${Math.floor(Math.random() * 100)}%, ACK received`,
-                'tx-pcs': `${currentSpeed === '800G' ? '8' : '8'} Virtual Lanes, 66-bit blocks with AM markers`,
+                'tx-pcs': `8 Virtual Lanes, 66-bit blocks with AM markers`,
                 'tx-fec': `RS(544,514) Codewords, Post-FEC BER ≤ 10⁻¹²`,
-                'tx-serdes': `${currentSpeed === '800G' ? '8×106.25' : '8×53.125'} Gbaud PAM4 signals`,
-                'rx-serdes': `Recovered ${currentSpeed === '800G' ? '8×106.25' : '8×53.125'} Gbaud PAM4, CDR Locked`,
+                'tx-serdes': `8×106.25 Gbaud PAM4 signals`,
+                'rx-serdes': `Recovered 8×106.25 Gbaud PAM4, CDR Locked`,
                 'rx-fec': `FEC Decoded, Corrected errors: ${Math.floor(Math.random() * 5)}`,
                 'rx-pcs': `64B/66B Decoded, All lanes aligned`,
                 'rx-llr': `LLR RX: SN=${Math.floor(Math.random() * 65535)}, Reordered, ACK sent`,
+                'rx-cbfc': `CBFC RX: VC=${Math.floor(Math.random() * 32)}, Credits=${Math.floor(Math.random() * 1000)}, CF_Update sent`,
                 'rx-mac': `Frame received, FCS OK, Length: ${64 + Math.floor(Math.random() * 1454)}B`
             };
 
