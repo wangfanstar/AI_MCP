@@ -2474,7 +2474,6 @@ Frame Format:<br>
                         <tr>
                             <th>频率</th>
                             <th>最大插损 (800G)</th>
-                            <th>最大插损 (400G)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2591,16 +2590,6 @@ Frame Format:<br>
                             <td>12-20 W</td>
                             <td>高密度封装</td>
                         </tr>
-                        <tr>
-                            <td><strong>400G OSFP</strong></td>
-                            <td>10-15 W</td>
-                            <td>标准配置</td>
-                        </tr>
-                        <tr>
-                            <td><strong>400G QSFP-DD</strong></td>
-                            <td>8-12 W</td>
-                            <td>常见方案</td>
-                        </tr>
                     </tbody>
                 </table>
 
@@ -2610,19 +2599,18 @@ Frame Format:<br>
                         <tr>
                             <th>指标</th>
                             <th>800G</th>
-                            <th>400G</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>pJ/bit (PHY)</strong></td>
                             <td>21-37 pJ/bit</td>
-                            <td>24-41 pJ/bit</td>
+                            <td>-</td>
                         </tr>
                         <tr>
                             <td><strong>pJ/bit (含光模块)</strong></td>
                             <td>40-62 pJ/bit</td>
-                            <td>45-68 pJ/bit</td>
+                            <td>-</td>
                         </tr>
                         <tr>
                             <td><strong>单Lane功耗</strong></td>
@@ -2949,9 +2937,6 @@ Frame Format:<br>
                 case '1':
                     selectSpeed('800G');
                     break;
-                case '2':
-                    selectSpeed('400G');
-                    break;
                 case 't':
                 case 'T':
                     startTxFlow();
@@ -2995,7 +2980,7 @@ Frame Format:<br>
                 `;
                 hint.innerHTML = `
                     <strong style="font-size: 16px;">💡 快捷键提示</strong><br><br>
-                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">1</kbd> / <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">2</kbd> - 切换800G/400G<br>
+                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">1</kbd> - 选择800G速率<br>
                     <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">T</kbd> - 启动TX发送流程<br>
                     <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">R</kbd> - 启动RX接收流程<br>
                     <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">D</kbd> - 查看详细规格<br>
