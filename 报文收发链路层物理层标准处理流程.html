@@ -213,7 +213,7 @@
             display: none;
         }
 
-        .flow-container.hide {
+        #detail-flow-container.hide {
             display: none;
         }
 
@@ -859,7 +859,7 @@
         </div>  
 
         <!-- 主流程区域 -->  
-        <div class="flow-container">  
+        <div class="flow-container" id="detail-flow-container">  
             <!-- TX发送流程 -->  
             <div class="direction-column tx">  
                 <div class="direction-title tx">📤 TX 发送流程 (Host → Line)</div>  
@@ -3134,24 +3134,36 @@ Frame Format:<br>
         let isSummaryView = true; // 默认显示简要视图
         function toggleView() {
             isSummaryView = !isSummaryView;
-            const flowContainer = document.querySelector('.flow-container');
+            const detailFlowContainer = document.getElementById('detail-flow-container');
             const summaryView = document.getElementById('summary-view');
             const toggleBtn = document.getElementById('view-toggle-btn');
             
             if (isSummaryView) {
                 // 切换到简要视图
-                flowContainer.classList.add('hide');
-                summaryView.classList.remove('hide');
-                toggleBtn.textContent = '📋 详细视图';
-                toggleBtn.classList.remove('btn-info');
-                toggleBtn.classList.add('btn-secondary');
+                if (detailFlowContainer) {
+                    detailFlowContainer.classList.add('hide');
+                }
+                if (summaryView) {
+                    summaryView.classList.remove('hide');
+                }
+                if (toggleBtn) {
+                    toggleBtn.textContent = '📋 详细视图';
+                    toggleBtn.classList.remove('btn-info');
+                    toggleBtn.classList.add('btn-secondary');
+                }
             } else {
                 // 切换到详细视图
-                flowContainer.classList.remove('hide');
-                summaryView.classList.add('hide');
-                toggleBtn.textContent = '📊 简要框图';
-                toggleBtn.classList.remove('btn-secondary');
-                toggleBtn.classList.add('btn-info');
+                if (detailFlowContainer) {
+                    detailFlowContainer.classList.remove('hide');
+                }
+                if (summaryView) {
+                    summaryView.classList.add('hide');
+                }
+                if (toggleBtn) {
+                    toggleBtn.textContent = '📊 简要框图';
+                    toggleBtn.classList.remove('btn-secondary');
+                    toggleBtn.classList.add('btn-info');
+                }
             }
         }
         
@@ -3159,8 +3171,6 @@ Frame Format:<br>
         window.addEventListener('DOMContentLoaded', function() {
             toggleView(); // 初始化为简要视图
         });
-            document.querySelectorAll('.progress-bar').forEach(p => p.remove());
-        }
 
         // Modal控制
         function showDetailModal() {
@@ -3174,7 +3184,15 @@ Frame Format:<br>
         // 打开功能模块详细页面
         function openModuleDetail(moduleName) {
             const fileName = moduleName + '-module-detail.html';
-            window.open(fileName, '_blank');
+            try {
+                const link = window.open(fileName, '_blank');
+                if (!link) {
+                    alert('无法打开新窗口，请检查浏览器弹窗设置');
+                }
+            } catch (e) {
+                console.error('打开模块详细页面失败:', e);
+                alert('无法打开模块详细页面: ' + fileName);
+            }
         }
 
         function switchTab(tabName) {
