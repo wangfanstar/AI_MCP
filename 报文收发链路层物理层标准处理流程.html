@@ -1,0 +1,2411 @@
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>800G/400G 以太网芯片报文处理流程详解</title>  
+    <style>  
+        * {  
+            margin: 0;  
+            padding: 0;  
+            box-sizing: border-box;  
+        }  
+
+        body {  
+            font-family: 'Microsoft YaHei', 'SimHei', Arial, sans-serif;  
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);  
+            padding: 20px;  
+            min-height: 100vh;  
+        }  
+
+        .container {  
+            max-width: 1800px;  
+            margin: 0 auto;  
+            background: white;  
+            border-radius: 15px;  
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);  
+            padding: 30px;  
+        }  
+
+        h1 {  
+            text-align: center;  
+            color: #2c3e50;  
+            margin-bottom: 10px;  
+            font-size: 36px;  
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
+            -webkit-background-clip: text;  
+            -webkit-text-fill-color: transparent;  
+        }  
+
+        .subtitle {  
+            text-align: center;  
+            color: #7f8c8d;  
+            margin-bottom: 20px;  
+            font-size: 14px;  
+        }  
+
+        .reference-box {  
+            background: #e8f4f8;  
+            border-left: 5px solid #3498db;  
+            padding: 15px;  
+            margin-bottom: 20px;  
+            border-radius: 5px;  
+        }  
+
+        .reference-box h3 {  
+            color: #2980b9;  
+            margin-bottom: 10px;  
+            font-size: 16px;  
+        }  
+
+        .reference-box ul {  
+            list-style: none;  
+            font-size: 13px;  
+            color: #34495e;  
+            line-height: 1.8;  
+        }  
+
+        .reference-box li::before {  
+            content: "📖 ";  
+            margin-right: 5px;  
+        }  
+
+        .controls {  
+            text-align: center;  
+            margin-bottom: 30px;  
+            padding: 20px;  
+            background: #f8f9fa;  
+            border-radius: 10px;  
+            display: flex;  
+            justify-content: center;  
+            align-items: center;  
+            flex-wrap: wrap;  
+            gap: 15px;  
+        }  
+
+        .speed-selector {  
+            display: flex;  
+            gap: 10px;  
+            align-items: center;  
+        }  
+
+        .speed-btn {  
+            padding: 10px 20px;  
+            font-size: 14px;  
+            border: 2px solid #3498db;  
+            background: white;  
+            color: #3498db;  
+            border-radius: 25px;  
+            cursor: pointer;  
+            transition: all 0.3s;  
+            font-weight: bold;  
+        }  
+
+        .speed-btn.active {  
+            background: #3498db;  
+            color: white;  
+            transform: scale(1.05);  
+        }  
+
+        .speed-btn:hover {  
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);  
+        }  
+
+        .btn {  
+            padding: 12px 30px;  
+            font-size: 16px;  
+            border: none;  
+            border-radius: 8px;  
+            cursor: pointer;  
+            transition: all 0.3s;  
+            font-weight: bold;  
+        }  
+
+        .btn-primary {  
+            background: #27ae60;  
+            color: white;  
+        }  
+
+        .btn-primary:hover {  
+            background: #229954;  
+            transform: translateY(-2px);  
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);  
+        }  
+
+        .btn-secondary {  
+            background: #e67e22;  
+            color: white;  
+        }  
+
+        .btn-secondary:hover {  
+            background: #d35400;  
+            transform: translateY(-2px);  
+        }  
+
+        .btn-danger {  
+            background: #e74c3c;  
+            color: white;  
+        }  
+
+        .btn-danger:hover {  
+            background: #c0392b;  
+            transform: translateY(-2px);  
+        }  
+
+        .flow-container {  
+            display: flex;  
+            gap: 30px;  
+            margin-top: 20px;  
+        }  
+
+        .direction-column {  
+            flex: 1;  
+            background: #f8f9fa;  
+            border-radius: 10px;  
+            padding: 25px;  
+            border: 3px solid #e9ecef;  
+        }  
+
+        .direction-column.tx {  
+            border-color: #27ae60;  
+        }  
+
+        .direction-column.rx {  
+            border-color: #3498db;  
+        }  
+
+        .direction-title {  
+            text-align: center;  
+            font-size: 24px;  
+            font-weight: bold;  
+            margin-bottom: 20px;  
+            padding: 15px;  
+            border-radius: 8px;  
+        }  
+
+        .direction-title.tx {  
+            background: linear-gradient(135deg, #27ae60, #2ecc71);  
+            color: white;  
+        }  
+
+        .direction-title.rx {  
+            background: linear-gradient(135deg, #3498db, #5dade2);  
+            color: white;  
+        }  
+
+        .layer {  
+            background: white;  
+            border-radius: 10px;  
+            padding: 20px;  
+            margin: 20px 0;  
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);  
+            position: relative;  
+            transition: all 0.3s;  
+            border-left: 5px solid #95a5a6;  
+        }  
+
+        .layer:hover {  
+            transform: translateX(5px);  
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);  
+        }  
+
+        .layer.active {  
+            border-left-color: #f39c12;  
+            background: linear-gradient(to right, #fff5e6 0%, white 100%);  
+        }  
+
+        .layer-header {  
+            display: flex;  
+            justify-content: space-between;  
+            align-items: center;  
+            margin-bottom: 15px;  
+            padding-bottom: 10px;  
+            border-bottom: 2px solid #ecf0f1;  
+        }  
+
+        .layer-name {  
+            font-size: 18px;  
+            font-weight: bold;  
+            color: #2c3e50;  
+        }  
+
+        .layer-standard {  
+            font-size: 11px;  
+            background: #3498db;  
+            color: white;  
+            padding: 3px 10px;  
+            border-radius: 12px;  
+        }  
+
+        .sublayer {  
+            margin: 15px 0;  
+            padding: 15px;  
+            background: #f8f9fa;  
+            border-radius: 8px;  
+            border-left: 3px solid #bdc3c7;  
+        }  
+
+        .sublayer-name {  
+            font-weight: bold;  
+            color: #34495e;  
+            margin-bottom: 8px;  
+            font-size: 14px;  
+        }  
+
+        .sublayer-desc {  
+            font-size: 12px;  
+            color: #7f8c8d;  
+            line-height: 1.6;  
+        }  
+
+        .sublayer-details {  
+            margin-top: 10px;  
+            font-size: 11px;  
+            color: #95a5a6;  
+            font-family: 'Courier New', monospace;  
+        }  
+
+        .data-flow {  
+            display: flex;  
+            align-items: center;  
+            gap: 10px;  
+            margin: 15px 0;  
+            padding: 10px;  
+            background: #e8f8f5;  
+            border-radius: 5px;  
+        }  
+
+        .data-label {  
+            font-size: 12px;  
+            color: #16a085;  
+            font-weight: bold;  
+        }  
+
+        .data-value {  
+            flex: 1;  
+            font-size: 11px;  
+            color: #2c3e50;  
+            font-family: 'Courier New', monospace;  
+            background: white;  
+            padding: 5px 10px;  
+            border-radius: 3px;  
+        }  
+
+        .packet {  
+            position: absolute;  
+            width: 40px;  
+            height: 40px;  
+            background: linear-gradient(135deg, #f39c12, #e67e22);  
+            border-radius: 50%;  
+            display: flex;  
+            align-items: center;  
+            justify-content: center;  
+            color: white;  
+            font-weight: bold;  
+            font-size: 14px;  
+            box-shadow: 0 3px 15px rgba(243, 156, 18, 0.5);  
+            z-index: 10;  
+            animation: pulse 1.5s infinite;  
+        }  
+
+        @keyframes pulse {  
+            0%, 100% { transform: scale(1); }  
+            50% { transform: scale(1.1); }  
+        }  
+
+        .arrow {  
+            text-align: center;  
+            font-size: 30px;  
+            color: #27ae60;  
+            margin: 15px 0;  
+            animation: bounce 2s infinite;  
+        }  
+
+        .arrow.rx {  
+            color: #3498db;  
+        }  
+
+        @keyframes bounce {  
+            0%, 100% { transform: translateY(0); }  
+            50% { transform: translateY(-10px); }  
+        }  
+
+        .info-panel {  
+            background: #fff3cd;  
+            border: 2px solid #ffc107;  
+            border-radius: 10px;  
+            padding: 15px;  
+            margin-top: 20px;  
+        }  
+
+        .info-title {  
+            font-weight: bold;  
+            color: #856404;  
+            margin-bottom: 10px;  
+            font-size: 16px;  
+        }  
+
+        .info-content {  
+            color: #856404;  
+            font-size: 13px;  
+            line-height: 1.8;  
+        }  
+
+        .specs-table {  
+            width: 100%;  
+            border-collapse: collapse;  
+            margin-top: 10px;  
+            font-size: 12px;  
+        }  
+
+        .specs-table th {  
+            background: #34495e;  
+            color: white;  
+            padding: 8px;  
+            text-align: left;  
+        }  
+
+        .specs-table td {  
+            padding: 8px;  
+            border-bottom: 1px solid #ecf0f1;  
+        }  
+
+        .specs-table tr:hover {  
+            background: #f8f9fa;  
+        }  
+
+        .legend {  
+            display: flex;  
+            justify-content: center;  
+            gap: 30px;  
+            margin-top: 30px;  
+            padding: 20px;  
+            background: #f8f9fa;  
+            border-radius: 10px;  
+            flex-wrap: wrap;  
+        }  
+
+        .legend-item {  
+            display: flex;  
+            align-items: center;  
+            gap: 10px;  
+        }  
+
+        .legend-color {  
+            width: 30px;  
+            height: 30px;  
+            border-radius: 5px;  
+        }  
+
+        .status-indicator {  
+            display: inline-block;  
+            width: 12px;  
+            height: 12px;  
+            border-radius: 50%;  
+            margin-right: 8px;  
+        }  
+
+        .status-indicator.active {  
+            background: #27ae60;  
+            box-shadow: 0 0 10px #27ae60;  
+        }  
+
+        .status-indicator.inactive {  
+            background: #95a5a6;  
+        }  
+
+        .code-block {  
+            background: #2c3e50;  
+            color: #2ecc71;  
+            padding: 10px;  
+            border-radius: 5px;  
+            font-family: 'Courier New', monospace;  
+            font-size: 11px;  
+            margin-top: 10px;  
+            overflow-x: auto;  
+            line-height: 1.5;  
+        }  
+
+        .timeline {  
+            position: relative;  
+            padding: 20px 0;  
+        }  
+
+        .timeline-item {  
+            position: relative;  
+            padding-left: 40px;  
+            margin-bottom: 20px;  
+        }  
+
+        .timeline-item::before {  
+            content: '';  
+            position: absolute;  
+            left: 10px;  
+            top: 0;  
+            bottom: -20px;  
+            width: 2px;  
+            background: #3498db;  
+        }  
+
+        .timeline-item::after {  
+            content: '';  
+            position: absolute;  
+            left: 6px;  
+            top: 5px;  
+            width: 10px;  
+            height: 10px;  
+            border-radius: 50%;  
+            background: #3498db;  
+        }  
+
+        .timeline-item.active::after {  
+            background: #27ae60;  
+            box-shadow: 0 0 10px #27ae60;  
+        }  
+
+        .modal {  
+            display: none;  
+            position: fixed;  
+            z-index: 1000;  
+            left: 0;  
+            top: 0;  
+            width: 100%;  
+            height: 100%;  
+            background: rgba(0,0,0,0.8);  
+            overflow: auto;  
+        }  
+
+        .modal-content {  
+            background: white;  
+            margin: 50px auto;  
+            padding: 30px;  
+            border-radius: 15px;  
+            max-width: 900px;  
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);  
+        }  
+
+        .close {  
+            float: right;  
+            font-size: 35px;  
+            font-weight: bold;  
+            cursor: pointer;  
+            color: #95a5a6;  
+        }  
+
+        .close:hover {  
+            color: #2c3e50;  
+        }  
+
+        .tabs {  
+            display: flex;  
+            gap: 10px;  
+            margin-bottom: 20px;  
+            border-bottom: 2px solid #ecf0f1;  
+        }  
+
+        .tab {  
+            padding: 10px 20px;  
+            cursor: pointer;  
+            border-radius: 5px 5px 0 0;  
+            background: #ecf0f1;  
+            transition: all 0.3s;  
+        }  
+
+        .tab.active {  
+            background: #3498db;  
+            color: white;  
+        }  
+
+        .tab-content {  
+            display: none;  
+        }  
+
+        .tab-content.active {  
+            display: block;  
+        }  
+
+        @media (max-width: 1200px) {  
+            .flow-container {  
+                flex-direction: column;  
+            }  
+        }  
+
+        .highlight {  
+            background: yellow;  
+            font-weight: bold;  
+            padding: 2px 5px;  
+            border-radius: 3px;  
+        }  
+
+        .badge {  
+            display: inline-block;  
+            padding: 3px 8px;  
+            border-radius: 12px;  
+            font-size: 11px;  
+            font-weight: bold;  
+            margin-left: 8px;  
+        }  
+
+        .badge-success {  
+            background: #27ae60;  
+            color: white;  
+        }  
+
+        .badge-info {  
+            background: #3498db;  
+            color: white;  
+        }  
+
+        .badge-warning {  
+            background: #f39c12;  
+            color: white;  
+        }  
+
+        .progress-bar {  
+            width: 100%;  
+            height: 6px;  
+            background: #ecf0f1;  
+            border-radius: 3px;  
+            overflow: hidden;  
+            margin-top: 10px;  
+        }  
+
+        .progress-fill {  
+            height: 100%;  
+            background: linear-gradient(90deg, #27ae60, #2ecc71);  
+            width: 0%;  
+            transition: width 1s ease;  
+        }  
+    </style>  
+</head>  
+<body>  
+    <div class="container">  
+        <h1>🚀 800G/400G 以太网芯片报文处理流程详解</h1>  
+        <p class="subtitle">从MAC到SerDes完整数据路径 | 基于IEEE 802.3df/bs标准</p>  
+
+        <!-- 参考标准 -->  
+        <div class="reference-box">  
+            <h3>📚 参考标准文献</h3>  
+            <ul>  
+                <li><strong>800GbE:</strong> IEEE 802.3df-2024 - Clause 169/170/171 (800GBASE-R, PCS, FEC)</li>  
+                <li><strong>400GbE:</strong> IEEE 802.3bs-2017 - Clause 122/123/119 (400GBASE-R, PCS, RS-FEC)</li>  
+                <li><strong>PCS编码:</strong> IEEE 802.3-2022 Clause 82 (64B/66B), Clause 49 (XGMII)</li>  
+                <li><strong>FEC:</strong> IEEE 802.3 Clause 91 (RS-FEC 544,514), Clause 119.2 (KP4 FEC)</li>  
+                <li><strong>SerDes/PMD:</strong> OIF CEI-56G/112G, IEEE 802.3 Clause 169.7/122.6</li>  
+            </ul>  
+        </div>  
+
+        <!-- 控制面板 -->  
+        <div class="controls">  
+            <div class="speed-selector">  
+                <span style="font-weight: bold; color: #2c3e50;">选择速率:</span>  
+                <button class="speed-btn active" onclick="selectSpeed('800G')">800GbE (8×106.25G)</button>  
+                <button class="speed-btn" onclick="selectSpeed('400G')">400GbE (8×53.125G)</button>  
+            </div>  
+            <button class="btn btn-primary" onclick="startTxFlow()">▶️ 启动TX发送</button>  
+            <button class="btn btn-secondary" onclick="startRxFlow()">▶️ 启动RX接收</button>  
+            <button class="btn btn-danger" onclick="resetFlow()">🔄 重置</button>  
+            <button class="btn btn-primary" onclick="showDetailModal()">📖 详细规格</button>  
+        </div>  
+
+        <!-- 主流程区域 -->  
+        <div class="flow-container">  
+            <!-- TX发送流程 -->  
+            <div class="direction-column tx">  
+                <div class="direction-title tx">📤 TX 发送流程 (Host → Line)</div>  
+
+                <!-- Layer 2: MAC Client -->  
+                <div class="layer" id="tx-mac">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="tx-mac-status"></span>  
+                            L2: MAC Client  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 1-4</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 以太网帧生成</div>  
+                        <div class="sublayer-desc">  
+                            • 帧结构: DA(6B) + SA(6B) + Type/Len(2B) + Payload(46-1500B) + FCS(4B)<br>  
+                            • 帧大小: 64-1518 Bytes (标准), 最大9600 Bytes (Jumbo)<br>  
+                            • FCS校验: CRC-32计算<br>  
+                            • 速率: <span id="tx-mac-rate">800 Gbps</span>  
+                        </div>  
+                        <div class="data-flow">  
+                            <span class="data-label">输出:</span>  
+                            <span class="data-value" id="tx-mac-output">等待启动...</span>  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <div class="arrow">⬇️</div>  
+
+                <!-- Layer 2: MAC Control (Optional) -->  
+                <div class="layer" id="tx-mac-ctrl">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="tx-mac-ctrl-status"></span>  
+                            L2: MAC Control (Optional)  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 31</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 流控与管理</div>  
+                        <div class="sublayer-desc">  
+                            • PAUSE帧生成 (802.3x)<br>  
+                            • PFC (Priority Flow Control - 802.1Qbb)<br>  
+                            • MAC Control Opcodes<br>  
+                            • 接口: GMII/XGMII → CGMII (800G: 32×64bit @781.25MHz)  
+                        </div>  
+                        <div class="code-block">  
+CGMII Width: 32 lanes × 64-bit<br>  
+Clock: 781.25 MHz (800G) / 390.625 MHz (400G)<br>  
+Control: TXC[31:0] + TXD[2047:0]  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <div class="arrow">⬇️</div>  
+
+                <!-- Reconciliation Sublayer -->  
+                <div class="layer" id="tx-rs">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="tx-rs-status"></span>  
+                            RS: Reconciliation Sublayer  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 169.3/122.3</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 接口适配</div>  
+                        <div class="sublayer-desc">  
+                            • CGMII → PCS内部接口适配<br>  
+                            • 时钟域转换<br>  
+                            • Lane分配: <span id="tx-rs-lanes">8 Lanes × 100G</span><br>  
+                            • 数据宽度: 每Lane 128-bit  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <div class="arrow">⬇️</div>  
+
+                <!-- PCS Layer -->  
+                <div class="layer" id="tx-pcs">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="tx-pcs-status"></span>  
+                            PCS: Physical Coding Sublayer  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 82/170</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 PCS TX Gearbox</div>  
+                        <div class="sublayer-desc">  
+                            • 输入: CGMII 数据流<br>  
+                            • 功能: 数据位宽转换与对齐<br>  
+                            • 输出: 64-bit数据块  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 64B/66B编码器</div>  
+                        <div class="sublayer-desc">  
+                            • 编码规则: 每64-bit数据 → 66-bit码块<br>  
+                            • Sync Header: 2-bit (01/10) 用于同步<br>  
+                            • Control Blocks: IDLE(/I/), START(/S/), TERMINATE(/T/), ERROR(/E/)<br>  
+                            • 数据块类型: 0x1E (Data), 0x2D (Control), 0x33 (Ordered Set)<br>  
+                            • 编码速率: 64/66 = 96.97%效率  
+                        </div>  
+                        <div class="code-block">  
+Block Format:<br>  
+[Sync:2b][Type:8b][Data:56b] → 66-bit<br>  
+Data Block: 01 + 0x1E + 56-bit data<br>  
+Control Block: 10 + Control_Type + 56-bit  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Scrambler (扰码器)</div>  
+                        <div class="sublayer-desc">  
+                            • 多项式: G(x) = 1 + x³⁹ + x⁵⁸<br>  
+                            • 目的: 频谱分散, 降低EMI<br>  
+                            • 处理: 对66-bit块的64-bit数据部分扰码<br>  
+                            • Sync Header不扰码  
+                        </div>  
+                        <div class="sublayer-details">  
+Scrambler LFSR: 58-bit shift register  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 AM Insertion (对齐标记插入)</div>  
+                        <div class="sublayer-desc">  
+                            • AM Pattern: 0x9A4A26B5C16D7E8F (固定码型)<br>  
+                            • 插入间隔: <span id="tx-am-interval">16383 blocks</span> (可配)<br>  
+                            • 每Lane独立AM<br>  
+                            • Lane ID编码在AM中<br>  
+                            • 功能: RX端Lane对齐与Deskew  
+                        </div>  
+                        <div class="code-block">  
+AM[127:0] = {MARKER[95:0], LANE_ID[7:0], ..}  
+Interval (800G): 16383 blocks ≈ 21μs  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Lane Distribution (虚拟通道分配)</div>  
+                        <div class="sublayer-desc">  
+                            • <span id="tx-lane-dist">8 Virtual Lanes (VL0-VL7)</span><br>  
+                            • 每Lane独立编码链<br>  
+                            • Round-Robin分配策略<br>  
+                            • Lane Marker跟踪  
+                        </div>  
+                    </div>  
+
+                    <div class="data-flow">  
+                        <span class="data-label">输出:</span>  
+                        <span class="data-value" id="tx-pcs-output">等待启动...</span>  
+                    </div>  
+                </div>  
+
+                <div class="arrow">⬇️</div>  
+
+                <!-- FEC Layer -->  
+                <div class="layer" id="tx-fec">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="tx-fec-status"></span>  
+                            FEC: Forward Error Correction  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 91/119.2/171</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 FEC Encoder</div>  
+                        <div class="sublayer-desc">  
+                            <strong>算法:</strong> <span id="tx-fec-algo">RS(544, 514) Reed-Solomon</span><br>  
+                            • 信息位: 514 symbols × 10-bit = 5140-bit<br>  
+                            • 校验位: 30 symbols × 10-bit = 300-bit<br>  
+                            • 码字长度: 544 symbols = 5440-bit<br>  
+                            • 纠错能力: 最多纠正15个symbol错误<br>  
+                            • 编码率: 514/544 = 94.49%<br>  
+                            • Pre-FEC BER要求: ≤ 5×10⁻⁵<br>  
+                            • Post-FEC BER目标: ≤ 10⁻¹²  
+                        </div>  
+                        <div class="code-block">  
+<span id="tx-fec-detail">  
+RS(544,514) Galois Field: GF(2¹⁰)<br>  
+Generator Polynomial: g(x) = Π(x - α^i), i=0..29<br>  
+Codeword = [Data:514 | Parity:30]<br>  
+Latency: ~50-100ns</span>  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Transcoder (PCS→FEC)</div>  
+                        <div class="sublayer-desc">  
+                            • 66-bit PCS blocks → 10-bit FEC symbols<br>  
+                            • 符号边界对齐<br>  
+                            • Codeword组装  
+                        </div>  
+                    </div>  
+
+                    <div class="data-flow">  
+                        <span class="data-label">输出:</span>  
+                        <span class="data-value" id="tx-fec-output">等待启动...</span>  
+                    </div>  
+                </div>  
+
+                <div class="arrow">⬇️</div>  
+
+                <!-- PMA Layer -->  
+                <div class="layer" id="tx-pma">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="tx-pma-status"></span>  
+                            PMA: Physical Medium Attachment  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 169.6/122.5</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 PMA Tx Gearbox</div>  
+                        <div class="sublayer-desc">  
+                            • FEC码字 → SerDes位宽适配<br>  
+                            • 时钟速率转换<br>  
+                            • 数据串行化准备  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Lane Alignment & Mapping</div>  
+                        <div class="sublayer-desc">  
+                            • Lane顺序调整<br>  
+                            • Physical Lane映射<br>  
+                            • Lane Polarity控制  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <div class="arrow">⬇️</div>  
+
+                <!-- SerDes TX -->  
+                <div class="layer" id="tx-serdes">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="tx-serdes-status"></span>  
+                            SerDes: Serializer/Deserializer TX  
+                        </span>  
+                        <span class="layer-standard">OIF CEI-56G/112G</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Parallel-to-Serial Converter</div>  
+                        <div class="sublayer-desc">  
+                            • 输入位宽: 128-bit/256-bit parallel<br>  
+                            • 输出: 串行比特流<br>  
+                            • 每Lane独立Serializer  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 PAM4 Modulator (调制器)</div>  
+                        <div class="sublayer-desc">  
+                            <strong>调制方式:</strong> <span id="tx-pam-type">PAM4 (4-level)</span><br>  
+                            • 符号速率: <span id="tx-baud-rate">106.25 Gbaud/Lane</span><br>  
+                            • 电平映射: 00→-3, 01→-1, 10→+1, 11→+3<br>  
+                            • Gray编码降低误码<br>  
+                            • 每符号2-bit信息  
+                        </div>  
+                        <div class="code-block">  
+<span id="tx-serdes-detail">  
+800G: 8 Lanes × 106.25 Gbaud × 2 bit/symbol = 800G<br>  
+400G: 8 Lanes × 53.125 Gbaud × 2 bit/symbol = 400G<br>  
+PAM4 Levels: {-3σ, -σ, +σ, +3σ}</span>  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Pre-Emphasis & Equalization</div>  
+                        <div class="sublayer-desc">  
+                            • FFE (Feed-Forward Equalizer): 预加重<br>  
+                            • Tap系数可配: 前3-5 taps<br>  
+                            • 补偿信道损耗<br>  
+                            • 提升高频分量  
+                        </div>  
+                        <div class="sublayer-details">  
+FFE Taps: C(-2), C(-1), C(0), C(1), C(2)<br>  
+Typical: C(0)=0.7, C(-1)=0.15, C(1)=0.15  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 TX Driver (发送驱动器)</div>  
+                        <div class="sublayer-desc">  
+                            • 差分输出: 800-1200 mVpp<br>  
+                            • Output Swing可调<br>  
+                            • 电气规格: <span id="tx-driver-spec">OIF-CEI-112G</span><br>  
+                            • 连接: PCB Trace / Optical Module  
+                        </div>  
+                    </div>  
+
+                    <div class="data-flow">  
+                        <span class="data-label">输出:</span>  
+                        <span class="data-value" id="tx-serdes-output">等待启动...</span>  
+                    </div>  
+                </div>  
+
+                <div class="arrow">⬇️</div>  
+
+                <!-- PMD -->  
+                <div class="layer" id="tx-pmd">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="tx-pmd-status"></span>  
+                            PMD: Physical Medium Dependent  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 169.7/122.6</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 光模块接口</div>  
+                        <div class="sublayer-desc">  
+                            • 接口类型: <span id="tx-optics">OSFP / QSFP-DD800</span><br>  
+                            • 电气接口: CAUI-8 (Chip-to-Module)<br>  
+                            • 管理接口: I²C / MDIO<br>  
+                            • 光功率监控: DDMI  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 电-光转换 (E/O)</div>  
+                        <div class="sublayer-desc">  
+                            • 激光器类型: VCSEL / EML / DML<br>  
+                            • 波长: <span id="tx-wavelength">850nm (SR) / 1310nm (DR) / DWDM</span><br>  
+                            • 光功率: 0 ~ +5 dBm<br>  
+                            • 消光比: > 4 dB<br>  
+                            • 光纤: SMF / MMF  
+                        </div>  
+                    </div>  
+
+                    <div class="info-panel">  
+                        <div class="info-title">✅ TX流程完成</div>  
+                        <div class="info-content">  
+                            数据已完成从MAC到光纤的完整转换！<br>  
+                            总延迟: <span id="tx-total-latency">~300-500ns</span> (芯片内部)  
+                        </div>  
+                    </div>  
+                </div>  
+            </div>  
+
+            <!-- RX接收流程 -->  
+            <div class="direction-column rx">  
+                <div class="direction-title rx">📥 RX 接收流程 (Line → Host)</div>  
+
+                <!-- PMD RX -->  
+                <div class="layer" id="rx-pmd">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="rx-pmd-status"></span>  
+                            PMD: Physical Medium Dependent  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 169.7/122.6</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 光-电转换 (O/E)</div>  
+                        <div class="sublayer-desc">  
+                            • 光检测器: PIN-PD / APD<br>  
+                            • 接收灵敏度: <span id="rx-sensitivity">-10 dBm (典型)</span><br>  
+                            • 动态范围: -15 ~ 0 dBm<br>  
+                            • TIA (Trans-Impedance Amplifier): 电流→电压<br>  
+                            • LA (Limiting Amplifier): 信号放大  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Signal Detect & LOS</div>  
+                        <div class="sublayer-desc">  
+                            • 光功率监控<br>  
+                            • LOS (Loss of Signal) 检测<br>  
+                            • Signal Quality监控<br>  
+                            • 告警上报  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <div class="arrow rx">⬆️</div>  
+
+                <!-- SerDes RX -->  
+                <div class="layer" id="rx-serdes">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="rx-serdes-status"></span>  
+                            SerDes: Serializer/Deserializer RX  
+                        </span>  
+                        <span class="layer-standard">OIF CEI-56G/112G</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 CDR (Clock Data Recovery)</div>  
+                        <div class="sublayer-desc">  
+                            • 时钟恢复: 从数据流中提取时钟<br>  
+                            • PLL带宽: 1-10 MHz<br>  
+                            • Jitter Tolerance: > 0.1 UI<br>  
+                            • Lock时间: < 10 ms<br>  
+                            • 工作模式: First-Order / Second-Order PLL  
+                        </div>  
+                        <div class="code-block">  
+CDR Architecture: Bang-Bang / Alexander PD<br>  
+Lock Range: ±100 ppm<br>  
+Jitter Transfer: < 0.1 dB @ 10 MHz  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 PAM4 Demodulator (解调器)</div>  
+                        <div class="sublayer-desc">  
+                            • 4电平判决器<br>  
+                            • 阈值自适应调整<br>  
+                            • 符号→比特映射 (Gray解码)<br>  
+                            • 每符号恢复2-bit  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Equalization (均衡)</div>  
+                        <div class="sublayer-desc">  
+                            <strong>CTLE</strong> (Continuous-Time Linear Equalizer):<br>  
+                            • 模拟域连续时间均衡<br>  
+                            • 高频提升: Boost = 0-20 dB<br>  
+                            • Peak频率可调<br>  
+                            <strong>DFE</strong> (Decision Feedback Equalizer):<br>  
+                            • 数字反馈均衡器<br>  
+                            • Tap数量: 5-15 taps<br>  
+                            • 消除码间串扰 (ISI)<br>  
+                            • 自适应LMS算法  
+                        </div>  
+                        <div class="sublayer-details">  
+CTLE: Zero@1GHz, Pole@10GHz, DC_Gain=0dB<br>  
+DFE: h1~h5 taps, LMS adaptation  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Serial-to-Parallel Converter</div>  
+                        <div class="sublayer-desc">  
+                            • 串行比特流 → 并行数据<br>  
+                            • 位宽: 128-bit/256-bit<br>  
+                            • 字对齐 (Word Alignment)<br>  
+                            • 每Lane独立Deserializer  
+                        </div>  
+                    </div>  
+
+                    <div class="data-flow">  
+                        <span class="data-label">输出:</span>  
+                        <span class="data-value" id="rx-serdes-output">等待启动...</span>  
+                    </div>  
+                </div>  
+
+                <div class="arrow rx">⬆️</div>  
+
+                <!-- PMA RX -->  
+                <div class="layer" id="rx-pma">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="rx-pma-status"></span>  
+                            PMA: Physical Medium Attachment  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 169.6/122.5</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Lane De-skew Preparation</div>  
+                        <div class="sublayer-desc">  
+                            • 检测AM Pattern<br>  
+                            • 计算Lane间延迟差<br>  
+                            • 准备对齐信息  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 PMA Rx Gearbox</div>  
+                        <div class="sublayer-desc">  
+                            • SerDes位宽 → FEC解码器位宽<br>  
+                            • 时钟域转换<br>  
+                            • 数据重组  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <div class="arrow rx">⬆️</div>  
+
+                <!-- FEC RX -->  
+                <div class="layer" id="rx-fec">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="rx-fec-status"></span>  
+                            FEC: Forward Error Correction  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 91/119.2/171</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Syndrome Calculation (伴随式计算)</div>  
+                        <div class="sublayer-desc">  
+                            • 接收码字 → 伴随式多项式<br>  
+                            • S(x) = R(x) mod g(x)<br>  
+                            • 检测错误位置<br>  
+                            • 计算延迟: 10-20 cycles  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Error Location & Correction</div>  
+                        <div class="sublayer-desc">  
+                            <strong>Berlekamp-Massey / Euclidean算法:</strong><br>  
+                            • 错误定位多项式计算<br>  
+                            • Chien Search: 查找错误位置<br>  
+                            • Forney Algorithm: 计算错误值<br>  
+                            • 纠错: 最多15个symbol错误<br>  
+                            <strong>UE (Uncorrectable Error) 检测:</strong><br>  
+                            • 错误超过纠错能力时标记UE<br>  
+                            • UE计数上报软件  
+                        </div>  
+                        <div class="code-block">  
+<span id="rx-fec-detail">  
+Correctable Errors: ≤ 15 symbols<br>  
+UE Threshold: > 15 symbols<br>  
+Latency: ~100-200ns<br>  
+Post-FEC BER: 10⁻¹² (typical)</span>  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Transcoder (FEC→PCS)</div>  
+                        <div class="sublayer-desc">  
+                            • 10-bit FEC symbols → 66-bit PCS blocks<br>  
+                            • Codeword拆解<br>  
+                            • 符号边界对齐  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 FEC统计</div>  
+                        <div class="sublayer-desc">  
+                            • Corrected Codewords<br>  
+                            • Uncorrectable Codewords (UE)<br>  
+                            • Symbol Error Rate<br>  
+                            • Pre-FEC BER / Post-FEC BER  
+                        </div>  
+                    </div>  
+
+                    <div class="data-flow">  
+                        <span class="data-label">输出:</span>  
+                        <span class="data-value" id="rx-fec-output">等待启动...</span>  
+                    </div>  
+                </div>  
+
+                <div class="arrow rx">⬆️</div>  
+
+                <!-- PCS RX -->  
+                <div class="layer" id="rx-pcs">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="rx-pcs-status"></span>  
+                            PCS: Physical Coding Sublayer  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 82/170</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 AM Detection & Lane Alignment</div>  
+                        <div class="sublayer-desc">  
+                            • AM Pattern识别<br>  
+                            • Lane ID提取<br>  
+                            • Lane Lock状态机<br>  
+                            • Lock条件: 连续N个AM匹配 (N=4典型)  
+                        </div>  
+                        <div class="code-block">  
+AM_LOCK FSM:<br>  
+INIT → SEARCH → LOCK → ALIGNED<br>  
+Lock Time: < 1ms  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Lane De-skew (去偏移)</div>  
+                        <div class="sublayer-desc">  
+                            • FIFO Depth: <span id="rx-deskew-depth">160 × 128-bit (per Lane)</span><br>  
+                            • 最大偏移: <span id="rx-max-skew">20-40 ns</span><br>  
+                            • 对齐算法: AM时间戳对比<br>  
+                            • Deskew完成: 所有Lane AM对齐<br>  
+                            • 状态: DESKEW_FAIL → DESKEW_DONE  
+                        </div>  
+                        <div class="sublayer-details">  
+Skew Tolerance: ±40 UI (800G)<br>  
+FIFO Control: Write on AM, Read after align  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 AM Removal (对齐标记删除)</div>  
+                        <div class="sublayer-desc">  
+                            • 识别并删除AM块<br>  
+                            • 保持数据连续性<br>  
+                            • Lane编号验证  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Lane Reordering (通道重排)</div>  
+                        <div class="sublayer-desc">  
+                            • 根据Lane ID重排数据<br>  
+                            • 恢复原始Lane顺序<br>  
+                            • 虚拟Lane → 物理Lane映射  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 Descrambler (解扰码)</div>  
+                        <div class="sublayer-desc">  
+                            • 多项式: G(x) = 1 + x³⁹ + x⁵⁸ (与TX相同)<br>  
+                            • 同步LFSR<br>  
+                            • 恢复原始数据<br>  
+                            • Self-synchronizing  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 64B/66B解码器</div>  
+                        <div class="sublayer-desc">  
+                            • Sync Header检测: 01/10<br>  
+                            • Block Type解析<br>  
+                            • 66-bit → 64-bit恢复<br>  
+                            • Control字符识别: IDLE, START, TERMINATE<br>  
+                            • 错误检测: Invalid Block Type  
+                        </div>  
+                        <div class="code-block">  
+Sync Loss Detection:<br>  
+连续N个Sync Error → Block_Lock = 0<br>  
+Invalid Block → BER++  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 BIP-8 Check (Bit Interleaved Parity)</div>  
+                        <div class="sublayer-desc">  
+                            • 可选的额外校验<br>  
+                            • 8-bit奇偶校验<br>  
+                            • 错误计数统计  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 PCS RX Gearbox</div>  
+                        <div class="sublayer-desc">  
+                            • 64-bit数据块 → CGMII位宽<br>  
+                            • 数据重组<br>  
+                            • 时钟域转换  
+                        </div>  
+                    </div>  
+
+                    <div class="data-flow">  
+                        <span class="data-label">输出:</span>  
+                        <span class="data-value" id="rx-pcs-output">等待启动...</span>  
+                    </div>  
+                </div>  
+
+                <div class="arrow rx">⬆️</div>  
+
+                <!-- RS RX -->  
+                <div class="layer" id="rx-rs">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="rx-rs-status"></span>  
+                            RS: Reconciliation Sublayer  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 169.3/122.3</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 接口反向适配</div>  
+                        <div class="sublayer-desc">  
+                            • PCS内部接口 → CGMII<br>  
+                            • Lane数据合并<br>  
+                            • 时钟域恢复  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <div class="arrow rx">⬆️</div>  
+
+                <!-- MAC Control RX -->  
+                <div class="layer" id="rx-mac-ctrl">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="rx-mac-ctrl-status"></span>  
+                            L2: MAC Control (Optional)  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 31</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 流控处理</div>  
+                        <div class="sublayer-desc">  
+                            • PAUSE帧解析<br>  
+                            • PFC处理<br>  
+                            • 流控反压到TX<br>  
+                            • MAC Control帧过滤  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <div class="arrow rx">⬆️</div>  
+
+                <!-- MAC RX -->  
+                <div class="layer" id="rx-mac">  
+                    <div class="layer-header">  
+                        <span class="layer-name">  
+                            <span class="status-indicator inactive" id="rx-mac-status"></span>  
+                            L2: MAC Client  
+                        </span>  
+                        <span class="layer-standard">IEEE 802.3 Clause 1-4</span>  
+                    </div>  
+                    
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 以太网帧处理</div>  
+                        <div class="sublayer-desc">  
+                            <strong>Preamble & SFD检测:</strong><br>  
+                            • Preamble: 7×0x55 + SFD: 0xD5<br>  
+                            • 帧起始识别<br>  
+                            <strong>FCS校验:</strong><br>  
+                            • CRC-32验证<br>  
+                            • 错误帧丢弃或标记<br>  
+                            <strong>帧过滤:</strong><br>  
+                            • 最小帧长检查: 64 Bytes<br>  
+                            • 最大帧长检查: 1518/9600 Bytes<br>  
+                            • 地址过滤: 单播/组播/广播<br>  
+                            <strong>统计计数:</strong><br>  
+                            • Good Frames / Bad Frames<br>  
+                            • Undersize / Oversize / Jabber<br>  
+                            • CRC Error / Alignment Error  
+                        </div>  
+                        <div class="code-block">  
+Frame Format:<br>  
+[Preamble:7B][SFD:1B][DA:6B][SA:6B]<br>  
+[Type/Len:2B][Data:46-1500B][FCS:4B]  
+                        </div>  
+                    </div>  
+
+                    <div class="sublayer">  
+                        <div class="sublayer-name">🔸 数据上送</div>  
+                        <div class="sublayer-desc">  
+                            • 帧完整性确认<br>  
+                            • FIFO缓存<br>  
+                            • 上送Host处理<br>  
+                            • 速率: <span id="rx-mac-rate">800 Gbps</span>  
+                        </div>  
+                    </div>  
+
+                    <div class="data-flow">  
+                        <span class="data-label">输出:</span>  
+                        <span class="data-value" id="rx-mac-output">等待启动...</span>  
+                    </div>  
+
+                    <div class="info-panel" style="background: #d1f2eb; border-color: #27ae60;">  
+                        <div class="info-title" style="color: #145a32;">✅ RX流程完成</div>  
+                        <div class="info-content" style="color: #145a32;">  
+                            数据已完成从光纤到MAC的完整接收！<br>  
+                            总延迟: <span id="rx-total-latency">~400-600ns</span> (芯片内部)<br>  
+                            帧完整性验证通过，可上送上层协议栈处理  
+                        </div>  
+                    </div>  
+                </div>  
+            </div>  
+        </div>  
+
+        <!-- 图例 -->  
+        <div class="legend">  
+            <div class="legend-item">  
+                <div class="legend-color" style="background: linear-gradient(135deg, #27ae60, #2ecc71);"></div>  
+                <span>TX发送路径</span>  
+            </div>  
+            <div class="legend-item">  
+                <div class="legend-color" style="background: linear-gradient(135deg, #3498db, #5dade2);"></div>  
+                <span>RX接收路径</span>  
+            </div>  
+            <div class="legend-item">  
+                <div class="legend-color" style="background: linear-gradient(135deg, #f39c12, #e67e22);"></div>  
+                <span>当前处理模块</span>  
+            </div>  
+            <div class="legend-item">  
+                <div class="status-indicator active"></div>  
+                <span>模块工作中</span>  
+            </div>  
+            <div class="legend-item">  
+                <div class="status-indicator inactive"></div>  
+                <span>模块未激活</span>  
+            </div>  
+        </div>  
+    </div>  
+
+    <!-- 详细规格Modal -->  
+    <div id="detailModal" class="modal">  
+        <div class="modal-content">  
+            <span class="close" onclick="closeModal()">&times;</span>  
+            <h2 style="color: #2c3e50; margin-bottom: 20px;">📊 800G/400G 详细技术规格</h2>  
+            
+            <div class="tabs">  
+                <div class="tab active" onclick="switchTab('spec')">技术规格对比</div>
+				                <div class="tab" onclick="switchTab('timing')">时序与延迟</div>
+                <div class="tab" onclick="switchTab('signal')">信号质量要求</div>
+                <div class="tab" onclick="switchTab('power')">功耗分析</div>
+            </div>
+
+            <div id="tab-spec" class="tab-content active">
+                <h3 style="color: #3498db; margin: 20px 0 10px;">800G vs 400G 技术参数对比</h3>
+                <table class="specs-table">
+                    <thead>
+                        <tr>
+                            <th>参数</th>
+                            <th>800GbE (IEEE 802.3df)</th>
+                            <th>400GbE (IEEE 802.3bs)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>总速率</strong></td>
+                            <td>800 Gbps</td>
+                            <td>400 Gbps</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Lane数量</strong></td>
+                            <td>8 Lanes (Physical)</td>
+                            <td>8 Lanes (Physical)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>每Lane速率</strong></td>
+                            <td>100 Gbps</td>
+                            <td>50 Gbps</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SerDes速率</strong></td>
+                            <td>106.25 Gbaud (PAM4)</td>
+                            <td>53.125 Gbaud (PAM4)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>调制方式</strong></td>
+                            <td>PAM4 (4-level)</td>
+                            <td>PAM4 (4-level)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>编码方式</strong></td>
+                            <td>64B/66B</td>
+                            <td>64B/66B</td>
+                        </tr>
+                        <tr>
+                            <td><strong>FEC类型</strong></td>
+                            <td>RS(544,514) KP4</td>
+                            <td>RS(544,514) KP4</td>
+                        </tr>
+                        <tr>
+                            <td><strong>FEC编码率</strong></td>
+                            <td>94.49%</td>
+                            <td>94.49%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>FEC纠错能力</strong></td>
+                            <td>15 symbols</td>
+                            <td>15 symbols</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Pre-FEC BER</strong></td>
+                            <td>≤ 5×10⁻⁵</td>
+                            <td>≤ 5×10⁻⁵</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Post-FEC BER</strong></td>
+                            <td>≤ 10⁻¹²</td>
+                            <td>≤ 10⁻¹²</td>
+                        </tr>
+                        <tr>
+                            <td><strong>AM间隔</strong></td>
+                            <td>16383 blocks (~21μs)</td>
+                            <td>16383 blocks (~42μs)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CGMII宽度</strong></td>
+                            <td>32 lanes × 64-bit</td>
+                            <td>16 lanes × 64-bit</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CGMII时钟</strong></td>
+                            <td>781.25 MHz</td>
+                            <td>390.625 MHz</td>
+                        </tr>
+                        <tr>
+                            <td><strong>光模块类型</strong></td>
+                            <td>OSFP / QSFP-DD800</td>
+                            <td>QSFP-DD / OSFP</td>
+                        </tr>
+                        <tr>
+                            <td><strong>电气接口</strong></td>
+                            <td>CAUI-8 (CEI-112G)</td>
+                            <td>CAUI-8 (CEI-56G)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>典型功耗</strong></td>
+                            <td>15-25W (芯片PHY部分)</td>
+                            <td>8-15W (芯片PHY部分)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>典型传输距离</strong></td>
+                            <td>100m (SR8) / 2km (DR8) / 10km (FR8)</td>
+                            <td>100m (SR8) / 2km (DR4) / 10km (FR4)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="color: #3498db; margin: 30px 0 10px;">Lane配置方案</h3>
+                <table class="specs-table">
+                    <thead>
+                        <tr>
+                            <th>配置</th>
+                            <th>800G选项</th>
+                            <th>400G选项</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>800GBASE-R8</strong></td>
+                            <td>8 × 100G (标准)</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td><strong>400GBASE-R8</strong></td>
+                            <td>-</td>
+                            <td>8 × 50G (标准)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>400GBASE-R4</strong></td>
+                            <td>-</td>
+                            <td>4 × 100G (备选)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SR8/DR8/FR8</strong></td>
+                            <td>Short/Medium/Long Reach</td>
+                            <td>Short/Medium/Long Reach</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="tab-timing" class="tab-content">
+                <h3 style="color: #3498db; margin: 20px 0 10px;">时序与延迟分析</h3>
+                
+                <h4 style="color: #34495e; margin: 15px 0 10px;">TX路径延迟 (800G典型值)</h4>
+                <table class="specs-table">
+                    <thead>
+                        <tr>
+                            <th>模块</th>
+                            <th>延迟</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>MAC Processing</td>
+                            <td>20-40 ns</td>
+                            <td>帧封装、FCS计算</td>
+                        </tr>
+                        <tr>
+                            <td>PCS 64B/66B Encoding</td>
+                            <td>10-20 ns</td>
+                            <td>编码、扰码、AM插入</td>
+                        </tr>
+                        <tr>
+                            <td>FEC Encoding</td>
+                            <td>50-100 ns</td>
+                            <td>RS(544,514)编码</td>
+                        </tr>
+                        <tr>
+                            <td>PMA Gearbox</td>
+                            <td>10-20 ns</td>
+                            <td>位宽转换</td>
+                        </tr>
+                        <tr>
+                            <td>SerDes TX</td>
+                            <td>50-100 ns</td>
+                            <td>串行化、PAM4调制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>总延迟 (TX)</strong></td>
+                            <td><strong>140-280 ns</strong></td>
+                            <td><strong>芯片内部</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="color: #34495e; margin: 25px 0 10px;">RX路径延迟 (800G典型值)</h4>
+                <table class="specs-table">
+                    <thead>
+                        <tr>
+                            <th>模块</th>
+                            <th>延迟</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>SerDes RX (CDR Lock)</td>
+                            <td>< 10 ms</td>
+                            <td>初始锁定时间</td>
+                        </tr>
+                        <tr>
+                            <td>SerDes RX Processing</td>
+                            <td>80-150 ns</td>
+                            <td>CDR、解调、均衡</td>
+                        </tr>
+                        <tr>
+                            <td>PMA De-skew</td>
+                            <td>20-40 ns</td>
+                            <td>Lane对齐 (最大偏移补偿)</td>
+                        </tr>
+                        <tr>
+                            <td>FEC Decoding</td>
+                            <td>100-200 ns</td>
+                            <td>伴随式计算、纠错</td>
+                        </tr>
+                        <tr>
+                            <td>PCS Decoding</td>
+                            <td>20-40 ns</td>
+                            <td>解扰、64B/66B解码</td>
+                        </tr>
+                        <tr>
+                            <td>MAC Processing</td>
+                            <td>30-50 ns</td>
+                            <td>FCS校验、过滤</td>
+                        </tr>
+                        <tr>
+                            <td><strong>总延迟 (RX)</strong></td>
+                            <td><strong>250-480 ns</strong></td>
+                            <td><strong>芯片内部</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="color: #34495e; margin: 25px 0 10px;">端到端延迟 (Round-Trip)</h4>
+                <table class="specs-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>芯片内部总延迟</strong></td>
+                            <td>390-760 ns</td>
+                            <td>TX + RX</td>
+                        </tr>
+                        <tr>
+                            <td><strong>光模块延迟</strong></td>
+                            <td>50-100 ns</td>
+                            <td>E/O + O/E转换</td>
+                        </tr>
+                        <tr>
+                            <td><strong>光纤传输延迟</strong></td>
+                            <td>5 ns/m</td>
+                            <td>SMF: ~5μs/km</td>
+                        </tr>
+                        <tr>
+                            <td><strong>100m链路总延迟</strong></td>
+                            <td>~1 μs</td>
+                            <td>单向</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="color: #34495e; margin: 25px 0 10px;">关键时序参数</h4>
+                <table class="specs-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>AM Lock时间</strong></td>
+                            <td>< 1 ms</td>
+                            <td>连续4个AM匹配</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Deskew窗口</strong></td>
+                            <td>±20-40 ns</td>
+                            <td>最大Lane间偏移</td>
+                        </tr>
+                        <tr>
+                            <td><strong>FEC Latency</strong></td>
+                            <td>150-300 ns</td>
+                            <td>Encode + Decode</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CDR Lock Range</strong></td>
+                            <td>±100 ppm</td>
+                            <td>时钟容差</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Link Up时间</strong></td>
+                            <td>< 100 ms</td>
+                            <td>完整链路建立</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="tab-signal" class="tab-content">
+                <h3 style="color: #3498db; margin: 20px 0 10px;">信号质量要求</h3>
+
+                <h4 style="color: #34495e; margin: 15px 0 10px;">SerDes TX 电气规格</h4>
+                <table class="specs-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>差分输出摆幅</strong></td>
+                            <td>800-1200 mVpp</td>
+                            <td>可调</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PAM4电平数</strong></td>
+                            <td>4 levels</td>
+                            <td>-3, -1, +1, +3</td>
+                        </tr>
+                        <tr>
+                            <td><strong>电平线性度</strong></td>
+                            <td>± 5%</td>
+                            <td>电平间隔均匀性</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Rise/Fall Time</strong></td>
+                            <td>8-12 ps</td>
+                            <td>20%-80%</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Jitter (TJ)</strong></td>
+                            <td>< 0.30 UI</td>
+                            <td>@ BER 1e-12</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Random Jitter (RJ)</strong></td>
+                            <td>< 0.01 UI RMS</td>
+                            <td>高斯分布</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Deterministic Jitter</strong></td>
+                            <td>< 0.20 UI pp</td>
+                            <td>周期性抖动</td>
+                        </tr>
+                        <tr>
+                            <td><strong>TX Equalization</strong></td>
+                            <td>3-5 Tap FFE</td>
+                            <td>可配系数</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="color: #34495e; margin: 25px 0 10px;">SerDes RX 电气规格</h4>
+                <table class="specs-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>输入灵敏度</strong></td>
+                            <td>50-200 mVpp</td>
+                            <td>最小可检测信号</td>
+                        </tr>
+                        <tr>
+                            <td><strong>输入动态范围</strong></td>
+                            <td>50-1200 mVpp</td>
+                            <td>工作范围</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CTLE Gain</strong></td>
+                            <td>0-20 dB</td>
+                            <td>可调高频提升</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CTLE Peaking Freq</strong></td>
+                            <td>10-30 GHz</td>
+                            <td>峰值频率可调</td>
+                        </tr>
+                        <tr>
+                            <td><strong>DFE Taps</strong></td>
+                            <td>5-15 taps</td>
+                            <td>自适应均衡</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CDR Jitter Tolerance</strong></td>
+                            <td>> 0.15 UI</td>
+                            <td>@ 10 MHz</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CDR Lock Range</strong></td>
+                            <td>±100 ppm</td>
+                            <td>频率容差</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CDR Lock Time</strong></td>
+                            <td>< 10 ms</td>
+                            <td>初始锁定</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="color: #34495e; margin: 25px 0 10px;">信道损耗要求</h4>
+                <table class="specs-table">
+                    <thead>
+                        <tr>
+                            <th>频率</th>
+                            <th>最大插损 (800G)</th>
+                            <th>最大插损 (400G)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>DC - 1 GHz</td>
+                            <td>-3 dB</td>
+                            <td>-3 dB</td>
+                        </tr>
+                        <tr>
+                            <td>26.5625 GHz (Nyquist)</td>
+                            <td>-28 dB</td>
+                            <td>-</td>
+                        </tr>
+                        <tr>
+                            <td>13.28 GHz (Nyquist)</td>
+                            <td>-</td>
+                            <td>-20 dB</td>
+                        </tr>
+                        <tr>
+                            <td>53.125 GHz</td>
+                            <td>-35 dB</td>
+                            <td>-28 dB</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="color: #34495e; margin: 25px 0 10px;">眼图要求</h4>
+                <table class="specs-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>Eye Height (EH)</strong></td>
+                            <td>> 20 mV</td>
+                            <td>每个眼</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Eye Width (EW)</strong></td>
+                            <td>> 0.35 UI</td>
+                            <td>@ BER 1e-5</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PAM4 Eye Ratio</strong></td>
+                            <td>0.8 - 1.2</td>
+                            <td>上中下眼高度比</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SECQ (Signal Quality)</strong></td>
+                            <td>> 3.5 dB</td>
+                            <td>信噪比要求</td>
+                        </tr>
+                        <tr>
+                            <td><strong>TDECQ</strong></td>
+                            <td>< 3.5 dB</td>
+                            <td>发送端均衡质量</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="tab-power" class="tab-content">
+                <h3 style="color: #3498db; margin: 20px 0 10px;">功耗分析</h3>
+
+                <h4 style="color: #34495e; margin: 15px 0 10px;">800G PHY模块功耗分解</h4>
+                <table class="specs-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>SerDes TX (8 Lanes)</strong></td>
+                            <td>6-10 W</td>
+                            <td>Driver + FFE</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SerDes RX (8 Lanes)</strong></td>
+                            <td>7-12 W</td>
+                            <td>CDR + CTLE + DFE</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PCS (编解码)</strong></td>
+                            <td>1-2 W</td>
+                            <td>64B/66B + Scrambler</td>
+                        </tr>
+                        <tr>
+                            <td><strong>FEC Engine</strong></td>
+                            <td>1.5-3 W</td>
+                            <td>RS编解码器</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PMA (Gearbox)</strong></td>
+                            <td>0.5-1 W</td>
+                            <td>位宽转换</td>
+                        </tr>
+                        <tr>
+                            <td><strong>时钟树 (PLL/CMU)</strong></td>
+                            <td>1-2 W</td>
+                            <td>时钟生成与分发</td>
+                        </tr>
+                        <tr>
+                            <td><strong>总功耗 (PHY)</strong></td>
+                            <td><strong>17-30 W</strong></td>
+                            <td><strong>单端口</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="color: #34495e; margin: 25px 0 10px;">400G PHY模块功耗分解</h4>
+                <table class="specs-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>SerDes TX (8 Lanes)</strong></td>
+                            <td>3-5 W</td>
+                            <td>@53.125G</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SerDes RX (8 Lanes)</strong></td>
+                            <td>4-7 W</td>
+                            <td>@53.125G</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PCS + FEC</strong></td>
+                            <td>1.5-2.5 W</td>
+                            <td>编解码</td>
+                        </tr>
+                        <tr>
+                            <td><strong>其他(PMA/CLK)</strong></td>
+                            <td>1-2 W</td>
+                            <td>辅助电路</td>
+                        </tr>
+                        <tr>
+                            <td><strong>总功耗 (PHY)</strong></td>
+                            <td><strong>9.5-16.5 W</strong></td>
+                            <td><strong>单端口</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="color: #34495e; margin: 25px 0 10px;">光模块功耗</h4>
+                <table class="specs-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>800G OSFP</strong></td>
+                            <td>15-25 W</td>
+                            <td>含DSP + Laser</td>
+                        </tr>
+                        <tr>
+                            <td><strong>800G QSFP-DD</strong></td>
+                            <td>12-20 W</td>
+                            <td>高密度封装</td>
+                        </tr>
+                        <tr>
+                            <td><strong>400G OSFP</strong></td>
+                            <td>10-15 W</td>
+                            <td>标准配置</td>
+                        </tr>
+                        <tr>
+                            <td><strong>400G QSFP-DD</strong></td>
+                            <td>8-12 W</td>
+                            <td>常见方案</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="color: #34495e; margin: 25px 0 10px;">能效对比</h4>
+                <table class="specs-table">
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>800G</th>
+                            <th>400G</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>pJ/bit (PHY)</strong></td>
+                            <td>21-37 pJ/bit</td>
+                            <td>24-41 pJ/bit</td>
+                        </tr>
+                        <tr>
+                            <td><strong>pJ/bit (含光模块)</strong></td>
+                            <td>40-62 pJ/bit</td>
+                            <td>45-68 pJ/bit</td>
+                        </tr>
+                        <tr>
+                            <td><strong>单Lane功耗</strong></td>
+                            <td>2.1-3.8 W/Lane</td>
+                            <td>1.2-2.1 W/Lane</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                    <h4 style="color: #2980b9; margin-bottom: 10px;">💡 功耗优化技术</h4>
+                    <ul style="color: #34495e; font-size: 13px; line-height: 1.8;">
+                        <li><strong>动态功耗管理:</strong> Idle Lane Power Down</li>
+                        <li><strong>自适应均衡:</strong> 根据信道质量调整DFE Tap数</li>
+                        <li><strong>时钟门控:</strong> 未使用模块时钟关断</li>
+                        <li><strong>电压域优化:</strong> 多电压域设计 (0.9V/1.0V/1.2V)</li>
+                        <li><strong>先进工艺:</strong> 7nm/5nm FinFET降低功耗</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSpeed = '800G';
+        let txActive = false;
+        let rxActive = false;
+        let animationTimer = null;
+
+        // 速率配置
+        const speedConfigs = {
+            '800G': {
+                macRate: '800 Gbps',
+                lanes: '8 Lanes × 100G',
+                baudRate: '106.25 Gbaud/Lane',
+                cgmiiClock: '781.25 MHz',
+                amInterval: '16383 blocks (~21μs)',
+                fecAlgo: 'RS(544, 514) Reed-Solomon',
+                pamType: 'PAM4 (4-level)',
+                optics: 'OSFP / QSFP-DD800',
+                wavelength: '850nm (SR8) / 1310nm (DR8)',
+                driverSpec: 'OIF-CEI-112G',
+                deskewDepth: '160 × 128-bit (per Lane)',
+                maxSkew: '20-40 ns',
+                sensitivity: '-10 dBm (典型)',
+                txLatency: '~300-500ns',
+                rxLatency: '~400-600ns',
+                serdesDetail: '800G: 8 Lanes × 106.25 Gbaud × 2 bit/symbol = 800G\nPAM4 Levels: {-3σ, -σ, +σ, +3σ}',
+                fecDetail: 'RS(544,514) Galois Field: GF(2¹⁰)\nGenerator Polynomial: g(x) = Π(x - α^i), i=0..29\nCodeword = [Data:514 | Parity:30]\nLatency: ~50-100ns',
+                rxFecDetail: 'Correctable Errors: ≤ 15 symbols\nUE Threshold: > 15 symbols\nLatency: ~100-200ns\nPost-FEC BER: 10⁻¹² (typical)'
+            },
+            '400G': {
+                macRate: '400 Gbps',
+                lanes: '8 Lanes × 50G',
+                baudRate: '53.125 Gbaud/Lane',
+                cgmiiClock: '390.625 MHz',
+                amInterval: '16383 blocks (~42μs)',
+                fecAlgo: 'RS(544, 514) Reed-Solomon',
+                pamType: 'PAM4 (4-level)',
+                optics: 'QSFP-DD / OSFP',
+                wavelength: '850nm (SR8) / 1310nm (DR4)',
+                driverSpec: 'OIF-CEI-56G',
+                deskewDepth: '160 × 128-bit (per Lane)',
+                maxSkew: '40-80 ns',
+                sensitivity: '-8 dBm (典型)',
+                txLatency: '~250-400ns',
+                rxLatency: '~300-500ns',
+                serdesDetail: '400G: 8 Lanes × 53.125 Gbaud × 2 bit/symbol = 400G\nPAM4 Levels: {-3σ, -σ, +σ, +3σ}',
+                fecDetail: 'RS(544,514) Galois Field: GF(2¹⁰)\nGenerator Polynomial: g(x) = Π(x - α^i), i=0..29\nCodeword = [Data:514 | Parity:30]\nLatency: ~40-80ns',
+                rxFecDetail: 'Correctable Errors: ≤ 15 symbols\nUE Threshold: > 15 symbols\nLatency: ~80-160ns\nPost-FEC BER: 10⁻¹² (typical)'
+            }
+        };
+
+        // 选择速率
+        function selectSpeed(speed) {
+            currentSpeed = speed;
+            const btns = document.querySelectorAll('.speed-btn');
+            btns.forEach(btn => {
+                if (btn.textContent.includes(speed)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            updateSpeedParams();
+            resetFlow();
+        }
+
+        // 更新速率参数
+        function updateSpeedParams() {
+            const config = speedConfigs[currentSpeed];
+            
+            // 更新所有速率相关显示
+            const elements = [
+                'tx-mac-rate', 'tx-rs-lanes', 'tx-am-interval', 'tx-lane-dist',
+                'tx-fec-algo', 'tx-pam-type', 'tx-baud-rate', 'tx-optics',
+                'tx-wavelength', 'tx-driver-spec', 'tx-total-latency',
+                'tx-serdes-detail', 'tx-fec-detail',
+                'rx-sensitivity', 'rx-deskew-depth', 'rx-max-skew',
+                'rx-mac-rate', 'rx-total-latency', 'rx-fec-detail'
+            ];
+
+            elements.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const key = id.replace('tx-', '').replace('rx-', '').replace(/-/g, '');
+                    const configKey = Object.keys(config).find(k => 
+                        k.toLowerCase().replace(/_/g, '') === key.toLowerCase()
+                    );
+                    if (configKey) {
+                        el.textContent = config[configKey];
+                    }
+                }
+            });
+        }
+
+        // 启动TX流程
+        function startTxFlow() {
+            resetFlow();
+            txActive = true;
+
+            const txLayers = [
+                'tx-mac', 'tx-mac-ctrl', 'tx-rs', 'tx-pcs', 
+                'tx-fec', 'tx-pma', 'tx-serdes', 'tx-pmd'
+            ];
+
+            txLayers.forEach((layer, index) => {
+                setTimeout(() => {
+                    activateLayer(layer);
+                    updateLayerOutput(layer);
+                    createPacket(layer);
+                }, index * 800);
+            });
+        }
+
+        // 启动RX流程
+        function startRxFlow() {
+            resetFlow();
+            rxActive = true;
+
+            const rxLayers = [
+                'rx-pmd', 'rx-serdes', 'rx-pma', 'rx-fec',
+                'rx-pcs', 'rx-rs', 'rx-mac-ctrl', 'rx-mac'
+            ];
+
+            rxLayers.forEach((layer, index) => {
+                setTimeout(() => {
+                    activateLayer(layer);
+                    updateLayerOutput(layer);
+                    createPacket(layer);
+                }, index * 800);
+            });
+        }
+
+        // 激活层
+        function activateLayer(layerId) {
+            const layer = document.getElementById(layerId);
+            const status = document.getElementById(layerId + '-status');
+            
+            if (layer) {
+                layer.classList.add('active');
+                layer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            if (status) {
+                status.classList.remove('inactive');
+                status.classList.add('active');
+            }
+        }
+
+        // 更新层输出信息
+        function updateLayerOutput(layerId) {
+            const outputId = layerId + '-output';
+            const outputEl = document.getElementById(outputId);
+            
+            if (!outputEl) return;
+
+            const outputs = {
+                'tx-mac': `Ethernet Frame: 64-1518B, FCS=0x${Math.random().toString(16).substr(2, 8).toUpperCase()}`,
+                'tx-pcs': `${currentSpeed === '800G' ? '8' : '8'} Virtual Lanes, 66-bit blocks with AM markers`,
+                'tx-fec': `RS(544,514) Codewords, Post-FEC BER ≤ 10⁻¹²`,
+                'tx-serdes': `${currentSpeed === '800G' ? '8×106.25' : '8×53.125'} Gbaud PAM4 signals`,
+                'rx-serdes': `Recovered ${currentSpeed === '800G' ? '8×106.25' : '8×53.125'} Gbaud PAM4, CDR Locked`,
+                'rx-fec': `FEC Decoded, Corrected errors: ${Math.floor(Math.random() * 5)}`,
+                'rx-pcs': `64B/66B Decoded, All lanes aligned`,
+                'rx-mac': `Frame received, FCS OK, Length: ${64 + Math.floor(Math.random() * 1454)}B`
+            };
+
+            if (outputs[layerId]) {
+                outputEl.textContent = outputs[layerId];
+                outputEl.style.background = '#d4edda';
+                outputEl.style.color = '#155724';
+                
+                // 添加进度条
+                const progress = outputEl.nextElementSibling;
+                if (!progress || !progress.classList.contains('progress-bar')) {
+                    const progressBar = document.createElement('div');
+                    progressBar.className = 'progress-bar';
+                    progressBar.innerHTML = '<div class="progress-fill"></div>';
+                    outputEl.parentNode.appendChild(progressBar);
+                    
+                    setTimeout(() => {
+                        progressBar.querySelector('.progress-fill').style.width = '100%';
+                    }, 50);
+                }
+            }
+        }
+
+        // 创建数据包动画
+        function createPacket(layerId) {
+            const layer = document.getElementById(layerId);
+            if (!layer) return;
+
+            const packet = document.createElement('div');
+            packet.className = 'packet';
+            packet.textContent = '📦';
+            
+            layer.style.position = 'relative';
+            layer.appendChild(packet);
+
+            setTimeout(() => {
+                packet.style.transition = 'all 0.6s ease';
+                packet.style.left = 'calc(100% - 50px)';
+                packet.style.opacity = '0';
+            }, 100);
+
+            setTimeout(() => {
+                packet.remove();
+            }, 700);
+        }
+
+        // 重置流程
+        function resetFlow() {
+            txActive = false;
+            rxActive = false;
+
+            if (animationTimer) {
+                clearTimeout(animationTimer);
+            }
+
+            // 重置所有层
+            const allLayers = document.querySelectorAll('.layer');
+            allLayers.forEach(layer => {
+                layer.classList.remove('active');
+            });
+
+            const allStatus = document.querySelectorAll('.status-indicator');
+            allStatus.forEach(status => {
+                status.classList.remove('active');
+                status.classList.add('inactive');
+            });
+
+            const allOutputs = document.querySelectorAll('.data-value');
+            allOutputs.forEach(output => {
+                output.textContent = '等待启动...';
+                output.style.background = 'white';
+                output.style.color = '#2c3e50';
+            });
+
+            // 删除所有数据包
+            document.querySelectorAll('.packet').forEach(p => p.remove());
+            
+            // 删除所有进度条
+            document.querySelectorAll('.progress-bar').forEach(p => p.remove());
+        }
+
+        // Modal控制
+        function showDetailModal() {
+            document.getElementById('detailModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        function switchTab(tabName) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                if (tab.textContent.includes('技术规格') && tabName === 'spec') {
+                    tab.classList.add('active');
+                } else if (tab.textContent.includes('时序') && tabName === 'timing') {
+                    tab.classList.add('active');
+                } else if (tab.textContent.includes('信号') && tabName === 'signal') {
+                    tab.classList.add('active');
+                } else if (tab.textContent.includes('功耗') && tabName === 'power') {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            contents.forEach(content => {
+                if (content.id === 'tab-' + tabName) {
+                    content.classList.add('active');
+                } else {
+                    content.classList.remove('active');
+                }
+            });
+        }
+
+        // 点击Modal外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('detailModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case '1':
+                    selectSpeed('800G');
+                    break;
+                case '2':
+                    selectSpeed('400G');
+                    break;
+                case 't':
+                case 'T':
+                    startTxFlow();
+                    break;
+                case 'r':
+                case 'R':
+                    startRxFlow();
+                    break;
+                case 'Escape':
+                    resetFlow();
+                    closeModal();
+                    break;
+                case 'd':
+                case 'D':
+                    showDetailModal();
+                    break;
+            }
+        });
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSpeedParams();
+
+            // 添加使用提示
+            setTimeout(() => {
+                const hint = document.createElement('div');
+                hint.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: rgba(52, 152, 219, 0.95);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+                    z-index: 1000;
+                    font-size: 14px;
+                    max-width: 320px;
+                    line-height: 1.8;
+                    animation: slideIn 0.5s ease;
+                `;
+                hint.innerHTML = `
+                    <strong style="font-size: 16px;">💡 快捷键提示</strong><br><br>
+                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">1</kbd> / <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">2</kbd> - 切换800G/400G<br>
+                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">T</kbd> - 启动TX发送流程<br>
+                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">R</kbd> - 启动RX接收流程<br>
+                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">D</kbd> - 查看详细规格<br>
+                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">ESC</kbd> - 重置<br><br>
+                    <button onclick="this.parentElement.remove()" style="
+                        margin-top: 10px;
+                        padding: 8px 20px;
+                        background: white;
+                        color: #3498db;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: bold;
+                        font-size: 13px;
+                    ">知道了</button>
+                `;
+                
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(400px); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+                document.body.appendChild(hint);
+
+                setTimeout(() => {
+                    hint.style.transition = 'opacity 0.5s';
+                    hint.style.opacity = '0';
+                    setTimeout(() => hint.remove(), 500);
+                }, 15000);
+            }, 1000);
+
+            // 添加层悬停效果
+            const layers = document.querySelectorAll('.layer');
+            layers.forEach(layer => {
+                layer.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateX(10px) scale(1.02)';
+                });
+                layer.addEventListener('mouseleave', function() {
+                    this.style.transform = '';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
