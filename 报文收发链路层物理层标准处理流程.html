@@ -233,6 +233,18 @@
             border-color: #2980b9;
         }
 
+        .summary-layer.rlm-module {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 2px solid #f39c12;
+            box-shadow: 0 2px 5px rgba(243, 156, 18, 0.2);
+        }
+
+        .summary-layer.rlm-module:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 10px rgba(243, 156, 18, 0.4);
+            border-color: #e67e22;
+        }
+
         .summary-layer-title {
             font-weight: bold;
             color: #2c3e50;
@@ -826,13 +838,6 @@
 
         <!-- 控制面板 -->  
         <div class="controls">  
-            <div class="speed-selector">  
-                <span style="font-weight: bold; color: #2c3e50;">速率:</span>  
-                <button class="speed-btn active" onclick="selectSpeed('800G')">800GbE (8×106.25G)</button>  
-            </div>  
-            <button class="btn btn-primary" onclick="startTxFlow()">▶️ 启动TX发送</button>  
-            <button class="btn btn-secondary" onclick="startRxFlow()">▶️ 启动RX接收</button>  
-            <button class="btn btn-danger" onclick="resetFlow()">🔄 重置</button>  
             <button class="btn btn-primary" onclick="showDetailModal()">📖 详细规格</button>  
             <button class="btn btn-info" id="view-toggle-btn" onclick="toggleView()">📊 简要框图</button>  
             
@@ -2345,7 +2350,7 @@ Frame Format:<br>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
-                    <div class="summary-layer">
+                    <div class="summary-layer rlm-module">
                         <div class="summary-layer-title">🔷 RLM (Reduce Lane Mode)</div>
                         <div class="summary-layer-desc">光模块抗损，Lane缩减/扩展，故障检测与恢复</div>
                     </div>
@@ -2391,6 +2396,12 @@ Frame Format:<br>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
+                    <div class="summary-layer rlm-module">
+                        <div class="summary-layer-title">🔷 RLM (Reduce Lane Mode)</div>
+                        <div class="summary-layer-desc">光模块抗损，Lane扩展，故障检测与恢复</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 FEC (Forward Error Correction)</div>
                         <div class="summary-layer-desc">FEC解码纠错，检测并纠正传输中的比特错误</div>
@@ -2399,7 +2410,7 @@ Frame Format:<br>
                     
                     <div class="summary-layer">
                         <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
-                        <div class="summary-layer-desc">64B/66B解码，AM检测对齐，Lane去偏移</div>
+                        <div class="summary-layer-desc">64B/66B解码，AM检测对齐，SYNCE时钟恢复，Lane去偏移，AM移除，1588 PTP时间戳提取</div>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
@@ -3035,116 +3046,6 @@ Frame Format:<br>
     </div>
 
     <script>
-        let currentSpeed = '800G';
-        let txActive = false;
-        let rxActive = false;
-        let animationTimer = null;
-
-        // 速率配置
-        const speedConfigs = {
-            '800G': {
-                macRate: '800 Gbps',
-                lanes: '8 Lanes × 100G',
-                baudRate: '106.25 Gbaud/Lane',
-                cgmiiClock: '781.25 MHz',
-                amInterval: '16383 blocks (~21μs)',
-                fecAlgo: 'RS(544, 514) Reed-Solomon',
-                pamType: 'PAM4 (4-level)',
-                optics: 'OSFP / QSFP-DD800',
-                wavelength: '850nm (SR8) / 1310nm (DR8)',
-                driverSpec: 'OIF-CEI-112G',
-                deskewDepth: '160 × 128-bit (per Lane)',
-                maxSkew: '20-40 ns',
-                sensitivity: '-10 dBm (典型)',
-                txLatency: '~300-500ns',
-                rxLatency: '~400-600ns',
-                serdesDetail: '800G: 8 Lanes × 106.25 Gbaud × 2 bit/symbol = 800G\nPAM4 Levels: {-3σ, -σ, +σ, +3σ}',
-                fecDetail: 'RS(544,514) Galois Field: GF(2¹⁰)\nGenerator Polynomial: g(x) = Π(x - α^i), i=0..29\nCodeword = [Data:514 | Parity:30]\nLatency: ~50-100ns',
-                rxFecDetail: 'Correctable Errors: ≤ 15 symbols\nUE Threshold: > 15 symbols\nLatency: ~100-200ns\nPost-FEC BER: 10⁻¹² (typical)'
-            }
-        };
-
-        // 选择速率
-        function selectSpeed(speed) {
-            currentSpeed = speed;
-            const btns = document.querySelectorAll('.speed-btn');
-            btns.forEach(btn => {
-                if (btn.textContent.includes(speed)) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-
-            updateSpeedParams();
-            resetFlow();
-        }
-
-        // 更新速率参数
-        function updateSpeedParams() {
-            const config = speedConfigs[currentSpeed];
-            
-            // 更新所有速率相关显示
-            const elements = [
-                'tx-mac-rate', 'tx-rs-lanes', 'tx-am-interval', 'tx-lane-dist',
-                'tx-fec-algo', 'tx-pam-type', 'tx-baud-rate', 'tx-optics',
-                'tx-wavelength', 'tx-driver-spec', 'tx-total-latency',
-                'tx-serdes-detail', 'tx-fec-detail',
-                'rx-sensitivity', 'rx-deskew-depth', 'rx-max-skew',
-                'rx-mac-rate', 'rx-total-latency', 'rx-fec-detail'
-            ];
-
-            elements.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    const key = id.replace('tx-', '').replace('rx-', '').replace(/-/g, '');
-                    const configKey = Object.keys(config).find(k => 
-                        k.toLowerCase().replace(/_/g, '') === key.toLowerCase()
-                    );
-                    if (configKey) {
-                        el.textContent = config[configKey];
-                    }
-                }
-            });
-        }
-
-        // 启动TX流程
-        function startTxFlow() {
-            resetFlow();
-            txActive = true;
-
-            const txLayers = [
-                'tx-mac', 'tx-cbfc', 'tx-llr', 'tx-mac-ctrl', 'tx-rs', 'tx-pcs', 
-                'tx-fec', 'tx-rlm', 'tx-pma', 'tx-serdes', 'tx-pmd'
-            ];
-
-            txLayers.forEach((layer, index) => {
-                setTimeout(() => {
-                    activateLayer(layer);
-                    updateLayerOutput(layer);
-                    createPacket(layer);
-                }, index * 800);
-            });
-        }
-
-        // 启动RX流程
-        function startRxFlow() {
-            resetFlow();
-            rxActive = true;
-
-            const rxLayers = [
-                'rx-pmd', 'rx-serdes', 'rx-pma', 'rx-rlm', 'rx-fec',
-                'rx-pcs', 'rx-rs', 'rx-mac-ctrl', 'rx-llr', 'rx-cbfc', 'rx-mac'
-            ];
-
-            rxLayers.forEach((layer, index) => {
-                setTimeout(() => {
-                    activateLayer(layer);
-                    updateLayerOutput(layer);
-                    createPacket(layer);
-                }, index * 800);
-            });
-        }
 
         // 激活层
         function activateLayer(layerId) {
@@ -3229,7 +3130,6 @@ Frame Format:<br>
             }, 700);
         }
 
-        // 重置流程
         // 视图切换函数
         let isSummaryView = true; // 默认显示简要视图
         function toggleView() {
@@ -3259,38 +3159,6 @@ Frame Format:<br>
         window.addEventListener('DOMContentLoaded', function() {
             toggleView(); // 初始化为简要视图
         });
-
-        function resetFlow() {
-            txActive = false;
-            rxActive = false;
-
-            if (animationTimer) {
-                clearTimeout(animationTimer);
-            }
-
-            // 重置所有层
-            const allLayers = document.querySelectorAll('.layer');
-            allLayers.forEach(layer => {
-                layer.classList.remove('active');
-            });
-
-            const allStatus = document.querySelectorAll('.status-indicator');
-            allStatus.forEach(status => {
-                status.classList.remove('active');
-                status.classList.add('inactive');
-            });
-
-            const allOutputs = document.querySelectorAll('.data-value');
-            allOutputs.forEach(output => {
-                output.textContent = '等待启动...';
-                output.style.background = 'white';
-                output.style.color = '#2c3e50';
-            });
-
-            // 删除所有数据包
-            document.querySelectorAll('.packet').forEach(p => p.remove());
-            
-            // 删除所有进度条
             document.querySelectorAll('.progress-bar').forEach(p => p.remove());
         }
 
@@ -3347,21 +3215,6 @@ Frame Format:<br>
         // 键盘快捷键
         document.addEventListener('keydown', function(e) {
             switch(e.key) {
-                case '1':
-                    selectSpeed('800G');
-                    break;
-                case 't':
-                case 'T':
-                    startTxFlow();
-                    break;
-                case 'r':
-                case 'R':
-                    startRxFlow();
-                    break;
-                case 'Escape':
-                    resetFlow();
-                    closeModal();
-                    break;
                 case 'd':
                 case 'D':
                     showDetailModal();
@@ -3371,63 +3224,6 @@ Frame Format:<br>
 
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
-            updateSpeedParams();
-
-            // 添加使用提示
-            setTimeout(() => {
-                const hint = document.createElement('div');
-                hint.style.cssText = `
-                    position: fixed;
-                    bottom: 20px;
-                    right: 20px;
-                    background: rgba(52, 152, 219, 0.95);
-                    color: white;
-                    padding: 20px;
-                    border-radius: 12px;
-                    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-                    z-index: 1000;
-                    font-size: 14px;
-                    max-width: 320px;
-                    line-height: 1.8;
-                    animation: slideIn 0.5s ease;
-                `;
-                hint.innerHTML = `
-                    <strong style="font-size: 16px;">💡 快捷键提示</strong><br><br>
-                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">1</kbd> - 选择800G速率<br>
-                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">T</kbd> - 启动TX发送流程<br>
-                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">R</kbd> - 启动RX接收流程<br>
-                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">D</kbd> - 查看详细规格<br>
-                    <kbd style="background: white; color: #3498db; padding: 2px 8px; border-radius: 3px;">ESC</kbd> - 重置<br><br>
-                    <button onclick="this.parentElement.remove()" style="
-                        margin-top: 10px;
-                        padding: 8px 20px;
-                        background: white;
-                        color: #3498db;
-                        border: none;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-weight: bold;
-                        font-size: 13px;
-                    ">知道了</button>
-                `;
-                
-                const style = document.createElement('style');
-                style.textContent = `
-                    @keyframes slideIn {
-                        from { transform: translateX(400px); opacity: 0; }
-                        to { transform: translateX(0); opacity: 1; }
-                    }
-                `;
-                document.head.appendChild(style);
-                document.body.appendChild(hint);
-
-                setTimeout(() => {
-                    hint.style.transition = 'opacity 0.5s';
-                    hint.style.opacity = '0';
-                    setTimeout(() => hint.remove(), 500);
-                }, 15000);
-            }, 1000);
-
             // 添加层悬停效果
             const layers = document.querySelectorAll('.layer');
             layers.forEach(layer => {
