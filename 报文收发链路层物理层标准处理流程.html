@@ -147,12 +147,75 @@
             color: white;  
         }  
 
-        .btn-danger:hover {  
-            background: #c0392b;  
-            transform: translateY(-2px);  
-        }  
+        .btn-danger:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
 
-        .flow-container {  
+        .btn-info {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        /* 简要视图样式 */
+        .summary-view {
+            display: none;
+        }
+
+        .summary-view.active {
+            display: block;
+        }
+
+        .flow-container.hide {
+            display: none;
+        }
+
+        .summary-layer {
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .summary-layer:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+            border-color: #2980b9;
+        }
+
+        .summary-layer-title {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .summary-layer-desc {
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-left: 28px;
+        }
+
+        .summary-arrow {
+            text-align: center;
+            font-size: 20px;
+            color: #3498db;
+            margin: 5px 0;
+        }
+
+        .flow-container {
             display: flex;  
             gap: 30px;  
             margin-top: 20px;  
@@ -703,6 +766,7 @@
             <button class="btn btn-secondary" onclick="startRxFlow()">▶️ 启动RX接收</button>  
             <button class="btn btn-danger" onclick="resetFlow()">🔄 重置</button>  
             <button class="btn btn-primary" onclick="showDetailModal()">📖 详细规格</button>  
+            <button class="btn btn-info" id="view-toggle-btn" onclick="toggleView()">📊 简要框图</button>  
         </div>  
 
         <!-- 主流程区域 -->  
@@ -1747,6 +1811,127 @@ Frame Format:<br>
             </div>  
         </div>  
 
+        <!-- 简要框图视图 -->
+        <div class="summary-view" id="summary-view">
+            <div class="flow-container">
+                <!-- TX简要流程 -->
+                <div class="direction-column tx">
+                    <div class="direction-title tx">📤 TX 发送流程 (Host → Line)</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 MAC Client</div>
+                        <div class="summary-layer-desc">生成标准以太网帧，包含DA/SA/Type/Data/FCS字段</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 LLR (Link Layer Retransmission)</div>
+                        <div class="summary-layer-desc">为数据包分配序列号，提供链路层重传机制保证可靠性</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 MAC Control</div>
+                        <div class="summary-layer-desc">处理PAUSE/PFC流控帧，管理MAC层控制功能</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 RS (Reconciliation Sublayer)</div>
+                        <div class="summary-layer-desc">适配CGMII接口，进行时钟域转换和Lane分配</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
+                        <div class="summary-layer-desc">64B/66B编码，添加同步头和AM对齐标记</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 FEC (Forward Error Correction)</div>
+                        <div class="summary-layer-desc">RS(544,514)或KP4 FEC编码，增强传输可靠性</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 PMA (Physical Medium Attachment)</div>
+                        <div class="summary-layer-desc">Gearbox数据位宽转换，准备SerDes接口数据</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 SerDes</div>
+                        <div class="summary-layer-desc">并行数据串行化，PAM4调制输出高速电信号</div>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 PMD (Physical Medium Dependent)</div>
+                        <div class="summary-layer-desc">电光转换，驱动光模块输出到光纤链路</div>
+                    </div>
+                </div>
+
+                <!-- RX简要流程 -->
+                <div class="direction-column rx">
+                    <div class="direction-title rx">📥 RX 接收流程 (Line → Host)</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 PMD (Physical Medium Dependent)</div>
+                        <div class="summary-layer-desc">光电转换，从光纤接收光信号并转换为电信号</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 SerDes</div>
+                        <div class="summary-layer-desc">串行数据并行化，CDR时钟恢复，PAM4解调</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 PMA (Physical Medium Attachment)</div>
+                        <div class="summary-layer-desc">Gearbox数据位宽转换，恢复并行数据流</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 FEC (Forward Error Correction)</div>
+                        <div class="summary-layer-desc">FEC解码纠错，检测并纠正传输中的比特错误</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
+                        <div class="summary-layer-desc">64B/66B解码，Lane对齐去偏移，AM移除</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 RS (Reconciliation Sublayer)</div>
+                        <div class="summary-layer-desc">接口反向适配，Lane数据合并，恢复CGMII接口</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 MAC Control</div>
+                        <div class="summary-layer-desc">解析PAUSE/PFC流控帧，处理MAC层控制信息</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 LLR (Link Layer Retransmission)</div>
+                        <div class="summary-layer-desc">序列号检查，重排序，生成ACK/NACK反馈</div>
+                    </div>
+                    <div class="summary-arrow">⬆️</div>
+                    
+                    <div class="summary-layer">
+                        <div class="summary-layer-title">🔷 MAC Client</div>
+                        <div class="summary-layer-desc">FCS校验，帧过滤，上送完整以太网帧到上层</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 图例 -->  
         <div class="legend">  
             <div class="legend-item">  
@@ -2590,6 +2775,31 @@ Frame Format:<br>
         }
 
         // 重置流程
+        // 视图切换函数
+        let isSummaryView = false;
+        function toggleView() {
+            isSummaryView = !isSummaryView;
+            const flowContainer = document.querySelector('.flow-container');
+            const summaryView = document.getElementById('summary-view');
+            const toggleBtn = document.getElementById('view-toggle-btn');
+            
+            if (isSummaryView) {
+                // 切换到简要视图
+                flowContainer.classList.add('hide');
+                summaryView.classList.add('active');
+                toggleBtn.textContent = '📋 详细视图';
+                toggleBtn.classList.remove('btn-info');
+                toggleBtn.classList.add('btn-secondary');
+            } else {
+                // 切换到详细视图
+                flowContainer.classList.remove('hide');
+                summaryView.classList.remove('active');
+                toggleBtn.textContent = '📊 简要框图';
+                toggleBtn.classList.remove('btn-secondary');
+                toggleBtn.classList.add('btn-info');
+            }
+        }
+
         function resetFlow() {
             txActive = false;
             rxActive = false;
