@@ -162,6 +162,48 @@
             transform: translateY(-2px);
         }
 
+        .btn-uec {
+            background: #9b59b6;
+            color: white;
+        }
+
+        .btn-uec:hover {
+            background: #7d3c98;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(155, 89, 182, 0.4);
+        }
+
+        .btn-rlm {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-rlm:hover {
+            background: #e67e22;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(243, 156, 18, 0.4);
+        }
+
+        .module-buttons-container {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #ecf0f1;
+        }
+
+        .module-buttons-label {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .module-buttons-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
         /* 简要视图样式 */
         .summary-view {
             display: block;
@@ -793,10 +835,22 @@
             <button class="btn btn-danger" onclick="resetFlow()">🔄 重置</button>  
             <button class="btn btn-primary" onclick="showDetailModal()">📖 详细规格</button>  
             <button class="btn btn-info" id="view-toggle-btn" onclick="toggleView()">📊 简要框图</button>  
-            <button class="btn btn-secondary" onclick="openModuleDetail('PRBS')">🔬 PRBS模块</button>  
-            <button class="btn btn-secondary" onclick="openModuleDetail('SYNCE')">⏰ SYNCE模块</button>  
-            <button class="btn btn-secondary" onclick="openModuleDetail('1588')">🕐 1588模块</button>  
-            <button class="btn btn-secondary" onclick="openModuleDetail('LLR')">🔄 LLR模块</button>  
+            
+            <div class="module-buttons-container">
+                <div class="module-buttons-label">相关模块：</div>
+                <div class="module-buttons-row">
+                    <button class="btn btn-secondary" onclick="openModuleDetail('PRBS')">🔬 PRBS模块</button>  
+                    <button class="btn btn-secondary" onclick="openModuleDetail('SYNCE')">⏰ SYNCE模块</button>  
+                    <button class="btn btn-secondary" onclick="openModuleDetail('1588')">🕐 1588模块</button>  
+                    <button class="btn btn-secondary" onclick="openModuleDetail('AM')">📍 AM模块</button>  
+                    <button class="btn btn-secondary" onclick="openModuleDetail('FEC')">🛡️ FEC模块</button>  
+                </div>
+                <div class="module-buttons-row">
+                    <button class="btn btn-uec" onclick="openModuleDetail('LLR')">🔄 LLR模块</button>  
+                    <button class="btn btn-uec" onclick="openModuleDetail('CBFC')">💳 CBFC模块</button>  
+                    <button class="btn btn-rlm" onclick="openModuleDetail('RLM')">🔧 RLM模块</button>  
+                </div>
+            </div>
         </div>  
 
         <!-- 主流程区域 -->  
