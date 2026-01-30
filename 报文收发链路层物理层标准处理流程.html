@@ -173,17 +173,6 @@
             box-shadow: 0 5px 15px rgba(155, 89, 182, 0.4);
         }
 
-        .btn-rlm {
-            background: #f39c12;
-            color: white;
-        }
-
-        .btn-rlm:hover {
-            background: #e67e22;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(243, 156, 18, 0.4);
-        }
-
         .module-buttons-container {
             margin-top: 15px;
             padding-top: 15px;
@@ -233,16 +222,15 @@
             border-color: #2980b9;
         }
 
-        .summary-layer.rlm-module {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-            border: 2px solid #f39c12;
-            box-shadow: 0 2px 5px rgba(243, 156, 18, 0.2);
+        .summary-layer-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            cursor: pointer;
         }
 
-        .summary-layer.rlm-module:hover {
-            transform: translateX(5px);
-            box-shadow: 0 4px 10px rgba(243, 156, 18, 0.4);
-            border-color: #e67e22;
+        .summary-layer-link:hover {
+            color: inherit;
         }
 
         .summary-layer-title {
@@ -853,13 +841,12 @@
                 <div class="module-buttons-row">
                     <button class="btn btn-uec" onclick="openModuleDetail('LLR')">🔄 LLR模块</button>  
                     <button class="btn btn-uec" onclick="openModuleDetail('CBFC')">💳 CBFC模块</button>  
-                    <button class="btn btn-rlm" onclick="openModuleDetail('RLM')">🔧 RLM模块</button>  
                 </div>
             </div>
         </div>  
 
         <!-- 主流程区域 -->  
-        <div class="flow-container hide" id="detail-flow-container">  
+        <div class="flow-container" id="detail-flow-container">  
             <!-- TX发送流程 -->  
             <div class="direction-column tx">  
                 <div class="direction-title tx">📤 TX 发送流程 (Host → Line)</div>  
@@ -1326,94 +1313,6 @@ Latency: ~50-100ns</span>
 
                 <div class="arrow">⬇️</div>  
 
-                <!-- RLM Layer (TX) -->
-                <div class="layer" id="tx-rlm">
-                    <div class="layer-header">
-                        <span class="layer-name">
-                            <span class="status-indicator inactive" id="tx-rlm-status"></span>
-                            RLM: Reduce Lane Mode (TX)
-                        </span>
-                        <span class="layer-standard">Internal Specification</span>
-                    </div>
-                    
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM TX FIFO</div>
-                        <div class="sublayer-desc">
-                            • 功能: LANE REDUCE反压时吸收PCS发送的数据<br>
-                            • 深度: 2×128bit<br>
-                            • 管理: 产生PCS TX VLD信号<br>
-                            • 应用: 故障切换时的数据缓冲
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM TX Lane Reduce</div>
-                        <div class="sublayer-desc">
-                            • 功能: 根据故障情况将8条lane数据拼接在无故障lane上<br>
-                            • 支持速率: 800GR8、400GR4、200GR2<br>
-                            • 处理: 插入故障切换码和RLM_AM码<br>
-                            • 切换: 反压前级FIFO，插入切换码流
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM TX CRC Insert</div>
-                        <div class="sublayer-desc">
-                            • 功能: 对Lane reduce输出的数据进行CRC16校验计算<br>
-                            • 计算范围: 从AM_1后一拍到AM_2前一拍<br>
-                            • 插入: CRC校验码插入到AM_2的最高16bit<br>
-                            • 目的: 确保数据传输完整性
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM TX Switch FSM</div>
-                        <div class="sublayer-desc">
-                            • 功能: 根据故障触发条件产生故障码<br>
-                            • 状态: INIT → SWITCH → REDUCE<br>
-                            • 触发: RLM RX故障码、serdes tx vld故障、软件配置故障<br>
-                            • 恢复: serdes恢复后自动或软件shut/unshut恢复
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM TX Lane Swap</div>
-                        <div class="sublayer-desc">
-                            • 功能: 实现serdes tx lane swap功能<br>
-                            • 配置: 24bit配置（每3bit表示一条lane）<br>
-                            • 限制: RLM使能时不允许使用PCS lane swap<br>
-                            • 应用: 物理lane映射调整
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM PCS TX2SDS AFIFO</div>
-                        <div class="sublayer-desc">
-                            • 功能: 8个异步FIFO完成MII时钟域到Serdes时钟域的跨时钟域处理<br>
-                            • 规格: 8深度×128位宽度（每个FIFO）<br>
-                            • 控制: 将满信号反压前级模块，阈值可配<br>
-                            • 启动: 解复位后接收到5拍数据后再开始读
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM TX Find AM</div>
-                        <div class="sublayer-desc">
-                            • 功能: 适配1588-HETS功能，寻找AM码位置<br>
-                            • RLM不使能: 对PCS TX出口数据和AM PATTERN比对<br>
-                            • RLM使能: 对RLM TX出口数据和AM PATTERN比对<br>
-                            • 输出: 发送给HETS_TX进行时戳计算
-                        </div>
-                    </div>
-
-                    <div class="data-flow">
-                        <span class="data-label">输出:</span>
-                        <span class="data-value" id="tx-rlm-output">等待启动...</span>
-                    </div>
-                </div>
-
-                <div class="arrow">⬇️</div>  
-
                 <!-- SerDes TX -->  
                 <div class="layer" id="tx-serdes">  
                     <div class="layer-header">  
@@ -1732,96 +1631,6 @@ Post-FEC BER: 10⁻¹² (typical)</span>
 
                 <div class="arrow rx">⬆️</div>  
 
-                <!-- RLM Layer (RX) -->
-                <div class="layer" id="rx-rlm">
-                    <div class="layer-header">
-                        <span class="layer-name">
-                            <span class="status-indicator inactive" id="rx-rlm-status"></span>
-                            RLM: Reduce Lane Mode (RX)
-                        </span>
-                        <span class="layer-standard">Internal Specification</span>
-                    </div>
-                    
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM SDS2PCS RX AFIFO</div>
-                        <div class="sublayer-desc">
-                            • 功能: 8个异步FIFO实现serdes rx clk到mii clk的跨时钟域处理<br>
-                            • 规格: 8深度×128位宽度（每个FIFO）<br>
-                            • 控制: 非空即读<br>
-                            • 应用: 时钟域转换
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM RX Lane Swap</div>
-                        <div class="sublayer-desc">
-                            • 功能: 实现serdes rx lane swap<br>
-                            • 处理: 只对数据和数据有效信号进行swap<br>
-                            • 限制: RLM使能时不允许使用PCS lane swap<br>
-                            • 配置: 24bit配置（每3bit表示一条lane）
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM RX Lane Lock</div>
-                        <div class="sublayer-desc">
-                            • 功能: 移位解析RLM_AM码字，完成RLM_LANE_LOCK<br>
-                            • AM Pattern: 0x9A4A26Bx (x表示lane编号)<br>
-                            • 处理: 通过数据移位32bit和RLM_AM_PATTERN比较找到AM位置<br>
-                            • 状态机: GET_BLOCK → COUNT_NEXT → TWO_GOOD<br>
-                            • CRC校验: 每两个AM码之间的数据CRC校验
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM RX Deskew</div>
-                        <div class="sublayer-desc">
-                            • 功能: 对齐统一接口的多条LANE的RLM_AM码<br>
-                            • FIFO: 8个FIFO，160深度×128bit位宽（SRAM搭建）<br>
-                            • 状态机: DESKEW → ALIGN_ACQUIRED → DESKEW_FAIL<br>
-                            • 处理: 根据lane number对8条lane的数据进行reorder<br>
-                            • 输出: 对齐后的数据发送给PCS RX
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM RX Switch FSM</div>
-                        <div class="sublayer-desc">
-                            • 功能: 识别故障码到做切换处理的状态切换<br>
-                            • 状态: INIT → LOCK → SWITCH → REDUCE<br>
-                            • 触发: SERDES deskew失败、CPLD故障、rx vld拉低、sigdet拉低、软件配置故障<br>
-                            • 处理: 识别切换码流，切换到可用LANE上接收数据
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM RX Lane Extend</div>
-                        <div class="sublayer-desc">
-                            • 功能: 将可用LANE的数据解析扩展到原来的所有LANE上<br>
-                            • 支持速率: 800GR8、400GR4、200GR2<br>
-                            • 处理: 接收RX SWITCH FSM的切换信号，做数据扩展<br>
-                            • 输出: 发送给PCS RX，并产生PCS RX VLD信号
-                        </div>
-                    </div>
-
-                    <div class="sublayer">
-                        <div class="sublayer-name">🔸 RLM RX Find AM</div>
-                        <div class="sublayer-desc">
-                            • 功能: 适配1588-HETS功能，寻找AM码位置<br>
-                            • RLM不使能: HETS RX使用PCS LANE LOCK出口的AM_POS信号<br>
-                            • RLM使能: HETS RX使用RLM LANE LOCK输出的FIND_AM信号打时戳<br>
-                            • 输出: 发送给HETS_RX_TOP进行时戳计算
-                        </div>
-                    </div>
-
-                    <div class="data-flow">
-                        <span class="data-label">输出:</span>
-                        <span class="data-value" id="rx-rlm-output">等待启动...</span>
-                    </div>
-                </div>
-
-                <div class="arrow rx">⬆️</div>  
-
                 <!-- PCS RX -->  
                 <div class="layer" id="rx-pcs">  
                     <div class="layer-header">  
@@ -1936,7 +1745,7 @@ Invalid Block → BER++
                             • 触发: 检测到PTP帧的SFD (Start Frame Delimiter)<br>  
                             • 精度: 纳秒级时间戳精度，硬件实现<br>  
                             • 处理: 提取时间戳字段并计算延迟，补偿硬件延迟和路径延迟<br>  
-                            • 影响: RLM使能时会影响HETS RX时戳计算，需要补偿
+                            • 影响: 需配合HETS进行时戳计算与补偿
                         </div>  
                     </div>  
 
@@ -2299,75 +2108,90 @@ Frame Format:<br>
                     <div class="direction-title tx">📤 TX 发送流程 (Host → Line)</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 MAC Client</div>
-                        <div class="summary-layer-desc">生成标准以太网帧，包含DA/SA/Type/Data/FCS字段</div>
+                        <a href="MAC-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 MAC Client</div>
+                            <div class="summary-layer-desc">生成标准以太网帧，包含DA/SA/Type/Data/FCS字段</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 1588 PTP Timestamp</div>
-                        <div class="summary-layer-desc">精确时间协议时间戳插入，硬件时间戳捕获</div>
+                        <a href="1588-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 1588 PTP Timestamp</div>
+                            <div class="summary-layer-desc">精确时间协议时间戳插入，硬件时间戳捕获</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer uec-standard">
-                        <div class="summary-layer-title">🔷 CBFC (Credit-Based Flow Control)</div>
-                        <div class="summary-layer-desc">基于信用的流控，管理虚拟通道信用分配和消耗 (UEC标准)</div>
+                        <a href="CBFC-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 CBFC (Credit-Based Flow Control)</div>
+                            <div class="summary-layer-desc">基于信用的流控，管理虚拟通道信用分配和消耗 (UEC标准)</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer uec-standard">
-                        <div class="summary-layer-title">🔷 LLR (Link Layer Retransmission)</div>
-                        <div class="summary-layer-desc">为数据包分配序列号，提供链路层重传机制保证可靠性 (UEC标准)</div>
+                        <a href="LLR-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 LLR (Link Layer Retransmission)</div>
+                            <div class="summary-layer-desc">为数据包分配序列号，提供链路层重传机制保证可靠性 (UEC标准)</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 MAC Control</div>
-                        <div class="summary-layer-desc">处理PAUSE/PFC流控帧，管理MAC层控制功能</div>
+                        <a href="MAC-Control-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 MAC Control</div>
+                            <div class="summary-layer-desc">处理PAUSE/PFC流控帧，管理MAC层控制功能</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 RS (Reconciliation Sublayer)</div>
-                        <div class="summary-layer-desc">适配CGMII接口，进行时钟域转换和Lane分配</div>
+                        <a href="RS-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 RS (Reconciliation Sublayer)</div>
+                            <div class="summary-layer-desc">适配CGMII接口，进行时钟域转换和Lane分配</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
-                        <div class="summary-layer-desc">64B/66B编码，添加同步头和AM对齐标记，1588 PTP时间戳插入（PRBS测试模式时可替代MAC Client作为数据源）</div>
-                    </div>
-                    <div class="summary-arrow">⬇️</div>
-                    
-                    
-                    <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 FEC (Forward Error Correction)</div>
-                        <div class="summary-layer-desc">RS(544,514)或KP4 FEC编码，增强传输可靠性</div>
-                    </div>
-                    <div class="summary-arrow">⬇️</div>
-                    
-                    <div class="summary-layer rlm-module">
-                        <div class="summary-layer-title">🔷 RLM (Reduce Lane Mode)</div>
-                        <div class="summary-layer-desc">光模块抗损，Lane缩减/扩展，故障检测与恢复</div>
+                        <a href="PCS-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
+                            <div class="summary-layer-desc">64B/66B编码，添加同步头和AM对齐标记，1588 PTP时间戳插入（PRBS测试模式时可替代MAC Client作为数据源）</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 PMA (Physical Medium Attachment)</div>
-                        <div class="summary-layer-desc">Gearbox数据位宽转换，准备SerDes接口数据</div>
+                        <a href="FEC-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 FEC (Forward Error Correction)</div>
+                            <div class="summary-layer-desc">RS(544,514)或KP4 FEC编码，增强传输可靠性</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 SerDes</div>
-                        <div class="summary-layer-desc">并行数据串行化，PAM4调制输出高速电信号</div>
+                        <a href="PMA-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 PMA (Physical Medium Attachment)</div>
+                            <div class="summary-layer-desc">Gearbox数据位宽转换，准备SerDes接口数据</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬇️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 PMD (Physical Medium Dependent)</div>
-                        <div class="summary-layer-desc">电光转换，驱动光模块输出到光纤链路</div>
+                        <a href="SerDes-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 SerDes</div>
+                            <div class="summary-layer-desc">并行数据串行化，PAM4调制输出高速电信号</div>
+                        </a>
+                    </div>
+                    <div class="summary-arrow">⬇️</div>
+                    
+                    <div class="summary-layer">
+                        <a href="PMD-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 PMD (Physical Medium Dependent)</div>
+                            <div class="summary-layer-desc">电光转换，驱动光模块输出到光纤链路</div>
+                        </a>
                     </div>
                 </div>
 
@@ -2376,80 +2200,98 @@ Frame Format:<br>
                     <div class="direction-title rx">📥 RX 接收流程 (Line → Host)</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 PMD (Physical Medium Dependent)</div>
-                        <div class="summary-layer-desc">光电转换，从光纤接收光信号并转换为电信号</div>
+                        <a href="PMD-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 PMD (Physical Medium Dependent)</div>
+                            <div class="summary-layer-desc">光电转换，从光纤接收光信号并转换为电信号</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 SerDes</div>
-                        <div class="summary-layer-desc">串行数据并行化，CDR时钟恢复，PAM4解调</div>
+                        <a href="SerDes-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 SerDes</div>
+                            <div class="summary-layer-desc">串行数据并行化，CDR时钟恢复，PAM4解调</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 PMA (Physical Medium Attachment)</div>
-                        <div class="summary-layer-desc">Gearbox数据位宽转换，恢复并行数据流</div>
-                    </div>
-                    <div class="summary-arrow">⬆️</div>
-                    
-                    <div class="summary-layer rlm-module">
-                        <div class="summary-layer-title">🔷 RLM (Reduce Lane Mode)</div>
-                        <div class="summary-layer-desc">光模块抗损，Lane扩展，故障检测与恢复</div>
+                        <a href="PMA-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 PMA (Physical Medium Attachment)</div>
+                            <div class="summary-layer-desc">Gearbox数据位宽转换，恢复并行数据流</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 FEC (Forward Error Correction)</div>
-                        <div class="summary-layer-desc">FEC解码纠错，检测并纠正传输中的比特错误</div>
+                        <a href="FEC-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 FEC (Forward Error Correction)</div>
+                            <div class="summary-layer-desc">FEC解码纠错，检测并纠正传输中的比特错误</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
-                        <div class="summary-layer-desc">64B/66B解码，AM检测对齐，SYNCE时钟恢复，Lane去偏移，AM移除，1588 PTP时间戳提取（PRBS测试模式时可替代MAC Client作为数据接收）</div>
+                        <a href="PCS-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 PCS (Physical Coding Sublayer)</div>
+                            <div class="summary-layer-desc">64B/66B解码，AM检测对齐，SYNCE时钟恢复，Lane去偏移，AM移除，1588 PTP时间戳提取（PRBS测试模式时可替代MAC Client作为数据接收）</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 SYNCE (Synchronous Ethernet)</div>
-                        <div class="summary-layer-desc">从接收数据流中恢复同步时钟信号，基于64B/66B同步头</div>
+                        <a href="SYNCE-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 SYNCE (Synchronous Ethernet)</div>
+                            <div class="summary-layer-desc">从接收数据流中恢复同步时钟信号，基于64B/66B同步头</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 AM Removal</div>
-                        <div class="summary-layer-desc">AM移除，恢复原始数据流</div>
+                        <a href="AM-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 AM Removal</div>
+                            <div class="summary-layer-desc">AM移除，恢复原始数据流</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 RS (Reconciliation Sublayer)</div>
-                        <div class="summary-layer-desc">接口反向适配，Lane数据合并，恢复CGMII接口</div>
+                        <a href="RS-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 RS (Reconciliation Sublayer)</div>
+                            <div class="summary-layer-desc">接口反向适配，Lane数据合并，恢复CGMII接口</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 MAC Control</div>
-                        <div class="summary-layer-desc">解析PAUSE/PFC流控帧，处理MAC层控制信息</div>
+                        <a href="MAC-Control-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 MAC Control</div>
+                            <div class="summary-layer-desc">解析PAUSE/PFC流控帧，处理MAC层控制信息</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer uec-standard">
-                        <div class="summary-layer-title">🔷 LLR (Link Layer Retransmission)</div>
-                        <div class="summary-layer-desc">序列号检查，重排序，生成ACK/NACK反馈 (UEC标准)</div>
+                        <a href="LLR-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 LLR (Link Layer Retransmission)</div>
+                            <div class="summary-layer-desc">序列号检查，重排序，生成ACK/NACK反馈 (UEC标准)</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer uec-standard">
-                        <div class="summary-layer-title">🔷 CBFC (Credit-Based Flow Control)</div>
-                        <div class="summary-layer-desc">接收端信用管理，生成CF_Update消息，处理CC_Update (UEC标准)</div>
+                        <a href="CBFC-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 CBFC (Credit-Based Flow Control)</div>
+                            <div class="summary-layer-desc">接收端信用管理，生成CF_Update消息，处理CC_Update (UEC标准)</div>
+                        </a>
                     </div>
                     <div class="summary-arrow">⬆️</div>
                     
                     <div class="summary-layer">
-                        <div class="summary-layer-title">🔷 MAC Client</div>
-                        <div class="summary-layer-desc">FCS校验，帧过滤，上送完整以太网帧到上层</div>
+                        <a href="MAC-module-detail.html" target="_blank" class="summary-layer-link">
+                            <div class="summary-layer-title">🔷 MAC Client</div>
+                            <div class="summary-layer-desc">FCS校验，帧过滤，上送完整以太网帧到上层</div>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -3073,10 +2915,8 @@ Frame Format:<br>
                 'tx-llr': `LLR TX: SN=${Math.floor(Math.random() * 65535)}, Buffer=${Math.floor(Math.random() * 100)}%, ACK received`,
                 'tx-pcs': `8 Virtual Lanes, 66-bit blocks with AM markers, 1588 timestamp inserted`,
                 'tx-fec': `RS(544,514) Codewords, Post-FEC BER ≤ 10⁻¹²`,
-                'tx-rlm': `RLM TX: Lane reduce active, ${Math.floor(Math.random() * 8)} lanes available, AM inserted`,
                 'tx-serdes': `8×106.25 Gbaud PAM4 signals`,
                 'rx-serdes': `Recovered 8×106.25 Gbaud PAM4, CDR Locked`,
-                'rx-rlm': `RLM RX: Lane extend active, ${Math.floor(Math.random() * 8)} lanes available, AM locked`,
                 'rx-fec': `FEC Decoded, Corrected errors: ${Math.floor(Math.random() * 5)}`,
                 'rx-pcs': `64B/66B Decoded, All lanes aligned, SYNCE clock recovered, 1588 timestamp extracted`,
                 'rx-llr': `LLR RX: SN=${Math.floor(Math.random() * 65535)}, Reordered, ACK sent`,
@@ -3164,25 +3004,9 @@ Frame Format:<br>
             }
         }
         
-        // 页面加载时初始化视图为简要框图模式
+        // 页面加载时初始化视图
         window.addEventListener('DOMContentLoaded', function() {
-            // 确保详细视图隐藏，简要视图显示
-            const detailFlowContainer = document.getElementById('detail-flow-container');
-            const summaryView = document.getElementById('summary-view');
-            const toggleBtn = document.getElementById('view-toggle-btn');
-            
-            if (detailFlowContainer) {
-                detailFlowContainer.classList.add('hide');
-            }
-            if (summaryView) {
-                summaryView.classList.remove('hide');
-            }
-            if (toggleBtn) {
-                toggleBtn.textContent = '📋 详细视图';
-                toggleBtn.classList.remove('btn-info');
-                toggleBtn.classList.add('btn-secondary');
-            }
-            isSummaryView = true; // 设置为简要视图状态
+            toggleView(); // 初始化为简要视图
         });
 
         // Modal控制
