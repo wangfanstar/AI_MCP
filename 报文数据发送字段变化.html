@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📊 报文数据字段变化动画 - 完整版</title>
+    <title>📊 报文与IDLE处理完整动画</title>
     <style>
         * {
             margin: 0;
@@ -160,6 +160,10 @@
             border-color: #68d391;
         }
 
+        .card-idle {
+            border-color: #fbbf24;
+        }
+
         .card-header {
             padding: 15px;
             font-weight: bold;
@@ -176,6 +180,10 @@
 
         .card-after .card-header {
             background: linear-gradient(135deg, #68d391, #48bb78);
+        }
+
+        .card-idle .card-header {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
         }
 
         .card-size {
@@ -235,6 +243,8 @@
         .field-encoding { background: #81e6d9; }
         .field-fec { background: #fbb6ce; }
         .field-am { background: #9ae6b4; }
+        .field-idle { background: #fde68a; }
+        .field-control { background: #fed7aa; }
 
         /* 新增字段动画 */
         .field-new {
@@ -318,6 +328,11 @@
             animation: lanePulse 0.6s;
         }
 
+        .lane.idle {
+            border-color: #fbbf24;
+            background: #fffbeb;
+        }
+
         @keyframes lanePulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.08); }
@@ -399,21 +414,21 @@
         /* 信息框 */
         .info-section {
             margin-top: 30px;
-            background: #fff5f5;
-            border-left: 5px solid #f56565;
+            background: #fffbeb;
+            border-left: 5px solid #f59e0b;
             padding: 20px;
             border-radius: 10px;
         }
 
         .info-section h3 {
-            color: #c53030;
+            color: #92400e;
             margin-bottom: 15px;
             font-size: 18px;
         }
 
         .info-section ul {
             margin-left: 25px;
-            color: #742a2a;
+            color: #78350f;
             line-height: 2;
         }
 
@@ -437,8 +452,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 报文数据字段变化完整动画</h1>
-        <div class="subtitle">清晰展示每个处理步骤中数据的bit增减、字段添加、格式转换 | 适合初学者</div>
+        <h1>📊 报文与IDLE处理完整动画</h1>
+        <div class="subtitle">清晰展示数据报文和IDLE字符在各层的处理、IPG帧间隙、控制字符转换 | 含IDLE处理</div>
 
         <div class="controls">
             <button onclick="startAnimation()" id="startBtn">▶️ 开始演示</button>
@@ -457,17 +472,18 @@
         </div>
 
         <div class="info-section">
-            <h3>💡 数据变化关键说明</h3>
+            <h3>💡 IDLE报文与IPG关键说明</h3>
             <ul>
-                <li><strong>步骤1:</strong> 原始Payload 64字节</li>
-                <li><strong>步骤2:</strong> 添加MAC头(DA+SA+Type=14B) + FCS(4B) → 总82字节 (+18B)</li>
-                <li><strong>步骤3:</strong> 添加前导码(7B) + SFD(1B) → 总90字节 (+8B)</li>
-                <li><strong>步骤4:</strong> 64B/66B编码，每64bit增加2bit同步头 → 增加3.125%</li>
-                <li><strong>步骤5:</strong> 插入AM标记，每16383个66bit块插入1个AM块</li>
-                <li><strong>步骤6:</strong> FEC编码RS(544,514)，每514 symbols增加30校验symbols → 增加5.8%</li>
-                <li><strong>步骤7:</strong> 数据分配到8个物理Lane并行传输</li>
-                <li><strong>步骤8:</strong> PAM4调制，每2bit转换为1个4电平符号</li>
-                <li><strong>总开销:</strong> 原始64B → 最终约70B数据量 (含各层编码开销约9%)</li>
+                <li><strong>IDLE字符(/I/):</strong> PCS层控制字符，用于填充报文之间的空闲时间</li>
+                <li><strong>IPG (Inter-Packet Gap):</strong> 以太网帧之间最小12字节（96 bit times）的间隙</li>
+                <li><strong>步骤0:</strong> IDLE期间 - Lane传输IDLE控制字符，无数据报文</li>
+                <li><strong>步骤1-8:</strong> 正常数据报文处理流程</li>
+                <li><strong>步骤9:</strong> IPG帧间隙 - MAC层插入12字节IDLE，PCS编码为/I/控制块</li>
+                <li><strong>64B/66B IDLE编码:</strong> Sync Header(10) + Block Type(0x1E或0x2D) + IDLE字符</li>
+                <li><strong>控制块类型:</strong> 0x1E(数据块), 0x2D(控制块-IDLE), 0x33(有序集)</li>
+                <li><strong>START块(/S/):</strong> 标记报文起始，替代前导码第一个字节</li>
+                <li><strong>TERMINATE块(/T/):</strong> 标记报文结束，后跟IDLE填充到64bit边界</li>
+                <li><strong>IDLE用途:</strong> 时钟连续性、Lane对齐维持、接收端准备下一帧</li>
             </ul>
         </div>
     </div>
@@ -476,8 +492,27 @@
         let currentStep = 0;
         let isAnimating = false;
 
-        // 步骤定义
+        // 步骤定义（新增IDLE处理步骤）
         const steps = [
+            {
+                id: 0,
+                title: "步骤0: IDLE空闲状态",
+                subtitle: "无数据传输时，所有Lane持续发送IDLE控制字符",
+                before: null,
+                after: {
+                    name: "IDLE状态",
+                    size: "控制字符",
+                    fields: [
+                        { label: "状态", value: "链路空闲，无数据报文", labelClass: "field-idle" },
+                        { label: "MAC层", value: "无帧传输", labelClass: "field-idle" },
+                        { label: "PCS层", value: "发送/I/ IDLE控制字符", labelClass: "field-control", isNew: true },
+                        { label: "64B/66B块", value: "10 + 0x2D + IDLE Pattern", labelClass: "field-control", isNew: true },
+                        { label: "Lane状态", value: "8个Lane持续发送IDLE", labelClass: "field-idle" }
+                    ]
+                },
+                lanes: true,
+                laneState: 'idle'
+            },
             {
                 id: 1,
                 title: "步骤1: 原始Payload数据",
@@ -519,7 +554,7 @@
             {
                 id: 3,
                 title: "步骤3: 添加前导码和SFD",
-                subtitle: "添加7字节前导码 + 1字节SFD用于接收端同步，总增加8字节",
+                subtitle: "添加7字节前导码 + 1字节SFD用于接收端同步",
                 before: {
                     name: "处理前 (MAC帧)",
                     size: "82字节",
@@ -548,8 +583,8 @@
             },
             {
                 id: 4,
-                title: "步骤4: PCS 64B/66B编码",
-                subtitle: "每64bit数据增加2bit同步头，bit数增加3.125%",
+                title: "步骤4: PCS 64B/66B编码（含START/TERMINATE）",
+                subtitle: "每64bit数据增加2bit同步头，START(/S/)替代前导码首字节，TERMINATE(/T/)标记帧结束",
                 before: {
                     name: "处理前 (字节流)",
                     size: "90字节 = 720 bit",
@@ -560,13 +595,13 @@
                 },
                 after: {
                     name: "处理后 (66bit块)",
-                    size: "720bit → 742.5bit (+3.125%)",
+                    size: "含控制块",
                     fields: [
-                        { label: "Sync Header", value: "01 或 10 (2-bit)", labelClass: "field-sync", isNew: true },
-                        { label: "Type Field", value: "0x1E数据块 (8-bit)", labelClass: "field-encoding", isNew: true },
-                        { label: "Data", value: "56-bit数据", labelClass: "field-encoding" },
-                        { label: "块大小", value: "66-bit per block", labelClass: "field-encoding", isNew: true },
-                        { label: "扰码", value: "G(x)=1+x³⁹+x⁵⁸", labelClass: "field-encoding", isNew: true }
+                        { label: "START块", value: "10 + 0x78 + /S/ + 前导码6B", labelClass: "field-control", isNew: true },
+                        { label: "Data块", value: "01 + 0x1E + 56-bit数据", labelClass: "field-encoding", isNew: true },
+                        { label: "TERMINATE块", value: "10 + 0x87/0xFF + /T/ + IDLE", labelClass: "field-control", isNew: true },
+                        { label: "扰码", value: "G(x)=1+x³⁹+x⁵⁸", labelClass: "field-encoding", isNew: true },
+                        { label: "说明", value: "/S/标记起始，/T/标记结束", labelClass: "field-encoding" }
                     ]
                 },
                 lanes: false
@@ -579,20 +614,19 @@
                     name: "处理前",
                     size: "连续66bit块流",
                     fields: [
-                        { label: "Block 0", value: "66-bit数据块", labelClass: "field-encoding" },
-                        { label: "Block 1", value: "66-bit数据块", labelClass: "field-encoding" },
-                        { label: "...", value: "连续数据块", labelClass: "field-encoding" },
-                        { label: "Block 16382", value: "66-bit数据块", labelClass: "field-encoding" }
+                        { label: "Block 0", value: "/S/或/D/或/T/", labelClass: "field-encoding" },
+                        { label: "Block 1-N", value: "数据块或IDLE块", labelClass: "field-encoding" },
+                        { label: "...", value: "连续数据块", labelClass: "field-encoding" }
                     ]
                 },
                 after: {
                     name: "处理后 (含AM)",
                     size: "每16383块插入1个AM",
                     fields: [
-                        { label: "Block 0-16382", value: "16382个数据块", labelClass: "field-encoding" },
+                        { label: "Block 0-16382", value: "数据块+IDLE块", labelClass: "field-encoding" },
                         { label: "AM Pattern", value: "0x9A4A26B5C16D7E8F", labelClass: "field-am", isNew: true },
                         { label: "Lane ID", value: "Lane标识 0-7", labelClass: "field-am", isNew: true },
-                        { label: "Block 16383+", value: "继续数据块...", labelClass: "field-encoding" },
+                        { label: "Block 16383+", value: "继续数据/IDLE块...", labelClass: "field-encoding" },
                         { label: "插入频率", value: "约21μs一次", labelClass: "field-am", isNew: true }
                     ]
                 },
@@ -601,7 +635,7 @@
             {
                 id: 6,
                 title: "步骤6: FEC编码 RS(544,514)",
-                subtitle: "每514 symbols增加30校验symbols，纠错能力15 symbols，增加5.8%",
+                subtitle: "每514 symbols增加30校验symbols，纠错能力15 symbols",
                 before: {
                     name: "处理前",
                     size: "514 symbols",
@@ -627,7 +661,7 @@
             {
                 id: 7,
                 title: "步骤7: 分配到8个物理Lane",
-                subtitle: "数据轮询分配到8个Lane，每Lane 106.25Gbps，总800Gbps",
+                subtitle: "数据+IDLE块轮询分配到8个Lane，每Lane 106.25Gbps",
                 before: {
                     name: "处理前 (串行流)",
                     size: "连续码字流",
@@ -641,14 +675,15 @@
                     size: "并行传输",
                     fields: [
                         { label: "分配方式", value: "Round-Robin轮询", labelClass: "field-encoding" },
-                        { label: "Lane 0", value: "Block 0, 8, 16, 24...", labelClass: "field-encoding" },
-                        { label: "Lane 1", value: "Block 1, 9, 17, 25...", labelClass: "field-encoding" },
-                        { label: "...", value: "依次轮询", labelClass: "field-encoding" },
-                        { label: "Lane 7", value: "Block 7, 15, 23, 31...", labelClass: "field-encoding" },
+                        { label: "Lane 0", value: "Block 0, 8, 16...(数据+IDLE)", labelClass: "field-encoding" },
+                        { label: "Lane 1", value: "Block 1, 9, 17...(数据+IDLE)", labelClass: "field-encoding" },
+                        { label: "...", value: "依次轮询分配", labelClass: "field-encoding" },
+                        { label: "Lane 7", value: "Block 7, 15, 23...(数据+IDLE)", labelClass: "field-encoding" },
                         { label: "单Lane", value: "106.25 Gbps", labelClass: "field-fec" }
                     ]
                 },
-                lanes: true
+                lanes: true,
+                laneState: 'data'
             },
             {
                 id: 8,
@@ -658,7 +693,7 @@
                     name: "处理前 (数字信号)",
                     size: "每Lane 106.25Gbps",
                     fields: [
-                        { label: "数据格式", value: "二进制bit流", labelClass: "field-encoding" },
+                        { label: "数据格式", value: "二进制bit流（含IDLE）", labelClass: "field-encoding" },
                         { label: "速率", value: "106.25 Gbps", labelClass: "field-encoding" },
                         { label: "编码", value: "NRZ (2电平)", labelClass: "field-encoding" }
                     ]
@@ -670,12 +705,40 @@
                         { label: "调制方式", value: "PAM4 (4电平)", labelClass: "field-fec", isNew: true },
                         { label: "符号速率", value: "53.125 GBaud/Lane", labelClass: "field-fec", isNew: true },
                         { label: "电平映射", value: "00→-3, 01→-1, 10→+1, 11→+3", labelClass: "field-fec", isNew: true },
-                        { label: "每符号", value: "2-bit信息", labelClass: "field-fec", isNew: true },
+                        { label: "每符号", value: "2-bit信息（含IDLE）", labelClass: "field-fec", isNew: true },
                         { label: "单Lane", value: "53.125×2 = 106.25Gbps", labelClass: "field-fec" },
                         { label: "总带宽", value: "8Lane × 106.25G = 800G", labelClass: "field-fec", isNew: true }
                     ]
                 },
-                lanes: true
+                lanes: true,
+                laneState: 'transmit'
+            },
+            {
+                id: 9,
+                title: "步骤9: IPG帧间隙（IDLE填充）",
+                subtitle: "报文发送完成后，MAC层插入最小12字节IPG，PCS编码为IDLE块",
+                before: {
+                    name: "报文发送完成",
+                    size: "报文已传输",
+                    fields: [
+                        { label: "状态", value: "数据报文传输完成", labelClass: "field-payload" },
+                        { label: "需求", value: "帧间隙12字节(96bit)", labelClass: "field-idle" }
+                    ]
+                },
+                after: {
+                    name: "IPG期间 (IDLE)",
+                    size: "最小12字节",
+                    fields: [
+                        { label: "IPG长度", value: "最小12字节 (96 bit times)", labelClass: "field-idle", isNew: true },
+                        { label: "MAC层", value: "插入IDLE字节填充", labelClass: "field-idle", isNew: true },
+                        { label: "PCS编码", value: "IDLE控制块 /I/", labelClass: "field-control", isNew: true },
+                        { label: "64B/66B", value: "10 + 0x2D + IDLE Pattern", labelClass: "field-control", isNew: true },
+                        { label: "用途", value: "接收端处理当前帧，准备下一帧", labelClass: "field-idle", isNew: true },
+                        { label: "Lane状态", value: "持续传输IDLE保持同步", labelClass: "field-idle" }
+                    ]
+                },
+                lanes: true,
+                laneState: 'idle'
             }
         ];
 
@@ -733,7 +796,12 @@
                 comparisonDiv.appendChild(arrow);
             }
 
-            comparisonDiv.appendChild(createDataCard(step.after, 'after'));
+            // 根据步骤选择卡片类型
+            let cardType = 'after';
+            if (step.id === 0 || step.id === 9) {
+                cardType = 'idle';
+            }
+            comparisonDiv.appendChild(createDataCard(step.after, cardType));
             
             area.appendChild(comparisonDiv);
 
@@ -748,7 +816,7 @@
                 area.appendChild(lanesDiv);
                 setTimeout(() => {
                     lanesDiv.classList.add('active');
-                    activateLanes();
+                    activateLanes(step.laneState || 'data');
                 }, 800);
             }
 
@@ -812,7 +880,7 @@
                 lane.id = `lane${i}`;
                 lane.innerHTML = `
                     <div class="lane-title">Lane ${i}</div>
-                    <div class="lane-data" id="laneData${i}">Block ${i}<br>传输中</div>
+                    <div class="lane-data" id="laneData${i}">准备中</div>
                 `;
                 container.appendChild(lane);
             }
@@ -821,20 +889,32 @@
             return section;
         }
 
-        // 激活Lane动画
-        async function activateLanes() {
+        // 激活Lane动画（支持不同状态）
+        async function activateLanes(state) {
             for (let i = 0; i < 8; i++) {
                 const lane = document.getElementById(`lane${i}`);
-                lane.classList.add('active');
+                const laneData = document.getElementById(`laneData${i}`);
+                
+                if (state === 'idle') {
+                    lane.classList.add('idle');
+                    lane.classList.remove('active');
+                    laneData.innerHTML = `<strong>IDLE</strong><br>/I/<br>控制块`;
+                } else if (state === 'data') {
+                    lane.classList.add('active');
+                    lane.classList.remove('idle');
+                    laneData.innerHTML = `<strong>Block ${i}</strong><br>数据块<br>传输中`;
+                } else if (state === 'transmit') {
+                    lane.classList.add('active');
+                    lane.classList.remove('idle');
+                    laneData.innerHTML = `<strong>PAM4</strong><br>调制<br>传输`;
+                }
+                
                 await sleep(100);
             }
 
             await sleep(1500);
 
-            for (let i = 0; i < 8; i++) {
-                const lane = document.getElementById(`lane${i}`);
-                lane.classList.remove('active');
-            }
+            // 保持状态，不清除
         }
 
         // 更新步骤导航

@@ -1,0 +1,1402 @@
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>以太网芯片内部报文处理动画 - 前导码全流程</title>  
+    <style>  
+        * {  
+            margin: 0;  
+            padding: 0;  
+            box-sizing: border-box;  
+        }  
+
+        body {  
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;  
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);  
+            padding: 20px;  
+            min-height: 100vh;  
+            overflow-x: hidden;  
+        }  
+
+        .container {  
+            max-width: 1600px;  
+            margin: 0 auto;  
+            background: white;  
+            border-radius: 20px;  
+            padding: 30px;  
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);  
+        }  
+
+        h1 {  
+            text-align: center;  
+            color: #2c3e50;  
+            margin-bottom: 10px;  
+            font-size: 2.5em;  
+        }  
+
+        .subtitle {  
+            text-align: center;  
+            color: #7f8c8d;  
+            margin-bottom: 30px;  
+            font-size: 1.1em;  
+        }  
+
+        /* 控制面板 */  
+        .control-panel {  
+            background: #ecf0f1;  
+            padding: 20px;  
+            border-radius: 10px;  
+            margin-bottom: 30px;  
+            display: flex;  
+            gap: 15px;  
+            flex-wrap: wrap;  
+            align-items: center;  
+            justify-content: center;  
+        }  
+
+        .btn {  
+            padding: 12px 30px;  
+            border: none;  
+            border-radius: 8px;  
+            font-size: 16px;  
+            font-weight: bold;  
+            cursor: pointer;  
+            transition: all 0.3s;  
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);  
+        }  
+
+        .btn-start {  
+            background: #27ae60;  
+            color: white;  
+        }  
+
+        .btn-start:hover {  
+            background: #229954;  
+            transform: translateY(-2px);  
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);  
+        }  
+
+        .btn-pause {  
+            background: #e67e22;  
+            color: white;  
+        }  
+
+        .btn-pause:hover {  
+            background: #d68910;  
+        }  
+
+        .btn-reset {  
+            background: #e74c3c;  
+            color: white;  
+        }  
+
+        .btn-reset:hover {  
+            background: #c0392b;  
+        }  
+
+        .speed-control {  
+            display: flex;  
+            align-items: center;  
+            gap: 10px;  
+        }  
+
+        .speed-control label {  
+            font-weight: bold;  
+            color: #34495e;  
+        }  
+
+        .speed-control select {  
+            padding: 8px 15px;  
+            border-radius: 5px;  
+            border: 2px solid #3498db;  
+            font-size: 14px;  
+        }  
+
+        /* 主要流程图区域 */  
+        .flow-container {  
+            position: relative;  
+            background: #f8f9fa;  
+            border-radius: 15px;  
+            padding: 40px;  
+            min-height: 800px;  
+            margin-bottom: 30px;  
+        }  
+
+        /* 芯片模块 */  
+        .chip-module {  
+            position: absolute;  
+            background: white;  
+            border: 3px solid #3498db;  
+            border-radius: 12px;  
+            padding: 15px;  
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);  
+            transition: all 0.3s;  
+        }  
+
+        .chip-module:hover {  
+            transform: scale(1.05);  
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);  
+            z-index: 100;  
+        }  
+
+        .chip-module.active {  
+            border-color: #e74c3c;  
+            background: #fff5f5;  
+            box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);  
+        }  
+
+        .module-name {  
+            font-weight: bold;  
+            color: #2c3e50;  
+            margin-bottom: 8px;  
+            font-size: 14px;  
+            text-align: center;  
+        }  
+
+        .module-desc {  
+            font-size: 11px;  
+            color: #7f8c8d;  
+            text-align: center;  
+            margin-bottom: 8px;  
+        }  
+
+        .module-content {  
+            font-family: 'Courier New', monospace;  
+            font-size: 10px;  
+            color: #555;  
+            background: #ecf0f1;  
+            padding: 8px;  
+            border-radius: 5px;  
+            min-height: 40px;  
+            max-width: 200px;  
+            word-wrap: break-word;  
+        }  
+
+        /* 发送端模块 */  
+        .tx-app { top: 50px; left: 50px; width: 180px; }  
+        .tx-mac { top: 180px; left: 50px; width: 180px; }  
+        .tx-pcs { top: 310px; left: 50px; width: 180px; }  
+        .tx-fec { top: 440px; left: 50px; width: 180px; }  
+        .tx-pma { top: 570px; left: 50px; width: 180px; }  
+
+        /* 接收端模块 */  
+        .rx-pma { top: 570px; right: 50px; width: 180px; }  
+        .rx-fec { top: 440px; right: 50px; width: 180px; }  
+        .rx-pcs { top: 310px; right: 50px; width: 180px; }  
+        .rx-mac { top: 180px; right: 50px; width: 180px; }  
+        .rx-app { top: 50px; right: 50px; width: 180px; }  
+
+        /* 传输介质 */  
+        .medium {  
+            position: absolute;  
+            top: 590px;  
+            left: 250px;  
+            right: 250px;  
+            height: 60px;  
+            background: linear-gradient(to right, #3498db, #2ecc71);  
+            border-radius: 10px;  
+            display: flex;  
+            align-items: center;  
+            justify-content: center;  
+            color: white;  
+            font-weight: bold;  
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);  
+        }  
+
+        /* 数据包 */  
+        .packet {  
+            position: absolute;  
+            background: #e74c3c;  
+            color: white;  
+            padding: 8px 12px;  
+            border-radius: 8px;  
+            font-size: 11px;  
+            font-weight: bold;  
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);  
+            z-index: 1000;  
+            white-space: nowrap;  
+            transition: all 0.5s ease-in-out;  
+        }  
+
+        /* 连接线 */  
+        .connection-line {  
+            position: absolute;  
+            background: #95a5a6;  
+            z-index: 0;  
+        }  
+
+        .line-vertical {  
+            width: 4px;  
+        }  
+
+        .line-horizontal {  
+            height: 4px;  
+        }  
+
+        /* 状态指示器 */  
+        .status-indicator {  
+            display: inline-block;  
+            width: 12px;  
+            height: 12px;  
+            border-radius: 50%;  
+            margin-left: 8px;  
+            background: #95a5a6;  
+        }  
+
+        .status-indicator.active {  
+            background: #27ae60;  
+            animation: pulse 1s infinite;  
+        }  
+
+        @keyframes pulse {  
+            0%, 100% { opacity: 1; }  
+            50% { opacity: 0.5; }  
+        }  
+
+        /* 日志面板 */  
+        .log-panel {  
+            background: #2c3e50;  
+            color: #ecf0f1;  
+            border-radius: 10px;  
+            padding: 20px;  
+            font-family: 'Courier New', monospace;  
+            font-size: 12px;  
+            max-height: 300px;  
+            overflow-y: auto;  
+            margin-bottom: 20px;  
+        }  
+
+        .log-entry {  
+            margin-bottom: 8px;  
+            padding: 5px;  
+            border-left: 3px solid #3498db;  
+            padding-left: 10px;  
+        }  
+
+        .log-entry.info {  
+            border-left-color: #3498db;  
+        }  
+
+        .log-entry.success {  
+            border-left-color: #27ae60;  
+        }  
+
+        .log-entry.warning {  
+            border-left-color: #f39c12;  
+        }  
+
+        .log-entry.error {  
+            border-left-color: #e74c3c;  
+        }  
+
+        .log-time {  
+            color: #95a5a6;  
+            margin-right: 10px;  
+        }  
+
+        /* 图例 */  
+        .legend {  
+            display: grid;  
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));  
+            gap: 15px;  
+            background: #ecf0f1;  
+            padding: 20px;  
+            border-radius: 10px;  
+        }  
+
+        .legend-item {  
+            display: flex;  
+            align-items: center;  
+            gap: 10px;  
+        }  
+
+        .legend-box {  
+            width: 40px;  
+            height: 40px;  
+            border-radius: 5px;  
+            border: 2px solid #34495e;  
+        }  
+
+        .legend-box.app { background: #3498db; }  
+        .legend-box.mac { background: #9b59b6; }  
+        .legend-box.pcs { background: #e67e22; }  
+        .legend-box.fec { background: #1abc9c; }  
+        .legend-box.pma { background: #e74c3c; }  
+
+        .legend-text {  
+            font-size: 13px;  
+            color: #2c3e50;  
+        }  
+
+        /* 数据格式展示 */  
+        .data-format-display {  
+            background: white;  
+            border: 2px solid #3498db;  
+            border-radius: 10px;  
+            padding: 15px;  
+            margin-top: 20px;  
+        }  
+
+        .data-format-title {  
+            font-weight: bold;  
+            color: #2c3e50;  
+            margin-bottom: 10px;  
+            font-size: 16px;  
+        }  
+
+        .data-format-content {  
+            display: flex;  
+            flex-wrap: wrap;  
+            gap: 5px;  
+            font-family: 'Courier New', monospace;  
+            font-size: 11px;  
+        }  
+
+        .data-byte {  
+            padding: 5px 8px;  
+            background: #ecf0f1;  
+            border-radius: 3px;  
+            border: 1px solid #bdc3c7;  
+        }  
+
+        .data-byte.preamble { background: #f39c12; color: white; }  
+        .data-byte.sfd { background: #e74c3c; color: white; }  
+        .data-byte.mac-header { background: #3498db; color: white; }  
+        .data-byte.payload { background: #27ae60; color: white; }  
+        .data-byte.fcs { background: #9b59b6; color: white; }  
+        .data-byte.ipg { background: #95a5a6; color: white; }  
+
+        /* 模块详细信息面板 */  
+        .module-detail-panel {  
+            position: fixed;  
+            right: -400px;  
+            top: 100px;  
+            width: 380px;  
+            background: white;  
+            border-radius: 10px 0 0 10px;  
+            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.2);  
+            padding: 20px;  
+            transition: right 0.3s;  
+            z-index: 2000;  
+            max-height: 80vh;  
+            overflow-y: auto;  
+        }  
+
+        .module-detail-panel.show {  
+            right: 0;  
+        }  
+
+        .detail-close {  
+            position: absolute;  
+            top: 10px;  
+            right: 10px;  
+            background: #e74c3c;  
+            color: white;  
+            border: none;  
+            width: 30px;  
+            height: 30px;  
+            border-radius: 50%;  
+            cursor: pointer;  
+            font-size: 18px;  
+        }  
+
+        .detail-title {  
+            font-size: 18px;  
+            font-weight: bold;  
+            color: #2c3e50;  
+            margin-bottom: 15px;  
+        }  
+
+        .detail-section {  
+            margin-bottom: 15px;  
+        }  
+
+        .detail-section-title {  
+            font-weight: bold;  
+            color: #3498db;  
+            margin-bottom: 8px;  
+            font-size: 14px;  
+        }  
+
+        .detail-content {  
+            font-size: 12px;  
+            color: #555;  
+            line-height: 1.6;  
+        }  
+
+        /* 响应式 */  
+        @media (max-width: 1400px) {  
+            .chip-module {  
+                transform: scale(0.9);  
+            }  
+        }  
+
+        @media (max-width: 1024px) {  
+            .flow-container {  
+                min-height: 1200px;  
+            }  
+            
+            .rx-pma, .rx-fec, .rx-pcs, .rx-mac, .rx-app {  
+                right: auto;  
+                left: 300px;  
+            }  
+            
+            .rx-pma { top: 720px; }  
+            .rx-fec { top: 850px; }  
+            .rx-pcs { top: 980px; }  
+            .rx-mac { top: 1110px; }  
+            .rx-app { top: 1240px; }  
+        }  
+    </style>  
+</head>  
+<body>  
+    <div class="container">  
+        <h1>🔬 以太网芯片内部报文处理动画</h1>  
+        <p class="subtitle">前导码从创建、转换、传输到剥离的完整流程可视化</p>  
+
+        <!-- 控制面板 -->  
+        <div class="control-panel">  
+            <button class="btn btn-start" id="btnStart">▶️ 开始动画</button>  
+            <button class="btn btn-pause" id="btnPause">⏸️ 暂停</button>  
+            <button class="btn btn-reset" id="btnReset">🔄 重置</button>  
+            
+            <div class="speed-control">  
+                <label for="speedSelect">动画速度:</label>  
+                <select id="speedSelect">  
+                    <option value="2">0.5x (慢速)</option>  
+                    <option value="1" selected>1x (正常)</option>  
+                    <option value="0.5">2x (快速)</option>  
+                    <option value="0.25">4x (极速)</option>  
+                </select>  
+            </div>  
+
+            <div class="speed-control">  
+                <label>  
+                    <input type="checkbox" id="showLLR"> 显示LLR模式  
+                </label>  
+            </div>  
+        </div>  
+
+        <!-- 日志面板 -->  
+        <div class="log-panel" id="logPanel">  
+            <div class="log-entry info">  
+                <span class="log-time">[00:00.000]</span>  
+                <span>系统初始化完成，等待开始...</span>  
+            </div>  
+        </div>  
+
+        <!-- 主流程图 -->  
+        <div class="flow-container" id="flowContainer">  
+            <!-- 发送端模块 -->  
+            <div class="chip-module tx-app" data-module="tx-app">  
+                <div class="module-name">应用层 (TX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Application Layer</div>  
+                <div class="module-content" id="txAppContent">等待数据...</div>  
+            </div>  
+
+            <div class="chip-module tx-mac" data-module="tx-mac">  
+                <div class="module-name">MAC层 (TX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Media Access Control</div>  
+                <div class="module-content" id="txMacContent">等待帧...</div>  
+            </div>  
+
+            <div class="chip-module tx-pcs" data-module="tx-pcs">  
+                <div class="module-name">PCS层 (TX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Physical Coding Sublayer</div>  
+                <div class="module-content" id="txPcsContent">等待编码...</div>  
+            </div>  
+
+            <div class="chip-module tx-fec" data-module="tx-fec">  
+                <div class="module-name">FEC编码器 (TX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Forward Error Correction</div>  
+                <div class="module-content" id="txFecContent">等待FEC...</div>  
+            </div>  
+
+            <div class="chip-module tx-pma" data-module="tx-pma">  
+                <div class="module-name">PMA层 (TX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Physical Medium Attachment</div>  
+                <div class="module-content" id="txPmaContent">等待发送...</div>  
+            </div>  
+
+            <!-- 传输介质 -->  
+            <div class="medium">  
+                🌊 物理传输介质 (光纤/电缆)  
+            </div>  
+
+            <!-- 接收端模块 -->  
+            <div class="chip-module rx-pma" data-module="rx-pma">  
+                <div class="module-name">PMA层 (RX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Physical Medium Attachment</div>  
+                <div class="module-content" id="rxPmaContent">等待接收...</div>  
+            </div>  
+
+            <div class="chip-module rx-fec" data-module="rx-fec">  
+                <div class="module-name">FEC解码器 (RX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Forward Error Correction</div>  
+                <div class="module-content" id="rxFecContent">等待解码...</div>  
+            </div>  
+
+            <div class="chip-module rx-pcs" data-module="rx-pcs">  
+                <div class="module-name">PCS层 (RX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Physical Coding Sublayer</div>  
+                <div class="module-content" id="rxPcsContent">等待解码...</div>  
+            </div>  
+
+            <div class="chip-module rx-mac" data-module="rx-mac">  
+                <div class="module-name">MAC层 (RX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Media Access Control</div>  
+                <div class="module-content" id="rxMacContent">等待帧...</div>  
+            </div>  
+
+            <div class="chip-module rx-app" data-module="rx-app">  
+                <div class="module-name">应用层 (RX)<span class="status-indicator"></span></div>  
+                <div class="module-desc">Application Layer</div>  
+                <div class="module-content" id="rxAppContent">等待数据...</div>  
+            </div>  
+
+            <!-- 连接线 -->  
+            <div class="connection-line line-vertical" style="left: 138px; top: 120px; height: 60px;"></div>  
+            <div class="connection-line line-vertical" style="left: 138px; top: 250px; height: 60px;"></div>  
+            <div class="connection-line line-vertical" style="left: 138px; top: 380px; height: 60px;"></div>  
+            <div class="connection-line line-vertical" style="left: 138px; top: 510px; height: 60px;"></div>  
+            
+            <div class="connection-line line-vertical" style="right: 138px; top: 120px; height: 60px;"></div>  
+            <div class="connection-line line-vertical" style="right: 138px; top: 250px; height: 60px;"></div>  
+            <div class="connection-line line-vertical" style="right: 138px; top: 380px; height: 60px;"></div>  
+            <div class="connection-line line-vertical" style="right: 138px; top: 510px; height: 60px;"></div>  
+        </div>  
+
+        <!-- 当前数据格式展示 -->  
+        <div class="data-format-display">  
+            <div class="data-format-title">📊 当前数据包格式:</div>  
+            <div class="data-format-content" id="dataFormatDisplay">  
+                <span class="data-byte">等待数据...</span>  
+            </div>  
+        </div>  
+
+        <!-- 图例 -->  
+        <div class="legend">  
+            <div class="legend-item">  
+                <div class="legend-box app"></div>  
+                <div class="legend-text"><strong>应用层</strong><br>用户数据</div>  
+            </div>  
+            <div class="legend-item">  
+                <div class="legend-box mac"></div>  
+                <div class="legend-text"><strong>MAC层</strong><br>添加/剥离MAC头+FCS</div>  
+            </div>  
+            <div class="legend-item">  
+                <div class="legend-box pcs"></div>  
+                <div class="legend-text"><strong>PCS层</strong><br>添加/剥离前导码<br>64B/66B编解码</div>  
+            </div>  
+            <div class="legend-item">  
+                <div class="legend-box fec"></div>  
+                <div class="legend-text"><strong>FEC层</strong><br>前向纠错编解码</div>  
+            </div>  
+            <div class="legend-item">  
+                <div class="legend-box pma"></div>  
+                <div class="legend-text"><strong>PMA层</strong><br>串并转换<br>光电转换</div>  
+            </div>  
+        </div>  
+
+        <!-- 模块详细信息面板 -->  
+        <div class="module-detail-panel" id="detailPanel">  
+            <button class="detail-close" id="detailClose">×</button>  
+            <div class="detail-title" id="detailTitle">模块详情</div>  
+            <div id="detailContent"></div>  
+        </div>  
+    </div>  
+
+    <script>  
+        // 全局状态  
+        let animationState = {  
+            running: false,  
+            paused: false,  
+            speed: 1,  
+            currentStep: 0,  
+            isLLRMode: false  
+        };  
+
+        // 模块详细信息数据库  
+        const moduleDetails = {  
+            'tx-app': {  
+                name: '应用层 (TX)',  
+                description: '应用层是数据的起点，负责生成需要传输的用户数据。',  
+                functions: [  
+                    '生成应用数据 (如HTTP请求、文件数据等)',  
+                    '将数据传递给下层协议栈',  
+                    '不涉及任何以太网相关的处理'  
+                ],  
+                dataFormat: 'Raw Application Data',  
+                example: 'Payload: "Hello World"'  
+            },  
+            'tx-mac': {  
+                name: 'MAC层 (TX - 发送端)',  
+                description: 'MAC层负责封装以太网帧，添加MAC头部和FCS校验。',  
+                functions: [  
+                    '添加目标MAC地址 (6 Bytes)',  
+                    '添加源MAC地址 (6 Bytes)',  
+                    '添加EtherType/Length (2 Bytes)',  
+                    '如果数据小于46字节，添加Padding',  
+                    '计算并添加FCS (Frame Check Sequence, 4 Bytes CRC-32)',  
+                    '⚠️ 注意: MAC层不处理前导码！'  
+                ],  
+                dataFormat: 'DST_MAC (6B) | SRC_MAC (6B) | Type (2B) | Payload (46-1500B) | FCS (4B)',  
+                example: 'FF:FF:FF:FF:FF:FF | 00:11:22:33:44:55 | 0x0800 | [Data...] | CRC32',  
+                notes: '最小帧长64字节(不含前导码)，最大1518字节(不含前导码)'  
+            },  
+            'tx-pcs': {  
+                name: 'PCS层 (TX - 发送端)',  
+                description: 'PCS层是前导码的创建者！负责添加前导码和进行64B/66B编码。',  
+                functions: [  
+                    '⭐ 生成并添加前导码 (7 bytes 0x55 + 1 byte 0xD5)',  
+                    'LLR模式: 将前导码修改为 0xFB + 序列号 + 0x55×3.5 + 0xD5',  
+                    '将MAC帧进行64B/66B编码:',  
+                    '  - 数据块: 01 + 64 bits 数据',  
+                    '  - 控制块: 10 + 8 bits 类型 + 56 bits 数据',  
+                    '  - Start块 (0x78): 包含前导码起始',  
+                    '  - Terminate块 (0x87): 包含帧结束',  
+                    '添加IPG (Inter-Packet Gap) IDLE字符',  
+                    'LLR模式: 在IPG中嵌入ACK/NACK控制消息'  
+                ],  
+                dataFormat: {  
+                    standard: 'Preamble (8B) | MAC Frame | IPG (≥12B)',  
+                    llr: 'LLR_Preamble (0xFB+seq) | MAC Frame | LLR_IPG (ACK/NACK+IDLE)'  
+                },  
+                encoding: '64B/66B: 每64位数据编码为66位 (效率: 97%)',  
+                example: {  
+                    standard: '[0x55×7 + 0xD5] + [Frame...] + [IDLE×12+]',  
+                    llr: '[0xFB + 0x00001 + 0x55×3.5 + 0xD5] + [Frame...] + [ACK + IDLE]'  
+                },  
+                notes: '这是前导码的诞生地！PCS层之前没有前导码，PCS层之后才有。'  
+            },  
+            'tx-fec': {  
+                name: 'FEC编码器 (TX)',  
+                description: 'FEC (Forward Error Correction) 前向纠错编码器，增加冗余信息以对抗传输错误。',  
+                functions: [  
+                    '对64B/66B编码后的数据进行FEC编码',  
+                    '常用算法: Reed-Solomon (RS) 编码',  
+                    '例如 RS(544, 514): 每514个符号添加30个校验符号',  
+                    '增加约5.8%的冗余开销',  
+                    '可纠正最多15个符号错误',  
+                    '⚠️ 注意: FEC在前导码已经添加之后进行'  
+                ],  
+                dataFormat: 'FEC(64B/66B_data) = Encoded_data + Parity',  
+                efficiency: '编码效率: ~94.5% (考虑64B/66B + FEC总开销)',  
+                example: '[66-bit blocks...] → FEC → [FEC encoded blocks...]',  
+                notes: 'FEC对整个数据流编码，包括前导码、帧数据和IPG'  
+            },  
+            'tx-pma': {  
+                name: 'PMA层 (TX - 发送端)',  
+                description: 'PMA层负责将数字信号转换为物理介质上的信号。',  
+                functions: [  
+                    '串并转换: 将并行数据转为串行比特流',  
+                    '扰码 (Scrambling): 使信号频谱更均匀',  
+                    '电平转换: 将数字信号转为适合传输的电平',  
+                    '光电转换 (光纤): 将电信号转为光信号',  
+                    '线路编码: NRZ, PAM4 等',  
+                    '时钟恢复信息嵌入',  
+                    '发送到物理介质'  
+                ],  
+                dataFormat: 'Serial Bit Stream (经过扰码和编码)',  
+                speed: '例如: 25.78125 Gbps (25G Ethernet)',  
+                example: 'Digital → Optical/Electrical Signal',  
+                notes: '这是数据离开芯片的最后一站，之后进入物理介质传输'  
+            },  
+            'rx-pma': {  
+                name: 'PMA层 (RX - 接收端)',  
+                description: 'PMA层是接收端的第一站，负责从物理介质接收信号并转换为数字信号。',  
+                functions: [  
+                    '从物理介质接收信号',  
+                    '光电转换 (光纤): 将光信号转为电信号',  
+                    '模拟信号放大和均衡',  
+                    '时钟恢复 (CDR - Clock Data Recovery)',  
+                    '解扰 (De-scrambling)',  
+                    '并串转换: 将串行比特流转为并行数据',  
+                    '比特同步和块同步'  
+                ],  
+                dataFormat: 'Optical/Electrical Signal → Digital Bit Stream',  
+                cdr: 'CDR从接收信号中恢复时钟，用于准确采样数据',
+                example: 'Raw Signal → CDR → Digital Bits',
+                notes: '此时数据仍然包含前导码，但尚未被识别和处理'
+            },
+            'rx-fec': {
+                name: 'FEC解码器 (RX)',
+                description: 'FEC解码器对接收到的数据进行纠错解码，恢复原始数据。',
+                functions: [
+                    '检测FEC编码块边界',
+                    '执行Reed-Solomon解码',
+                    '检测并纠正传输错误 (最多15个符号)',
+                    '计算误码率统计',
+                    '如果错误无法纠正，标记为FEC失败',
+                    '输出纠错后的64B/66B数据流',
+                    '⚠️ 此时前导码仍然存在于数据中'
+                ],
+                dataFormat: 'FEC_encoded_data → Decode → 64B/66B_data',
+                correction: '可纠正错误: ≤15 symbols per codeword',
+                example: '[FEC blocks...] → Decode → [66-bit blocks...]',
+                notes: 'FEC在前导码处理之前进行，对整个数据流解码'
+            },
+            'rx-pcs': {
+                name: 'PCS层 (RX - 接收端)',
+                description: 'PCS层是前导码的剥离者！负责64B/66B解码、检测前导码并将其剥除。',
+                functions: [
+                    '64B/66B解码: 将66位块解码为64位数据',
+                    '检测同步头 (01 或 10)',
+                    '块对齐和同步',
+                    '⭐ 检测前导码 (Preamble):',
+                    '  - 搜索 0x55×7 + 0xD5 模式',
+                    '  - LLR模式: 识别 0xFB 标记并提取序列号',
+                    '⭐ 剥离前导码: 前导码在此被丢弃，不传递给MAC层',
+                    '检测帧起始定界符 (SFD: 0xD5)',
+                    '提取MAC帧数据',
+                    '检测并剥离IPG',
+                    'LLR模式: 从IPG中提取ACK/NACK控制消息',
+                    '将干净的MAC帧传递给MAC层'
+                ],
+                dataFormat: {
+                    input: 'Preamble + MAC Frame + IPG',
+                    output: 'MAC Frame (无前导码)'
+                },
+                llr: {
+                    seq_extraction: '从前导码提取20-bit序列号',
+                    control_extraction: '从IPG提取ACK/NACK消息',
+                    actions: '发送ACK确认或请求NACK重传'
+                },
+                example: {
+                    standard: '[0x55×7 + 0xD5 + Frame + IPG] → [Frame]',
+                    llr: '[0xFB + seq + Frame + ACK + IPG] → [Frame] + seq_info + control_info'
+                },
+                notes: '⚠️ 关键点: 前导码在PCS层被剥离！MAC层永远看不到前导码！'
+            },
+            'rx-mac': {
+                name: 'MAC层 (RX - 接收端)',
+                description: 'MAC层接收PCS传来的干净MAC帧，进行校验和解封装。',
+                functions: [
+                    '接收MAC帧 (不含前导码)',
+                    '校验FCS (CRC-32):',
+                    '  - 重新计算CRC',
+                    '  - 与帧尾的FCS对比',
+                    '  - 如果不匹配，丢弃帧',
+                    '检查目标MAC地址:',
+                    '  - 单播地址匹配',
+                    '  - 多播/广播地址处理',
+                    '  - 不匹配则丢弃',
+                    '剥离MAC头部 (DST MAC, SRC MAC, Type)',
+                    '剥离FCS尾部',
+                    '提取Payload数据',
+                    '根据EtherType传递给上层协议 (IP, ARP等)',
+                    '统计: 接收帧数、错误帧数、丢弃帧数'
+                ],
+                dataFormat: {
+                    input: 'DST_MAC | SRC_MAC | Type | Payload | FCS',
+                    output: 'Payload Data'
+                },
+                fcs_check: 'CRC-32 校验: Polynomial = 0x04C11DB7',
+                example: '[FF:FF:FF:FF:FF:FF | ... | Data | CRC] → [Data]',
+                notes: '此时前导码已经被剥离，MAC层只处理帧数据'
+            },
+            'rx-app': {
+                name: '应用层 (RX)',
+                description: '应用层是数据的终点，接收并使用传输过来的数据。',
+                functions: [
+                    '接收来自协议栈的数据',
+                    '数据组装和重组',
+                    '应用层协议处理 (HTTP, FTP等)',
+                    '数据交付给应用程序'
+                ],
+                dataFormat: 'Pure Application Data',
+                example: 'Received: "Hello World"',
+                notes: '前导码的旅程在RX-PCS层就结束了，应用层永远看不到前导码'
+            }
+        };
+
+        // 动画步骤定义
+        const animationSteps = [
+            {
+                step: 0,
+                module: 'tx-app',
+                action: '应用层生成数据',
+                data: 'Payload: "Hello World" (12 bytes)',
+                log: '应用层生成12字节用户数据',
+                dataFormat: [{text: 'Hello World', class: 'payload'}],
+                duration: 1000
+            },
+            {
+                step: 1,
+                module: 'tx-mac',
+                action: 'MAC层封装',
+                data: 'DST: FF:FF:FF:FF:FF:FF\nSRC: 00:11:22:33:44:55\nType: 0x0800 (IPv4)\nPayload: 12B → Padding to 46B\nFCS: 计算中...',
+                log: 'MAC层添加头部: DST MAC, SRC MAC, Type/Length',
+                dataFormat: [
+                    {text: 'DST MAC', class: 'mac-header'},
+                    {text: 'SRC MAC', class: 'mac-header'},
+                    {text: 'Type', class: 'mac-header'},
+                    {text: 'Payload (46B)', class: 'payload'},
+                    {text: 'FCS', class: 'fcs'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 2,
+                module: 'tx-mac',
+                action: 'FCS计算完成',
+                data: 'DST: FF:FF:FF:FF:FF:FF\nSRC: 00:11:22:33:44:55\nType: 0x0800\nPayload: 46 bytes\nFCS: 0x12345678 ✓',
+                log: 'MAC层完成FCS (CRC-32) 计算: 0x12345678',
+                dataFormat: [
+                    {text: 'DST MAC', class: 'mac-header'},
+                    {text: 'SRC MAC', class: 'mac-header'},
+                    {text: '0x0800', class: 'mac-header'},
+                    {text: 'Payload (46B)', class: 'payload'},
+                    {text: '0x12345678', class: 'fcs'}
+                ],
+                duration: 1000
+            },
+            {
+                step: 3,
+                module: 'tx-pcs',
+                action: '⭐ PCS层添加前导码',
+                data: function(isLLR) {
+                    if (isLLR) {
+                        return 'LLR模式:\n前导码: 0xFB\n序列号: 0x00001 (20-bit)\n标准部分: 0x55×3.5\nSFD: 0xD5\nMAC帧: 64 bytes';
+                    } else {
+                        return '标准模式:\n前导码: 0x55 × 7 bytes\nSFD: 0xD5 (1 byte)\nMAC帧: 64 bytes';
+                    }
+                },
+                log: function(isLLR) {
+                    if (isLLR) {
+                        return '⭐ PCS层生成LLR前导码: 0xFB + seq(0x00001) + 0x55×3.5 + 0xD5';
+                    } else {
+                        return '⭐ PCS层生成标准前导码: 0x55×7 + 0xD5 (8 bytes)';
+                    }
+                },
+                dataFormat: function(isLLR) {
+                    if (isLLR) {
+                        return [
+                            {text: '0xFB', class: 'preamble'},
+                            {text: 'seq:0x00001', class: 'preamble'},
+                            {text: '0x55×3.5', class: 'preamble'},
+                            {text: '0xD5', class: 'sfd'},
+                            {text: 'DST', class: 'mac-header'},
+                            {text: 'SRC', class: 'mac-header'},
+                            {text: 'Type', class: 'mac-header'},
+                            {text: 'Payload', class: 'payload'},
+                            {text: 'FCS', class: 'fcs'}
+                        ];
+                    } else {
+                        return [
+                            {text: '0x55×7', class: 'preamble'},
+                            {text: '0xD5', class: 'sfd'},
+                            {text: 'DST', class: 'mac-header'},
+                            {text: 'SRC', class: 'mac-header'},
+                            {text: 'Type', class: 'mac-header'},
+                            {text: 'Payload', class: 'payload'},
+                            {text: 'FCS', class: 'fcs'}
+                        ];
+                    }
+                },
+                duration: 2000
+            },
+            {
+                step: 4,
+                module: 'tx-pcs',
+                action: '64B/66B编码',
+                data: '将帧编码为66-bit块:\nStart块: 01|0x78|Preamble...\nData块: 01|64-bit data\nTerminate块: 01|0x87|End+FCS',
+                log: 'PCS层执行64B/66B编码，编码效率: 97%',
+                dataFormat: [
+                    {text: '66b-Start', class: 'preamble'},
+                    {text: '66b-Data×N', class: 'payload'},
+                    {text: '66b-Term', class: 'fcs'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 5,
+                module: 'tx-pcs',
+                action: '添加IPG',
+                data: function(isLLR) {
+                    if (isLLR) {
+                        return 'IPG (≥12 bytes):\nLLR控制块: ACK(seq=0)\nIDLE填充: 0x07 × 4+';
+                    } else {
+                        return 'IPG (≥12 bytes):\nIDLE字符: 0x07 × 12+';
+                    }
+                },
+                log: function(isLLR) {
+                    if (isLLR) {
+                        return '⭐ PCS层在IPG中添加LLR控制消息: ACK(seq=0x00000)';
+                    } else {
+                        return 'PCS层添加IPG: 12+ bytes IDLE字符';
+                    }
+                },
+                dataFormat: function(isLLR) {
+                    const base = [
+                        {text: 'Preamble', class: 'preamble'},
+                        {text: 'Frame Data', class: 'payload'}
+                    ];
+                    if (isLLR) {
+                        base.push({text: 'LLR_ACK', class: 'ipg'});
+                        base.push({text: 'IDLE×4', class: 'ipg'});
+                    } else {
+                        base.push({text: 'IDLE×12', class: 'ipg'});
+                    }
+                    return base;
+                },
+                duration: 1500
+            },
+            {
+                step: 6,
+                module: 'tx-fec',
+                action: 'FEC编码',
+                data: '执行RS(544,514)编码:\n原始: 514 symbols\n校验: 30 symbols\n冗余率: 5.8%\n可纠错: ≤15 errors',
+                log: 'FEC编码器添加纠错码，冗余开销: 5.8%',
+                dataFormat: [
+                    {text: 'FEC[Preamble+Frame+IPG]', class: 'payload'},
+                    {text: 'Parity', class: 'fcs'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 7,
+                module: 'tx-pma',
+                action: '信号转换',
+                data: '并串转换: 完成\n扰码: 完成\n线路编码: NRZ/PAM4\n光电转换: 准备发送\n速率: 25.78125 Gbps',
+                log: 'PMA层将数字信号转换为物理信号',
+                dataFormat: [
+                    {text: '串行比特流 (Scrambled)', class: 'payload'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 8,
+                module: 'medium',
+                action: '物理传输',
+                data: '通过光纤/电缆传输...',
+                log: '数据在物理介质中传输...',
+                dataFormat: [
+                    {text: '🌊 光信号/电信号传输中...', class: 'payload'}
+                ],
+                duration: 2000
+            },
+            {
+                step: 9,
+                module: 'rx-pma',
+                action: '信号接收',
+                data: '接收光信号\n光电转换: 完成\nCDR时钟恢复: 完成\n解扰: 完成\n串并转换: 完成',
+                log: 'RX-PMA接收物理信号并转换为数字信号',
+                dataFormat: [
+                    {text: '数字比特流 (未解码)', class: 'payload'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 10,
+                module: 'rx-fec',
+                action: 'FEC解码',
+                data: 'RS(544,514)解码:\n检测错误: 3个符号\n纠正错误: 3/15 ✓\n解码成功\n输出: 64B/66B数据',
+                log: 'FEC解码器检测并纠正传输错误 (3个符号错误已纠正)',
+                dataFormat: [
+                    {text: '64B/66B数据流', class: 'payload'},
+                    {text: '(错误已纠正)', class: 'fcs'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 11,
+                module: 'rx-pcs',
+                action: '64B/66B解码',
+                data: '同步头检测: ✓\n块对齐: ✓\n解码66b块:\n- Start块 → 前导码\n- Data块 → 帧数据\n- Terminate块 → FCS',
+                log: 'RX-PCS执行64B/66B解码',
+                dataFormat: [
+                    {text: 'Preamble', class: 'preamble'},
+                    {text: 'Frame', class: 'payload'},
+                    {text: 'IPG', class: 'ipg'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 12,
+                module: 'rx-pcs',
+                action: '⭐ 检测并剥离前导码',
+                data: function(isLLR) {
+                    if (isLLR) {
+                        return '检测LLR前导码:\n0xFB: 发现 ✓\n序列号: 0x00001\nSFD 0xD5: 发现 ✓\n提取序列号: 0x00001\n剥离前导码\n输出纯MAC帧';
+                    } else {
+                        return '检测标准前导码:\n0x55×7: 发现 ✓\nSFD 0xD5: 发现 ✓\n剥离前导码\n输出纯MAC帧';
+                    }
+                },
+                log: function(isLLR) {
+                    if (isLLR) {
+                        return '⭐ RX-PCS检测到LLR前导码，提取序列号: 0x00001，剥离前导码';
+                    } else {
+                        return '⭐ RX-PCS检测到标准前导码，剥离前导码 (0x55×7 + 0xD5)';
+                    }
+                },
+                dataFormat: [
+                    {text: 'DST MAC', class: 'mac-header'},
+                    {text: 'SRC MAC', class: 'mac-header'},
+                    {text: 'Type', class: 'mac-header'},
+                    {text: 'Payload', class: 'payload'},
+                    {text: 'FCS', class: 'fcs'}
+                ],
+                duration: 2000
+            },
+            {
+                step: 13,
+                module: 'rx-pcs',
+                action: '处理IPG',
+                data: function(isLLR) {
+                    if (isLLR) {
+                        return 'IPG处理:\n检测LLR控制块:\nACK(seq=0x00000) ✓\n提取并处理ACK\n剥离IDLE字符';
+                    } else {
+                        return 'IPG处理:\n检测IDLE字符\n剥离IDLE (≥12 bytes)';
+                    }
+                },
+                log: function(isLLR) {
+                    if (isLLR) {
+                        return '⭐ RX-PCS从IPG提取LLR控制消息: ACK(seq=0x00000)';
+                    } else {
+                        return 'RX-PCS剥离IPG';
+                    }
+                },
+                dataFormat: [
+                    {text: 'MAC Frame (无前导码，无IPG)', class: 'payload'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 14,
+                module: 'rx-mac',
+                action: 'FCS校验',
+                data: '接收MAC帧:\nDST: FF:FF:FF:FF:FF:FF\nSRC: 00:11:22:33:44:55\nType: 0x0800\nPayload: 46 bytes\nFCS: 0x12345678\n\n重新计算CRC...',
+                log: 'RX-MAC接收到纯MAC帧 (无前导码)，开始FCS校验',
+                dataFormat: [
+                    {text: 'DST', class: 'mac-header'},
+                    {text: 'SRC', class: 'mac-header'},
+                    {text: 'Type', class: 'mac-header'},
+                    {text: 'Payload', class: 'payload'},
+                    {text: 'FCS?', class: 'fcs'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 15,
+                module: 'rx-mac',
+                action: 'FCS校验通过',
+                data: 'FCS校验:\n计算值: 0x12345678\n接收值: 0x12345678\n结果: 匹配 ✓\n\n剥离MAC头部和FCS\n提取Payload',
+                log: 'FCS校验通过 ✓ 剥离MAC头部和FCS',
+                dataFormat: [
+                    {text: 'Payload (12B)', class: 'payload'}
+                ],
+                duration: 1500
+            },
+            {
+                step: 16,
+                module: 'rx-app',
+                action: '数据接收完成',
+                data: 'Received:\n"Hello World"\n\n数据完整性: ✓\n传输成功!',
+                log: '✅ 应用层接收到完整数据: "Hello World"',
+                dataFormat: [
+                    {text: 'Hello World', class: 'payload'}
+                ],
+                duration: 2000
+            }
+        ];
+
+        // 日志系统
+        function addLog(message, type = 'info') {
+            const logPanel = document.getElementById('logPanel');
+            const time = new Date();
+            const timeStr = `${String(time.getMinutes()).padStart(2, '0')}:${String(time.getSeconds()).padStart(2, '0')}.${String(time.getMilliseconds()).padStart(3, '0')}`;
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="log-time">[${timeStr}]</span><span>${message}</span>`;
+            
+            logPanel.appendChild(logEntry);
+            logPanel.scrollTop = logPanel.scrollHeight;
+        }
+
+        // 更新数据格式显示
+        function updateDataFormat(format) {
+            const display = document.getElementById('dataFormatDisplay');
+            display.innerHTML = '';
+            
+            if (Array.isArray(format)) {
+                format.forEach(item => {
+                    const byte = document.createElement('span');
+                    byte.className = `data-byte ${item.class}`;
+                    byte.textContent = item.text;
+                    display.appendChild(byte);
+                });
+            } else {
+                display.innerHTML = '<span class="data-byte">处理中...</span>';
+            }
+        }
+
+        // 激活模块
+        function activateModule(moduleName) {
+            // 清除所有激活状态
+            document.querySelectorAll('.chip-module').forEach(m => {
+                m.classList.remove('active');
+                const indicator = m.querySelector('.status-indicator');
+                if (indicator) indicator.classList.remove('active');
+            });
+            
+            // 激活当前模块
+            const module = document.querySelector(`[data-module="${moduleName}"]`);
+            if (module) {
+                module.classList.add('active');
+                const indicator = module.querySelector('.status-indicator');
+                if (indicator) indicator.classList.add('active');
+            }
+        }
+
+        // 更新模块内容
+        function updateModuleContent(moduleName, content) {
+            const contentId = moduleName.replace('-', '') + 'Content';
+            const contentElement = document.getElementById(contentId);
+            if (contentElement) {
+                contentElement.textContent = content;
+            }
+        }
+
+        // 创建移动的数据包
+        function createPacket(fromModule, toModule, label) {
+            const packet = document.createElement('div');
+            packet.className = 'packet';
+            packet.textContent = label;
+            
+            const fromEl = document.querySelector(`[data-module="${fromModule}"]`);
+            const toEl = document.querySelector(`[data-module="${toModule}"]`);
+            
+            if (fromEl && toEl) {
+                const fromRect = fromEl.getBoundingClientRect();
+                const toRect = toEl.getBoundingClientRect();
+                const containerRect = document.getElementById('flowContainer').getBoundingClientRect();
+                
+                packet.style.left = (fromRect.left - containerRect.left + fromRect.width / 2) + 'px';
+                packet.style.top = (fromRect.top - containerRect.top + fromRect.height / 2) + 'px';
+                
+                document.getElementById('flowContainer').appendChild(packet);
+                
+                setTimeout(() => {
+                    packet.style.left = (toRect.left - containerRect.left + toRect.width / 2) + 'px';
+                    packet.style.top = (toRect.top - containerRect.top + toRect.height / 2) + 'px';
+                }, 50);
+                
+                setTimeout(() => {
+                    packet.remove();
+                }, 600);
+            }
+        }
+
+        // 执行动画步骤
+        async function executeStep(stepIndex) {
+            if (stepIndex >= animationSteps.length) {
+                addLog('✅ 完整传输流程完成！', 'success');
+                animationState.running = false;
+                return;
+            }
+            
+            const step = animationSteps[stepIndex];
+            const isLLR = animationState.isLLRMode;
+            
+            // 激活模块
+            activateModule(step.module);
+            
+            // 获取数据（支持函数）
+            const data = typeof step.data === 'function' ? step.data(isLLR) : step.data;
+            const log = typeof step.log === 'function' ? step.log(isLLR) : step.log;
+            const dataFormat = typeof step.dataFormat === 'function' ? step.dataFormat(isLLR) : step.dataFormat;
+            
+            // 更新模块内容
+            updateModuleContent(step.module, data);
+            
+            // 添加日志
+            addLog(log, 'info');
+            
+            // 更新数据格式显示
+            updateDataFormat(dataFormat);
+            
+            // 创建移动的数据包（如果有下一步）
+            if (stepIndex < animationSteps.length - 1) {
+                const nextStep = animationSteps[stepIndex + 1];
+                if (step.module !== nextStep.module) {
+                    createPacket(step.module, nextStep.module, '📦 数据');
+                }
+            }
+            
+            // 等待
+            const duration = step.duration * animationState.speed;
+            await new Promise(resolve => setTimeout(resolve, duration));
+            
+            // 检查是否暂停
+            while (animationState.paused && animationState.running) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // 继续下一步
+            if (animationState.running) {
+                animationState.currentStep = stepIndex + 1;
+                executeStep(stepIndex + 1);
+            }
+        }
+
+        // 开始动画
+        function startAnimation() {
+            if (animationState.running) return;
+            
+            animationState.running = true;
+            animationState.paused = false;
+            addLog('▶️ 开始动画演示...', 'info');
+            executeStep(animationState.currentStep);
+        }
+
+        // 暂停动画
+        function pauseAnimation() {
+            if (!animationState.running) return;
+            
+            animationState.paused = !animationState.paused;
+            if (animationState.paused) {
+                addLog('⏸️ 动画已暂停', 'warning');
+            } else {
+                addLog('▶️ 动画继续', 'info');
+            }
+        }
+
+        // 重置动画
+        function resetAnimation() {
+            animationState.running = false;
+            animationState.paused = false;
+            animationState.currentStep = 0;
+            
+            // 清除所有激活状态
+            document.querySelectorAll('.chip-module').forEach(m => {
+                m.classList.remove('active');
+                const indicator = m.querySelector('.status-indicator');
+                if (indicator) indicator.classList.remove('active');
+            });
+            
+            // 重置所有模块内容
+            document.querySelectorAll('.module-content').forEach(el => {
+                el.textContent = '等待数据...';
+            });
+            
+            // 清除日志
+            document.getElementById('logPanel').innerHTML = `
+                <div class="log-entry info">
+                    <span class="log-time">[00:00.000]</span>
+                    <span>系统已重置，等待开始...</span>
+                </div>
+            `;
+            
+            // 重置数据格式显示
+            document.getElementById('dataFormatDisplay').innerHTML = '<span class="data-byte">等待数据...</span>';
+            
+            addLog('🔄 系统已重置', 'info');
+        }
+
+        // 显示模块详情
+        function showModuleDetail(moduleName) {
+            const panel = document.getElementById('detailPanel');
+            const detail = moduleDetails[moduleName];
+            
+            if (!detail) return;
+            
+            document.getElementById('detailTitle').textContent = detail.name;
+            
+            let html = `
+                <div class="detail-section">
+                    <div class="detail-section-title">📝 功能描述</div>
+                    <div class="detail-content">${detail.description}</div>
+                </div>
+                
+                <div class="detail-section">
+                    <div class="detail-section-title">⚙️ 主要功能</div>
+                    <div class="detail-content">
+                        <ul style="margin-left: 20px; line-height: 1.8;">
+                            ${detail.functions.map(f => `<li>${f}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <div class="detail-section-title">📊 数据格式</div>
+                    <div class="detail-content">
+                        <code style="background: #ecf0f1; padding: 8px; display: block; border-radius: 5px; font-size: 11px;">
+                            ${typeof detail.dataFormat === 'object' ? 
+                                Object.entries(detail.dataFormat).map(([k,v]) => `${k}: ${v}`).join('<br>') : 
+                                detail.dataFormat}
+                        </code>
+                    </div>
+                </div>
+            `;
+            
+            if (detail.example) {
+                html += `
+                    <div class="detail-section">
+                        <div class="detail-section-title">💡 示例</div>
+                        <div class="detail-content">
+                            <code style="background: #fff3cd; padding: 8px; display: block; border-radius: 5px; font-size: 11px;">
+                                ${typeof detail.example === 'object' ? 
+                                    Object.entries(detail.example).map(([k,v]) => `${k}: ${v}`).join('<br>') : 
+                                    detail.example}
+                            </code>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (detail.notes) {
+                html += `
+                    <div class="detail-section">
+                        <div class="detail-section-title">⚠️ 重要提示</div>
+                        <div class="detail-content" style="color: #e74c3c; font-weight: bold;">
+                            ${detail.notes}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('detailContent').innerHTML = html;
+            panel.classList.add('show');
+        }
+
+        // 事件监听
+        document.getElementById('btnStart').addEventListener('click', startAnimation);
+        document.getElementById('btnPause').addEventListener('click', pauseAnimation);
+        document.getElementById('btnReset').addEventListener('click', resetAnimation);
+        
+        document.getElementById('speedSelect').addEventListener('change', (e) => {
+            animationState.speed = parseFloat(e.target.value);
+            addLog(`速度已调整为 ${1/animationState.speed}x`, 'info');
+        });
+        
+        document.getElementById('showLLR').addEventListener('change', (e) => {
+            animationState.isLLRMode = e.target.checked;
+            if (animationState.isLLRMode) {
+                addLog('⭐ 切换到 LLR 模式', 'warning');
+            } else {
+                addLog('切换到标准模式', 'info');
+            }
+        });
+        
+        // 模块点击事件
+        document.querySelectorAll('.chip-module').forEach(module => {
+            module.addEventListener('click', () => {
+                const moduleName = module.getAttribute('data-module');
+                showModuleDetail(moduleName);
+            });
+        });
+        
+        // 关闭详情面板
+        document.getElementById('detailClose').addEventListener('click', () => {
+            document.getElementById('detailPanel').classList.remove('show');
+        });
+        
+        // 初始化提示
+        addLog('💡 提示: 点击任何模块查看详细信息', 'info');
+        addLog('💡 提示: 勾选"显示LLR模式"查看LLR增强功能', 'info');
+    </script>
+</body>
+</html>
