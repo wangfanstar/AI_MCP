@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLR (Link Layer Retry) 完整动画演示</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔄 LLR (Link Layer Retry) 完整动画演示</h1>
+            <p class="subtitle">Ultra Ethernet 链路层重传机制可视化</p>
+        </header>
+
+        <div class="nav-buttons">
+            <button class="nav-btn active" onclick="showScene('scene1')">报文结构对比</button>
+            <button class="nav-btn" onclick="showScene('scene2')">LLR初始化</button>
+            <button class="nav-btn" onclick="showScene('scene3')">正常传输</button>
+            <button class="nav-btn" onclick="showScene('scene4')">ACK机制</button>
+            <button class="nav-btn" onclick="showScene('scene5')">错包处理</button>
+            <button class="nav-btn" onclick="showScene('scene6')">丢包恢复</button>
+            <button class="nav-btn" onclick="showScene('scene7')">超时重传</button>
+            <button class="nav-btn" onclick="showScene('scene8')">TX状态机</button>
+            <button class="nav-btn" onclick="showScene('scene9')">RX状态机</button>
+        </div>
+
+        <!-- 场景1: 报文结构对比 -->
+        <div id="scene1" class="scene active">
+            <h2 class="scene-title">📊 LLR使能与不使能时的报文结构对比</h2>
+            <div class="scene-description">
+                <p><strong>说明：</strong>LLR通过修改帧前导码（Preamble）来携带序列号信息。LLR-eligible报文可以被重传，而LLR-ineligible报文按标准以太网处理。</p>
+            </div>
+
+            <div class="frame-comparison">
+                <div class="frame-structure">
+                    <div class="frame-title">❌ LLR不使能 (LLR-ineligible)</div>
+                    <div class="frame-field">
+                        <div class="field-name">Byte 0: 0xFB</div>
+                        <div class="field-value">Start Frame Delimiter (SFD)</div>
+                    </div>
+                    <div class="frame-field">
+                        <div class="field-name">Byte 1-6: 0x55</div>
+                        <div class="field-value">标准Preamble模式</div>
+                    </div>
+                    <div class="frame-field">
+                        <div class="field-name">Byte 7: 0xD5</div>
+                        <div class="field-value">帧起始定界符</div>
+                    </div>
+                    <div class="frame-field">
+                        <div class="field-name">特性</div>
+                        <div class="field-value">✓ 标准以太网格式<br>✓ 无序列号<br>✗ 不支持重传</div>
+                    </div>
+                </div>
+
+                <div class="frame-structure">
+                    <div class="frame-title">✅ LLR使能 (LLR-eligible)</div>
+                    <div class="frame-field">
+                        <div class="field-name">Byte 0: 0xFB</div>
+                        <div class="field-value">Start Frame Delimiter (SFD)</div>
+                    </div>
+                    <div class="frame-field highlight">
+                        <div class="field-name">Byte 1 [3:0]: 0x7</div>
+                        <div class="field-value">LLR标识符（表示LLR-eligible）</div>
+                    </div>
+                    <div class="frame-field highlight">
+                        <div class="field-name">Byte 1-3: 20-bit 序列号</div>
+                        <div class="field-value">frame_seq[19:0] = 0 ~ 1048575<br>用于重传识别和顺序控制</div>
+                    </div>
+                    <div class="frame-field">
+                        <div class="field-name">Byte 4-6: 0x55</div>
+                        <div class="field-value">Preamble填充</div>
+                    </div>
+                    <div class="frame-field">
+                        <div class="field-name">Byte 7: 0xD5</div>
+                        <div class="field-value">帧起始定界符</div>
+                    </div>
+                    <div class="frame-field">
+                        <div class="field-name">特性</div>
+                        <div class="field-value">✓ 携带20位序列号<br>✓ 支持链路层重传<br>✓ 存储在replay buffer</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sequence-display">
+                <h3>序列号空间：0 ~ 1,048,575 (20 bits)</h3>
+                <p>最大往返时间支持：>500 µs @ 800 Gbps (64字节帧)</p>
+            </div>
+        </div>
+
+        <!-- 场景2: LLR初始化 -->
+        <div id="scene2" class="scene">
+            <h2 class="scene-title">🚀 LLR初始化过程</h2>
+            <div class="scene-description">
+                <p><strong>说明：</strong>LLR通过LLR_INIT和LLR_INIT_ECHO控制消息完成初始化握手，同步序列号状态。</p>
+            </div>
+
+            <div class="network-container" id="init-container">
+                <div class="connection-line"></div>
+                <div class="node sender">
+                    <div class="node-label">发送端</div>
+                    <div class="node-status" id="init-sender-status">INIT状态</div>
+                </div>
+                <div class="node receiver">
+                    <div class="node-label">接收端</div>
+                    <div class="node-status" id="init-receiver-status">等待INIT</div>
+                </div>
+            </div>
+
+            <div class="timeline" id="init-timeline"></div>
+
+            <div class="control-buttons">
+                <button class="control-btn" onclick="startInitAnimation()">▶ 开始初始化</button>
+                <button class="control-btn" onclick="resetInitAnimation()">🔄 重置</button>
+            </div>
+
+            <div class="log-container" id="init-log"></div>
+        </div>
+
+        <!-- 场景3: 正常传输 -->
+        <div id="scene3" class="scene">
+            <h2 class="scene-title">✈️ LLR正常数据传输</h2>
+            <div class="scene-description">
+                <p><strong>说明：</strong>数据包按序列号依次发送，接收端定期发送ACK确认，发送端释放replay buffer空间。Buffer中的帧会一直保留直到收到ACK。</p>
+            </div>
+
+            <div class="network-container" id="normal-container">
+                <div class="connection-line"></div>
+                <div class="node sender">
+                    <div class="node-label">发送端</div>
+                    <div class="node-status">TX: ADVANCE</div>
+                </div>
+                <div class="node receiver">
+                    <div class="node-label">接收端</div>
+                    <div class="node-status">RX: SEND_ACKS</div>
+                </div>
+            </div>
+
+            <div class="sequence-display">
+                <div>TX序列号 (tx_seq): <span id="tx-seq">0</span></div>
+                <div>RX期望序列号 (next_rx_seq): <span id="rx-seq">0</span></div>
+                <div>已确认序列号 (acked_seq): <span id="acked-seq">-1</span></div>
+                <div>未确认帧数 (outstanding_seq): <span id="outstanding">0</span></div>
+            </div>
+
+            <div>
+                <h3>📦 Replay Buffer状态 (只有收到ACK才释放)</h3>
+                <div class="buffer-visual" id="buffer-display"></div>
+                <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                    <span style="color: #4CAF50;">■</span> 等待ACK的帧 &nbsp;
+                    <span style="color: #2196F3;">■</span> 最近确认的帧 &nbsp;
+                    <span style="color: #ddd;">□</span> 空闲槽位
+                </p>
+            </div>
+
+            <div class="control-buttons">
+                <button class="control-btn" onclick="startNormalTransmission()">▶ 开始传输</button>
+                <button class="control-btn" onclick="stopNormalTransmission()">⏸ 停止</button>
+                <button class="control-btn" onclick="resetNormalTransmission()">🔄 重置</button>
+            </div>
+
+            <div class="log-container" id="normal-log"></div>
+        </div>
+
+        <!-- 场景4: ACK机制 -->
+        <div id="scene4" class="scene">
+            <h2 class="scene-title">✅ ACK确认机制</h2>
+            <div class="scene-description">
+                <p><strong>说明：</strong>接收端周期性发送LLR_ACK，携带最近成功接收的帧序列号（ack_nack_seq），发送端释放所有≤ack_nack_seq的replay buffer帧。</p>
+            </div>
+
+            <div class="network-container" id="ack-container">
+                <div class="connection-line"></div>
+                <div class="node sender">
+                    <div class="node-label">发送端</div>
+                    <div class="node-status">等待ACK</div>
+                </div>
+                <div class="node receiver">
+                    <div class="node-label">接收端</div>
+                    <div class="node-status">发送ACK</div>
+                </div>
+            </div>
+
+            <div class="timeline" id="ack-timeline"></div>
+
+            <div class="control-buttons">
+                <button class="control-btn" onclick="startAckDemo()">▶ 演示ACK</button>
+                <button class="control-btn" onclick="resetAckDemo()">🔄 重置</button>
+            </div>
+
+            <div class="log-container" id="ack-log"></div>
+        </div>
+
+        <!-- 场景5: 错包处理 -->
+        <div id="scene5" class="scene">
+            <h2 class="scene-title">⚠️ 错包检测与NACK</h2>
+            <div class="scene-description">
+                <p><strong>说明：</strong>接收端检测到FCS错误（fcs_status=BAD且expected_frame=TRUE）时，发送LLR_NACK触发重传。</p>
+            </div>
+
+            <div class="network-container" id="error-container">
+                <div class="connection-line"></div>
+                <div class="node sender">
+                    <div class="node-label">发送端</div>
+                    <div class="node-status" id="error-sender-status">ADVANCE</div>
+                </div>
+                <div class="node receiver">
+                    <div class="node-label">接收端</div>
+                    <div class="node-status" id="error-receiver-status">SEND_ACKS</div>
+                </div>
+            </div>
+
+            <div class="timeline" id="error-timeline"></div>
+
+            <div class="control-buttons">
+                <button class="control-btn" onclick="startErrorDemo()">▶ 模拟错包</button>
+                <button class="control-btn" onclick="resetErrorDemo()">🔄 重置</button>
+            </div>
+
+            <div class="log-container" id="error-log"></div>
+        </div>
+
+        <!-- 场景6: 丢包恢复 -->
+        <div id="scene6" class="scene">
+            <h2 class="scene-title">🔁 丢包检测与重传</h2>
+            <div class="scene-description">
+                <p><strong>说明：</strong>接收端检测到序列号跳跃（expected_frame=FALSE）时，发送NACK（ack_nack_seq=next_rx_seq-1），发送端进入REPLAY状态重传所有未确认的帧。</p>
+            </div>
+
+            <div class="network-container" id="loss-container">
+                <div class="connection-line"></div>
+                <div class="node sender">
+                    <div class="node-label">发送端</div>
+                    <div class="node-status" id="loss-sender-status">ADVANCE</div>
+                </div>
+                <div class="node receiver">
+                    <div class="node-label">接收端</div>
+                    <div class="node-status" id="loss-receiver-status">SEND_ACKS</div>
+                </div>
+            </div>
+
+            <div class="timeline" id="loss-timeline"></div>
+
+            <div class="control-buttons">
+                <button class="control-btn" onclick="startLossDemo()">▶ 模拟丢包</button>
+                <button class="control-btn" onclick="resetLossDemo()">🔄 重置</button>
+            </div>
+
+            <div class="log-container" id="loss-log"></div>
+        </div>
+
+        <!-- 场景7: 超时重传 -->
+        <div id="scene7" class="scene">
+            <h2 class="scene-title">⏱️ 超时重传机制</h2>
+            <div class="scene-description">
+                <p><strong>说明：</strong>当replay_timer超时且replay_ct < replay_ct_max时，发送端进入REPLAY状态。达到最大次数后进入FLUSH状态丢弃buffer。</p>
+            </div>
+
+            <div class="network-container" id="timeout-container">
+                <div class="connection-line"></div>
+                <div class="node sender">
+                    <div class="node-label">发送端</div>
+                    <div class="node-status" id="timeout-sender-status">ADVANCE</div>
+                </div>
+                <div class="node receiver">
+                    <div class="node-label">接收端</div>
+                    <div class="node-status" id="timeout-receiver-status">未响应</div>
+                </div>
+            </div>
+
+            <div class="sequence-display">
+                <div>重传计数 (replay_ct): <span id="replay-count">0</span> / <span id="replay-max">3</span></div>
+                <div>计时器 (replay_timer): <span id="timer-value">0</span> ms</div>
+            </div>
+
+            <div class="timeline" id="timeout-timeline"></div>
+
+            <div class="control-buttons">
+                <button class="control-btn" onclick="startTimeoutDemo()">▶ 模拟超时</button>
+                <button class="control-btn" onclick="resetTimeoutDemo()">🔄 重置</button>
+            </div>
+
+            <div class="log-container" id="timeout-log"></div>
+        </div>
+
+        <!-- 场景8: TX状态机 -->
+        <div id="scene8" class="scene">
+            <h2 class="scene-title">🔄 TX发送状态机</h2>
+            <div class="scene-description">
+                <p><strong>说明：</strong>LLR发送端状态机：LLR_OFF → INIT → ADVANCE ⇄ REPLAY → FLUSH。</p>
+            </div>
+
+            <div class="state-machine">
+                <div class="state" id="tx-state-off">LLR_OFF</div>
+                <div class="state-arrow">→</div>
+                <div class="state" id="tx-state-init">INIT</div>
+                <div class="state-arrow">→</div>
+                <div class="state" id="tx-state-advance">ADVANCE</div>
+                <div class="state-arrow">⇄</div>
+                <div class="state" id="tx-state-replay">REPLAY</div>
+                <div class="state-arrow">→</div>
+                <div class="state" id="tx-state-flush">FLUSH</div>
+            </div>
+
+            <div class="scene-description" style="margin-top: 30px;">
+                <h3>状态转换条件：</h3>
+                <ul style="line-height: 2;">
+                    <li><strong>LLR_OFF → INIT:</strong> llr_mode_remote == ON</li>
+                    <li><strong>INIT → ADVANCE:</strong> init_echo_received && replay_done</li>
+                    <li><strong>ADVANCE → REPLAY:</strong> nack_received || (replay_timer_expired && replay_ct < replay_ct_max)</li>
+                    <li><strong>REPLAY → ADVANCE:</strong> replay_done (完成重传)</li>
+                    <li><strong>REPLAY → FLUSH:</strong> replay_timer_expired && replay_ct == replay_ct_max</li>
+                    <li><strong>FLUSH → INIT:</strong> flush_done && re_init_on_discard</li>
+                </ul>
+            </div>
+
+            <div class="timeline" id="tx-timeline"></div>
+
+            <div class="control-buttons">
+                <button class="control-btn" onclick="startTxDemo()">▶ 开始演示</button>
+                <button class="control-btn" onclick="resetTxDemo()">🔄 重置</button>
+            </div>
+
+            <div class="log-container" id="tx-log"></div>
+        </div>
+
+        <!-- 场景9: RX状态机 -->
+        <div id="scene9" class="scene">
+            <h2 class="scene-title">🔄 RX接收状态机</h2>
+            <div class="scene-description">
+                <p><strong>说明：</strong>LLR接收端状态机：LLR_OFF → SEND_ACKS ⇄ SEND_NACK → NACK_SENT。</p>
+            </div>
+
+            <div class="state-machine">
+                <div class="state" id="rx-state-off">LLR_OFF</div>
+                <div class="state-arrow">→</div>
+                <div class="state" id="rx-state-send-acks">SEND_ACKS</div>
+                <div class="state-arrow">⇄</div>
+                <div class="state" id="rx-state-send-nack">SEND_NACK</div>
+                <div class="state-arrow">→</div>
+                <div class="state" id="rx-state-nack-sent">NACK_SENT</div>
+            </div>
+
+            <div class="scene-description" style="margin-top: 30px;">
+                <h3>状态转换条件：</h3>
+                <ul style="line-height: 2;">
+                    <li><strong>LLR_OFF → SEND_ACKS:</strong> llr_mode_local == ON && init_echo_sent</li>
+                    <li><strong>SEND_ACKS → SEND_NACK:</strong> expected_frame == FALSE (missing_frame || expected_frame_bad)</li>
+                    <li><strong>SEND_NACK → NACK_SENT:</strong> nack_sent == TRUE</li>
+                    <li><strong>NACK_SENT → SEND_ACKS:</strong> expected_frame == TRUE (收到正确序列号)</li>
+                </ul>
+            </div>
+
+            <div class="timeline" id="rx-timeline"></div>
+
+            <div class="control-buttons">
+                <button class="control-btn" onclick="startRxDemo()">▶ 开始演示</button>
+                <button class="control-btn" onclick="resetRxDemo()">🔄 重置</button>
+            </div>
+
+            <div class="log-container" id="rx-log"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

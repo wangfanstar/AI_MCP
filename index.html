@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>报文与物理层文档导航</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #1e3a5f 100%);
+            padding: 32px;
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 16px;
+            padding: 36px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.75rem;
+            margin-bottom: 8px;
+            color: #f8fafc;
+        }
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-bottom: 28px;
+        }
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        .nav-btn {
+            display: block;
+            padding: 14px 18px;
+            border-radius: 10px;
+            border: 2px solid #475569;
+            background: #334155;
+            color: #e2e8f0;
+            text-align: center;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #818cf8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+        .section-label {
+            font-size: 12px;
+            color: #64748b;
+            margin: 20px 0 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #475569;
+        }
+        .section-label:first-of-type { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>报文与物理层文档导航</h1>
+        <p class="subtitle">点击按钮打开对应页面</p>
+
+        <div class="section-label">LLR / CtlOS</div>
+        <div class="nav-grid">
+            <a class="nav-btn" href="LLR.html">LLR</a>
+            <a class="nav-btn" href="LLR_FLASH.html">LLR Flash</a>
+            <a class="nav-btn" href="LLR_REQUIRE.html">LLR 需求</a>
+            <a class="nav-btn" href="LLR_REQUIRE2.html">LLR 需求2</a>
+            <a class="nav-btn" href="LLR_PCS_MAC.HTML">LLR PCS/MAC</a>
+            <a class="nav-btn" href="LLR-module-detail.html">LLR 模块详情</a>
+            <a class="nav-btn" href="LLR%20状态机.html">LLR 状态机</a>
+            <a class="nav-btn" href="ctlos_pri.html">CtlOS 优先级</a>
+        </div>
+
+        <div class="section-label">PCS / MAC / 报文</div>
+        <div class="nav-grid">
+            <a class="nav-btn" href="PCS_MAC.HTML">PCS MAC</a>
+            <a class="nav-btn" href="前导码.html">前导码</a>
+            <a class="nav-btn" href="报文收发链路层物理层标准处理流程.html">报文收发流程</a>
+            <a class="nav-btn" href="报文数据发送字段变化.html">报文字段变化</a>
+            <a class="nav-btn" href="packet_66B.html">64/66B 报文演示</a>
+        </div>
+
+        <div class="section-label">其他模块</div>
+        <div class="nav-grid">
+            <a class="nav-btn" href="SYNCE-module-detail.html">SYNCE 模块</a>
+            <a class="nav-btn" href="PRBS-module-detail.html">PRBS 模块</a>
+        </div>
+    </div>
+</body>
+</html>

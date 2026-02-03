@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CtlOS传输优先级详细分析</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 50px;
+        }
+        
+        .section-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+        }
+        
+        .priority-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .priority-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .priority-table td {
+            padding: 16px 18px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .priority-table tr:hover {
+            background: #f8f9ff;
+        }
+        
+        .priority-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .priority-1 {
+            background: #c8e6c9 !important;
+            font-weight: 600;
+            color: #1b5e20;
+        }
+        
+        .priority-2 {
+            background: #fff9c4 !important;
+            font-weight: 600;
+            color: #f57f17;
+        }
+        
+        .priority-3 {
+            background: #ffccbc !important;
+            font-weight: 600;
+            color: #d84315;
+        }
+        
+        .card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            border-color: #667eea;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 24px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+        
+        .card-content {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.8;
+        }
+        
+        .highlight {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .code-block {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        
+        .flow-diagram {
+            background: #f0f7ff;
+            border: 2px solid #2196f3;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        
+        .flow-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .flow-item::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #2196f3;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .scenario-box {
+            background: white;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        
+        .scenario-title {
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        
+        .table-wrapper {
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        
+        .table-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 6px 0 10px 0;
+            min-height: 36px;
+        }
+        
+        .table-wrapper .table-scroll {
+            overflow-x: auto;
+            border-radius: 8px;
+        }
+        
+        .table-copy-btn {
+            padding: 6px 14px;
+            font-size: 13px;
+            border: none;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+            transition: all 0.2s;
+        }
+        
+        .table-copy-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        }
+        
+        .table-copy-btn:active {
+            transform: translateY(0);
+        }
+        
+        .table-copy-btn.copied {
+            background: #27ae60;
+            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.4);
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        .comparison-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .comparison-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 13px;
+        }
+        
+        .comparison-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .note {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #1e40af;
+        }
+        
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-size: 13px;
+            color: #78350f;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            border-top: 2px solid #e0e0e0;
+            margin-top: 40px;
+        }
+        
+        .footer h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .footer ul {
+            margin-left: 20px;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.8;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .section-title {
+                font-size: 20px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ CtlOS传输优先级详解</h1>
+            <p>同时出现时如何选择：优先收vs优先发的完整指南</p>
+        </div>
+        
+        <div class="content">
+            <!-- 优先级定义 -->
+            <div class="section">
+                <div class="section-title">CtlOS传输优先级金字塔</div>
+                
+                <div class="table-wrapper">
+                    <table class="priority-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">优先级</th>
+                                <th style="width: 25%;">CtlOS类型</th>
+                                <th style="width: 35%;">发送/处理规则</th>
+                                <th style="width: 25%;">关键约束</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="priority-1">
+                                <td>最高<br>（Level 1）</td>
+                                <td>LLR_INIT_ECHO</td>
+                                <td>
+                                    • 收到LLR_INIT后立即生成<br>
+                                    • 响应式发送，不周期性<br>
+                                    • 必须在MAC层中断队列<br>
+                                    • 确认就绪状态
+                                </td>
+                                <td>
+                                    • 绝不延迟<br>
+                                    • 最小延迟<br>
+                                    • 优先于所有其他消息
+                                </td>
+                            </tr>
+                            <tr class="priority-2">
+                                <td>中等<br>（Level 2）</td>
+                                <td>LLR_INIT</td>
+                                <td>
+                                    • INIT状态周期性发送<br>
+                                    • 初始化链接序列<br>
+                                    • 容忍丢失（重复发送）<br>
+                                    • 4×ctlos_target_spacing周期
+                                </td>
+                                <td>
+                                    • 可以缓存短期<br>
+                                    • 丢失可恢复<br>
+                                    • 低于INIT_ECHO
+                                </td>
+                            </tr>
+                            <tr class="priority-3">
+                                <td>最低<br>（Level 3）</td>
+                                <td>LLR_ACK<br>LLR_NACK</td>
+                                <td>
+                                    • 周期性发送（ctlos_target_spacing）<br>
+                                    • 速率约束：<br>
+                                      - 最快：每400字节1个<br>
+                                      - 最慢：每17296字节1个<br>
+                                    • ACK和NACK优先级相同<br>
+                                    • 不竞争其他消息
+                                </td>
+                                <td>
+                                    • 可以合并批处理<br>
+                                    • 丢失影响重传延迟<br>
+                                    • 低于INIT_INIT
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>最低+<br>（可选）</td>
+                                <td>CBFC CF_Update<br>（如启用）</td>
+                                <td>
+                                    • 仅在CBFC启用时出现<br>
+                                    • 流控信息<br>
+                                    • 周期性或事件驱动<br>
+                                    • 与ACK/NACK同级
+                                </td>
+                                <td>
+                                    • 低于所有LLR消息<br>
+                                    • 不影响LLR状态<br>
+                                    • 可被LLR消息抢占
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="highlight">
+                    <strong>📌 关键概念：</strong>优先级定义的是在"同一个物理时刻，MII接口上只能发送一个CtlOS"的情况下，应该优先选择哪一个消息类型。它不是收发的优先级，而是在竞争链路资源时的选择顺序。
+                </div>
+            </div>
+            
+            <!-- 场景分析 -->
+            <div class="section">
+                <div class="section-title">同时出现的场景分析</div>
+                
+                <div class="card">
+                    <div class="card-title">场景1：LLR_INIT_ECHO vs LLR_ACK</div>
+                    <div class="card-content">
+                        <strong>同时出现情况：</strong><br>
+                        接收端在处理LLR_INIT时生成LLR_INIT_ECHO，同时ACK计时器也到期需要发送LLR_ACK
+                        <br><br>
+                        <div class="code-block">
+时间T：
+  • 收到上游的LLR_INIT → RS层中断
+  • 本地ACK计时器到期 → MAC层请求发送LLR_ACK
+  • MII接口只有一个8字节的时间窗口
+  • 优先级：LLR_INIT_ECHO > LLR_ACK
+                        </div>
+                        <strong>处理规则：</strong><br>
+                        ✓ 优先发送LLR_INIT_ECHO<br>
+                        ✓ LLR_ACK推迟到下一个ctlos_target_spacing周期<br>
+                        ✓ 通常延迟不超过1-2个ctlos_target_spacing
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">场景2：LLR_INIT vs LLR_NACK</div>
+                    <div class="card-content">
+                        <strong>同时出现情况：</strong><br>
+                        处于INIT状态需要周期性发送LLR_INIT，同时检测到帧丢失需要发送LLR_NACK
+                        <br><br>
+                        <div class="code-block">
+时间T：
+  • 状态机在INIT状态，LLR_INIT计时器到期
+  • RX端检测到期望序列号不匹配 → 需要NACK
+  • 两个请求竞争同一个MII时间窗口
+  • 优先级：LLR_INIT > LLR_NACK
+                        </div>
+                        <strong>处理规则：</strong><br>
+                        ✓ 优先发送LLR_INIT（初始化更重要）<br>
+                        ✓ LLR_NACK通过下一个可用的ctlos时间窗口发送<br>
+                        ✓ LLR状态机中：if (init_state) { send_init() } else { send_nack_if_pending() }
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">场景3：LLR_INIT_ECHO vs LLR_NACK</div>
+                    <div class="card-content">
+                        <strong>同时出现情况：</strong><br>
+                        接收LLR_INIT需要立即回复INIT_ECHO，同时检测到数据帧序列号错误需要NACK
+                        <br><br>
+                        <div class="code-block">
+时间T：
+  • 收到LLR_INIT → RS和MAC层都有请求
+  • 检测到RXD帧的fcs_status = BAD → 需要NACK
+  • 但LLR_INIT_ECHO优先级更高
+  • 优先级：LLR_INIT_ECHO >> LLR_NACK
+                        </div>
+                        <strong>处理规则：</strong><br>
+                        ✓ 立即发送LLR_INIT_ECHO（确认初始化）<br>
+                        ✓ NACK在INIT_ECHO发送后的ctlos_target_spacing周期内发送<br>
+                        ✓ NACK不会因为初始化而丢弃，会在下一个窗口被发出
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">场景4：LLR_ACK vs CF_Update（CBFC启用时）</div>
+                    <div class="card-content">
+                        <strong>同时出现情况：</strong><br>
+                        CBFC和LLR都启用，需要发送CF_Update同时ACK计时器到期
+                        <br><br>
+                        <div class="code-block">
+时间T：
+  • CBFC虚拟通道缓冲区达到阈值 → CF_Update待发
+  • LLR ACK计时器到期 → LLR_ACK待发
+  • 两个消息竞争MII资源
+  • 优先级：LLR_ACK > CF_Update
+                        </div>
+                        <strong>处理规则：</strong><br>
+                        ✓ 优先发送LLR_ACK（维护LLR state）<br>
+                        ✓ CF_Update使用下一个可用时间窗口<br>
+                        ✓ CBFC不会阻塞或延迟LLR消息<br>
+                        ℹ 注意：这里没有"优先收或优先发"的区别，两者都是发送
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 收发优先级理解 -->
+            <div class="section">
+                <div class="section-title">优先收 vs 优先发的理解误区</div>
+                
+                <div class="warning">
+                    <strong>⚠️ 常见误解：</strong>
+                    "优先级是指同时收到和需要发送CtlOS时，应该优先处理哪个操作"<br><br>
+                    <strong>✓ 正确理解：</strong>
+                    优先级是指在多个待发送的CtlOS消息中，应该优先选择哪一个发送
+                </div>
+                
+                <div class="note">
+                    <strong>ℹ️ 为什么不存在"优先收"？</strong><br><br>
+                    CtlOS的接收（RX）和发送（TX）是独立的过程：
+                    <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                        <li><strong>RX（接收）：</strong>RS和PCS层自动识别入站CtlOS，无需优先级选择，因为物理层会识别所有O-code=0x6的块</li>
+                        <li><strong>TX（发送）：</strong>MAC层需要在多个待发CtlOS中选择，这里才存在优先级</li>
+                        <li>接收不需要选择（自动的），所以不存在"优先收"这个概念</li>
+                    </ul>
+                </div>
+                
+                <div class="scenario-box">
+                    <div class="scenario-title">具体例子：同时收发</div>
+                    时刻T，设备A和设备B之间的情况：
+                    <div style="margin: 15px 0; padding-left: 15px; border-left: 3px solid #667eea;">
+                        <strong>设备A（发送端）：</strong><br>
+                        • 正在周期性发送LLR_ACK<br>
+                        • 收到来自B的LLR_INIT → 需要立即回复INIT_ECHO<br>
+                        • **优先级判定：** LLR_INIT_ECHO > LLR_ACK<br>
+                        • **操作：** 中断当前LLR_ACK，优先发送LLR_INIT_ECHO<br><br>
+                        <strong>设备B（接收端）：</strong><br>
+                        • 自动接收来自A的LLR_INIT_ECHO（物理层自动处理，无需优先级）<br>
+                        • 自动接收来自A的LLR_ACK（物理层自动处理，无需优先级）<br>
+                        • **无优先级冲突**：两个都能接收
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 具体实现 -->
+            <div class="section">
+                <div class="section-title">MAC层发送调度的伪代码实现</div>
+                
+                <div class="code-block">
+// CtlOS发送优先级调度（MAC层）
+function schedule_ctlos_transmission() {
+    // 检查各类型CtlOS的发送条件（按优先级）
+    
+    // Level 1：最高优先级
+    if (pending_LLR_INIT_ECHO) {
+        MII_output(LLR_INIT_ECHO)
+        pending_LLR_INIT_ECHO = FALSE
+        return  // 本周期只发送一个
+    }
+    
+    // Level 2：中等优先级
+    if (pending_LLR_INIT && 
+        llr_tx_state == INIT && 
+        init_timer_expired) {
+        MII_output(LLR_INIT)
+        pending_LLR_INIT = FALSE
+        return
+    }
+    
+    // Level 3：最低优先级
+    // ACK和NACK优先级相同
+    if (pending_LLR_NACK) {
+        MII_output(LLR_NACK)
+        pending_LLR_NACK = FALSE
+        nack_transmitted_state = NACK_SENT
+        return
+    }
+    
+    if (pending_LLR_ACK && 
+        ack_timer_expired) {
+        MII_output(LLR_ACK)
+        pending_LLR_ACK = FALSE
+        return
+    }
+    
+    // 最低等级：CBFC流控（如启用）
+    if (cbfc_enabled && 
+        pending_CF_Update &&
+        cf_timer_expired) {
+        MII_output(CF_Update)
+        pending_CF_Update = FALSE
+        return
+    }
+}
+                </div>
+                
+                <div class="highlight">
+                    <strong>📌 关键约束：</strong><br>
+                    • ctlos_target_spacing约束：最多每400字节发送1个CtlOS，最少每17296字节发送1个<br>
+                    • 8字节对齐到Lane 0<br>
+                    • 不在帧的前256字节内<br>
+                    • 两个CtlOS间距≥400字节<br>
+                    • <2% 链路带宽
+                </div>
+            </div>
+            
+            <!-- 状态机图 -->
+            <div class="section">
+                <div class="section-title">LLR/CBFC状态机中的优先级处理</div>
+                
+                <div class="card">
+                    <div class="card-title">LLR TX状态机CtlOS选择流程</div>
+                    <div class="card-content">
+                        <div class="flow-diagram">
+                            <div class="flow-item"><strong>OFF状态：</strong> 无CtlOS发送</div>
+                            <div class="flow-item"><strong>INIT状态：</strong> 周期性发送LLR_INIT（优先级2）</div>
+                            <div class="flow-item">
+                                ├─ 同时收到LLR_INIT_ECHO_needed<br>
+                                ├─ <strong>优先选择：</strong>发送LLR_INIT_ECHO（优先级1）<br>
+                                └─ LLR_INIT推迟到下一个ctlos_target_spacing
+                            </div>
+                            <div class="flow-item"><strong>ADVANCE状态：</strong> 发送LLR_ACK（优先级3）</div>
+                            <div class="flow-item">
+                                ├─ 检测到NACK条件<br>
+                                ├─ <strong>优先选择：</strong>转到REPLAY状态，发送LLR_NACK（优先级3）<br>
+                                └─ 停止发送ACK
+                            </div>
+                            <div class="flow-item"><strong>REPLAY状态：</strong> 重传数据，发送LLR_NACK if needed</div>
+                            <div class="flow-item"><strong>FLUSH状态：</strong> 清空缓冲，转INIT或OFF</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">CBFC和LLR的交互</div>
+                    <div class="card-content">
+                        <div class="code-block">
+// CBFC CF_Update vs LLR ACK/NACK的优先级
+CtlOS_Priority = {
+    LLR_INIT_ECHO: 1,      // 最高
+    LLR_INIT: 2,           // 中等
+    LLR_ACK: 3,            // 最低
+    LLR_NACK: 3,           // 最低（与ACK同级）
+    CF_Update: 4           // 仅当LLR不需要时发送
+}
+
+// 规范规定（Table 5-12）：
+"There is no priority difference between LLR_ACKs and 
+ LLR_NACKs, as the LLR should never be attempting to send 
+ an LLR_NACK at the same time as an LLR_ACK. 
+ 
+ If credit-based flow control is also active, the CBFC 
+ CtlOS should be lowest priority (i.e., below 
+ LLR_ACK/LLR_NACK)."
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 时序约束 -->
+            <div class="section">
+                <div class="section-title">时序约束和发送规则</div>
+                
+                <div class="table-wrapper">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>CtlOS类型</th>
+                                <th>发送条件</th>
+                                <th>周期/速率约束</th>
+                                <th>丢失容忍度</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>LLR_INIT_ECHO</strong></td>
+                                <td>收到LLR_INIT立即</td>
+                                <td>响应式，无周期</td>
+                                <td>丢失可重传</td>
+                            </tr>
+                            <tr>
+                                <td><strong>LLR_INIT</strong></td>
+                                <td>INIT状态周期性</td>
+                                <td>≥ 4×ctlos_target_spacing</td>
+                                <td>丢失可重传</td>
+                            </tr>
+                            <tr>
+                                <td><strong>LLR_ACK</strong></td>
+                                <td>ADVANCE状态周期</td>
+                                <td>每400B~17296B一次</td>
+                                <td>丢失影响缓冲释放</td>
+                            </tr>
+                            <tr>
+                                <td><strong>LLR_NACK</strong></td>
+                                <td>检测到序列号错误</td>
+                                <td>单次，不周期</td>
+                                <td>丢失延迟重传</td>
+                            </tr>
+                            <tr>
+                                <td><strong>CF_Update</strong></td>
+                                <td>CBFC虚拟通道条件</td>
+                                <td>事件驱动或周期</td>
+                                <td>丢失由CBFC协议处理</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="highlight">
+                    <strong>⏱️ 标准速率约束（规范5.1.4）：</strong><br>
+                    • <strong>最快速率：</strong>最多每400字节发送1个LLR_ACK/NACK<br>
+                    • <strong>最慢速率：</strong>最少每17296字节发送1个LLR_ACK/NACK<br>
+                    • <strong>推荐间距：</strong>约1600字节（≈0.5%带宽）<br>
+                    • <strong>保证间距：</strong>至少400字节<br><br>
+                    这些约束确保：<br>
+                    ✓ 充分的消息频率确保链接伙伴通信<br>
+                    ✓ 不过载链接（<2%带宽）<br>
+                    ✓ 简化交换机RX CtlOS处理
+                </div>
+            </div>
+            
+            <!-- 总结 -->
+            <div class="footer">
+                <h3>🎯 关键总结</h3>
+                <ul>
+                    <li><strong>优先级不是"收vs发"，而是"多个待发消息的选择顺序"：</strong>
+                        <ul style="margin: 8px 0 0 20px;">
+                            <li>接收：物理层自动识别所有CtlOS，无需优先级</li>
+                            <li>发送：MAC层需选择哪个CtlOS优先使用MII时间窗口</li>
+                        </ul>
+                    </li>
+                    <li><strong>四级优先级清单：</strong>
+                        <ul style="margin: 8px 0 0 20px;">
+                            <li>1️⃣ LLR_INIT_ECHO（最高，确保初始化）</li>
+                            <li>2️⃣ LLR_INIT（初始化周期）</li>
+                            <li>3️⃣ LLR_ACK/NACK（最低，同级）</li>
+                            <li>4️⃣ CF_Update（仅当CBFC启用且LLR无需时）</li>
+                        </ul>
+                    </li>
+                    <li><strong>实现策略：</strong>在MAC调度器中按优先级检查pending标志，优先发送高优先级消息</li>
+                    <li><strong>约束条件：</strong>遵守ctlos_target_spacing（400B~17296B）、8字节对齐、不在帧前256字节等规则</li>
+                    <li><strong>同时出现时：</strong>中断低优先级发送，优先发送高优先级CtlOS，被中断的消息在下一个ctlos窗口发送</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script>
+        // 复制表格（带格式和颜色）为 HTML，粘贴到 Word 可保留格式
+        function getInlineStyle(el) {
+            var s = window.getComputedStyle(el);
+            return [
+                'background:' + (s.backgroundColor || 'white'),
+                'color:' + (s.color || 'inherit'),
+                'border:1px solid ' + (s.borderColor || '#e0e0e0'),
+                'padding:' + (s.padding || '8px 12px'),
+                'font-size:' + (s.fontSize || '13px'),
+                'font-weight:' + (s.fontWeight || 'normal'),
+                'text-align:' + (s.textAlign || 'left')
+            ].join(';');
+        }
+        function copyTableWithFormat(table) {
+            var clone = table.cloneNode(true);
+            clone.querySelectorAll('th, td').forEach(function(cell) {
+                cell.setAttribute('style', getInlineStyle(cell));
+            });
+            var html = '<meta charset="utf-8">' + clone.outerHTML;
+            var plain = [];
+            table.querySelectorAll('tr').forEach(function(tr) {
+                var cells = [];
+                tr.querySelectorAll('th, td').forEach(function(cell) {
+                    cells.push(cell.innerText.trim().replace(/\n/g, ' '));
+                });
+                plain.push(cells.join('\t'));
+            });
+            var text = plain.join('\n');
+            var blobHtml = new Blob([html], { type: 'text/html' });
+            var blobText = new Blob([text], { type: 'text/plain' });
+            var item = new ClipboardItem({
+                'text/html': blobHtml,
+                'text/plain': blobText
+            });
+            return navigator.clipboard.write([item]).then(function() { return true; }).catch(function() { return false; });
+        }
+        document.querySelectorAll('.table-wrapper').forEach(function(wrapper) {
+            var table = wrapper.querySelector('table');
+            if (!table) return;
+            var toolbar = document.createElement('div');
+            toolbar.className = 'table-toolbar';
+            var btn = document.createElement('button');
+            btn.className = 'table-copy-btn';
+            btn.type = 'button';
+            btn.textContent = '📋 复制';
+            btn.title = '复制表格（含格式与颜色，可粘贴到 Word 等）';
+            btn.addEventListener('click', function() {
+                copyTableWithFormat(table).then(function(ok) {
+                    if (ok) {
+                        var orig = btn.textContent;
+                        btn.textContent = '✓ 已复制';
+                        btn.classList.add('copied');
+                        setTimeout(function() {
+                            btn.textContent = orig;
+                            btn.classList.remove('copied');
+                        }, 1500);
+                    } else {
+                        btn.textContent = '复制失败';
+                        setTimeout(function() { btn.textContent = '📋 复制'; }, 1500);
+                    }
+                });
+            });
+            toolbar.appendChild(btn);
+            var scroll = document.createElement('div');
+            scroll.className = 'table-scroll';
+            wrapper.insertBefore(toolbar, table);
+            wrapper.removeChild(table);
+            scroll.appendChild(table);
+            wrapper.appendChild(scroll);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1691 @@
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>支持CtlOS的物理层适配架构</title>  
+    <style>  
+        * {  
+            margin: 0;  
+            padding: 0;  
+            box-sizing: border-box;  
+        }  
+        
+        body {  
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;  
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
+            padding: 20px;  
+            min-height: 100vh;  
+        }  
+        
+        .container {  
+            max-width: 1400px;  
+            margin: 0 auto;  
+            background: white;  
+            border-radius: 12px;  
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);  
+            overflow: hidden;  
+        }  
+        
+        .header {  
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
+            color: white;  
+            padding: 30px;  
+            text-align: center;  
+        }  
+        
+        .header h1 {  
+            font-size: 28px;  
+            margin-bottom: 10px;  
+            font-weight: 700;  
+        }  
+        
+        .header p {  
+            font-size: 14px;  
+            opacity: 0.9;  
+        }  
+        
+        .content {  
+            padding: 40px;  
+        }  
+        
+        .section {  
+            margin-bottom: 50px;  
+        }  
+        
+        .section-title {  
+            font-size: 22px;  
+            color: #333;  
+            margin-bottom: 20px;  
+            padding-bottom: 10px;  
+            border-bottom: 3px solid #667eea;  
+            display: flex;  
+            align-items: center;  
+            gap: 10px;  
+        }  
+        
+        .section-title::before {  
+            content: '';  
+            display: inline-block;  
+            width: 8px;  
+            height: 8px;  
+            border-radius: 50%;  
+            background: #667eea;  
+        }  
+        
+        /* 架构图 */  
+        .architecture {  
+            background: #f8f9fa;  
+            border-radius: 8px;  
+            padding: 30px;  
+            margin-bottom: 30px;  
+        }  
+        
+        .dataflow {  
+            display: flex;  
+            align-items: center;  
+            margin-bottom: 30px;  
+            gap: 15px;  
+        }  
+        
+        .dataflow-item {  
+            background: white;  
+            border: 2px solid #667eea;  
+            border-radius: 8px;  
+            padding: 15px 20px;  
+            min-width: 140px;  
+            text-align: center;  
+            font-weight: 600;  
+            color: #333;  
+            flex-shrink: 0;  
+        }  
+        
+        .dataflow-item.highlight {  
+            background: #667eea;  
+            color: white;  
+        }  
+        
+        .arrow {  
+            font-size: 24px;  
+            color: #667eea;  
+            font-weight: bold;  
+            flex-shrink: 0;  
+        }  
+        
+        /* 表格样式 */  
+        .table-wrapper {  
+            border-radius: 8px;  
+            margin-bottom: 30px;  
+        }
+        
+        .table-toolbar {  
+            display: flex;  
+            justify-content: flex-end;  
+            align-items: center;  
+            padding: 6px 0 10px 0;  
+            min-height: 36px;  
+        }
+        
+        .table-wrapper .table-scroll {  
+            overflow-x: auto;  
+            border-radius: 8px;  
+        }
+        
+        .table-copy-btn {  
+            padding: 6px 14px;  
+            font-size: 13px;  
+            border: none;  
+            border-radius: 6px;  
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
+            color: white;  
+            cursor: pointer;  
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);  
+            transition: all 0.2s;  
+        }
+        
+        .table-copy-btn:hover {  
+            transform: translateY(-1px);  
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);  
+        }
+        
+        .table-copy-btn:active {  
+            transform: translateY(0);  
+        }
+        
+        .table-copy-btn.copied {  
+            background: #27ae60;  
+            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.4);  
+        }  
+        
+        table {  
+            width: 100%;  
+            border-collapse: collapse;  
+            background: white;  
+        }  
+        
+        th {  
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
+            color: white;  
+            padding: 15px;  
+            text-align: left;  
+            font-weight: 600;  
+            font-size: 14px;  
+        }  
+        
+        td {  
+            padding: 12px 15px;  
+            border-bottom: 1px solid #e0e0e0;  
+            font-size: 13px;  
+        }  
+        
+        tr:nth-child(even) {  
+            background: #f8f9fa;  
+        }  
+        
+        tr:hover {  
+            background: #f0f0ff;  
+        }  
+        
+        .code-highlight {  
+            background: #f5f5f5;  
+            padding: 3px 6px;  
+            border-radius: 4px;  
+            font-family: 'Courier New', monospace;  
+            color: #d63384;  
+            font-size: 12px;  
+        }  
+        
+        /* 模块卡片 */  
+        .module-grid {  
+            display: grid;  
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));  
+            gap: 20px;  
+            margin-bottom: 30px;  
+        }  
+        
+        .module-card {  
+            background: white;  
+            border: 2px solid #e0e0e0;  
+            border-radius: 8px;  
+            padding: 20px;  
+            transition: all 0.3s ease;  
+        }  
+        
+        .module-card:hover {  
+            border-color: #667eea;  
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);  
+            transform: translateY(-4px);  
+        }  
+        
+        .module-card-title {  
+            font-size: 16px;  
+            font-weight: 700;  
+            color: #333;  
+            margin-bottom: 12px;  
+            display: flex;  
+            align-items: center;  
+            gap: 8px;  
+        }  
+        
+        .module-card-title::before {  
+            content: '';  
+            display: inline-block;  
+            width: 4px;  
+            height: 20px;  
+            background: #667eea;  
+            border-radius: 2px;  
+        }  
+        
+        .module-card-content {  
+            font-size: 13px;  
+            color: #666;  
+            line-height: 1.6;  
+        }  
+        
+        .module-card-list {  
+            list-style: none;  
+            margin-top: 10px;  
+        }  
+        
+        .module-card-list li {  
+            padding: 6px 0;  
+            padding-left: 20px;  
+            position: relative;  
+            font-size: 12px;  
+            color: #555;  
+        }  
+        
+        .module-card-list li::before {  
+            content: '▸';  
+            position: absolute;  
+            left: 0;  
+            color: #667eea;  
+        }  
+        
+        /* PCS编码/解码流程 */  
+        .pcs-process {  
+            background: #f8f9fa;  
+            border-radius: 8px;  
+            padding: 25px;  
+            margin-bottom: 30px;  
+        }  
+        
+        .process-row {  
+            display: flex;  
+            align-items: center;  
+            margin-bottom: 20px;  
+            gap: 15px;  
+        }  
+        
+        .process-step {  
+            background: white;  
+            border: 2px solid #667eea;  
+            border-radius: 8px;  
+            padding: 15px;  
+            min-width: 180px;  
+            font-size: 13px;  
+            font-weight: 600;  
+        }  
+        
+        .process-step.input {  
+            background: #e3f2fd;  
+            border-color: #2196f3;  
+            color: #1565c0;  
+        }  
+        
+        .process-step.operation {  
+            background: #fff3e0;  
+            border-color: #ff9800;  
+            color: #e65100;  
+        }  
+        
+        .process-step.output {  
+            background: #e8f5e9;  
+            border-color: #4caf50;  
+            color: #1b5e20;  
+        }  
+        
+        .process-arrow {  
+            font-size: 22px;  
+            color: #667eea;  
+            font-weight: bold;  
+            flex-shrink: 0;  
+        }  
+        
+        /* 关键指标表 */  
+        .metrics {  
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
+            color: white;  
+            border-radius: 8px;  
+            padding: 25px;  
+            margin-bottom: 30px;  
+        }  
+        
+        .metrics-grid {  
+            display: grid;  
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));  
+            gap: 20px;  
+        }  
+        
+        .metric-item {  
+            background: rgba(255,255,255,0.1);  
+            border-radius: 8px;  
+            padding: 15px;  
+            backdrop-filter: blur(10px);  
+            border: 1px solid rgba(255,255,255,0.2);  
+        }  
+        
+        .metric-label {  
+            font-size: 12px;  
+            opacity: 0.9;  
+            margin-bottom: 8px;  
+            text-transform: uppercase;  
+            letter-spacing: 1px;  
+        }  
+        
+        .metric-value {  
+            font-size: 18px;  
+            font-weight: 700;  
+            word-break: break-word;  
+        }  
+        
+        /* 对比表 */  
+        .comparison-table {  
+            overflow-x: auto;  
+            border-radius: 8px;  
+            margin-bottom: 30px;  
+        }  
+        
+        .comparison-table table {  
+            width: 100%;  
+        }  
+        
+        .comparison-table th {  
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);  
+            color: white;  
+        }  
+        
+        .comparison-table td {  
+            padding: 14px;  
+            text-align: center;  
+        }  
+        
+        .comparison-table tr:nth-child(2n) {  
+            background: #f8f9fa;  
+        }  
+        
+        .match {  
+            background: #c8e6c9 !important;  
+            color: #1b5e20;  
+            font-weight: 600;  
+        }  
+        
+        .mismatch {  
+            background: #ffcdd2 !important;  
+            color: #b71c1c;  
+            font-weight: 600;  
+        }  
+        
+        /* 兼容性分析 */  
+        .compatibility {  
+            border-radius: 8px;  
+            padding: 20px;  
+            margin-bottom: 20px;  
+            border-left: 4px solid;  
+        }  
+        
+        .compatibility.support {  
+            background: #e8f5e9;  
+            border-color: #4caf50;  
+        }  
+        
+        .compatibility.partial {  
+            background: #fff3e0;  
+            border-color: #ff9800;  
+        }  
+        
+        .compatibility.unsupport {  
+            background: #ffebee;  
+            border-color: #f44336;  
+        }  
+        
+        .compatibility-title {  
+            font-weight: 700;  
+            margin-bottom: 8px;  
+            font-size: 14px;  
+        }  
+        
+        .compatibility-desc {  
+            font-size: 13px;  
+            line-height: 1.6;  
+        }  
+        
+        /* 流程图 */  
+        .flowchart {  
+            background: #f8f9fa;  
+            border-radius: 8px;  
+            padding: 30px;  
+            margin-bottom: 30px;  
+        }  
+        
+        .flow-box {  
+            background: white;  
+            border: 2px solid #667eea;  
+            border-radius: 8px;  
+            padding: 15px;  
+            margin-bottom: 15px;  
+            font-size: 13px;  
+        }  
+        
+        .flow-box.start, .flow-box.end {  
+            background: #667eea;  
+            color: white;  
+            font-weight: 600;  
+        }  
+        
+        .flow-arrow {  
+            text-align: center;  
+            font-size: 20px;  
+            color: #667eea;  
+            margin: 10px 0;  
+        }  
+        
+        /* 注释 */  
+        .note {  
+            background: #fef3c7;  
+            border-left: 4px solid #f59e0b;  
+            border-radius: 4px;  
+            padding: 15px;  
+            margin-bottom: 20px;  
+            font-size: 13px;  
+            color: #78350f;  
+        }  
+        
+        .note::before {  
+            content: '⚠ ';  
+            font-weight: bold;  
+            margin-right: 8px;  
+        }  
+        
+        .info {  
+            background: #dbeafe;  
+            border-left: 4px solid #3b82f6;  
+            border-radius: 4px;  
+            padding: 15px;  
+            margin-bottom: 20px;  
+            font-size: 13px;  
+            color: #1e40af;  
+        }  
+        
+        .info::before {  
+            content: 'ℹ ';  
+            font-weight: bold;  
+            margin-right: 8px;  
+        }  
+        
+        /* 响应式 */  
+        @media (max-width: 768px) {  
+            .content {  
+                padding: 20px;  
+            }  
+            
+            .header h1 {  
+                font-size: 20px;  
+            }  
+            
+            .dataflow {  
+                flex-wrap: wrap;  
+                justify-content: center;  
+            }  
+            
+            .module-grid {  
+                grid-template-columns: 1fr;  
+            }  
+            
+            .process-row {  
+                flex-wrap: wrap;  
+            }  
+            
+            .metrics-grid {  
+                grid-template-columns: repeat(2, 1fr);  
+            }  
+        }  
+    </style>  
+</head>  
+<body>  
+    <div class="container">  
+        <!-- 头部 -->  
+        <div class="header">  
+            <h1>🔧 支持CtlOS的物理层适配架构</h1>  
+            <p>UE规范 6.2 Control Ordered Sets 物理层模块详细分析</p>  
+        </div>  
+        
+        <div class="content">  
+            <!-- 第一部分：核心架构 -->  
+            <div class="section">  
+                <div class="section-title">系统架构概览</div>  
+                
+                <div class="info">  
+                    <strong>关键概念：</strong>CtlOS（Control Ordered Set）是为LLR和CBFC服务的8字节有序集消息，通过特殊的O-code值在PCS 64B/66B编码中区分于标准IEEE序列有序集。  
+                </div>  
+                
+                <div class="architecture">  
+                    <h3 style="margin-bottom: 20px; color: #333;">发送路径（TX）</h3>  
+                    <div class="dataflow">  
+                        <div class="dataflow-item">MAC</div>  
+                        <div class="arrow">→</div>  
+                        <div class="dataflow-item">RS层</div>  
+                        <div class="arrow">→</div>  
+                        <div class="dataflow-item">PCS编码器</div>  
+                        <div class="arrow">→</div>  
+                        <div class="dataflow-item highlight">64B/66B块</div>  
+                    </div>  
+                    
+                    <h3 style="margin-bottom: 20px; color: #333; margin-top: 30px;">接收路径（RX）</h3>  
+                    <div class="dataflow">  
+                        <div class="dataflow-item highlight">64B/66B块</div>  
+                        <div class="arrow">→</div>  
+                        <div class="dataflow-item">PCS解码器</div>  
+                        <div class="arrow">→</div>  
+                        <div class="dataflow-item">RS层</div>  
+                        <div class="arrow">→</div>  
+                        <div class="dataflow-item">MAC</div>  
+                    </div>  
+                </div>  
+            </div>  
+            
+            <!-- 第二部分：MII层区分机制 -->  
+            <div class="section">  
+                <div class="section-title">Lane 0 控制字符识别</div>  
+                
+                <div class="table-wrapper">  
+                    <table>  
+                        <thead>  
+                            <tr>  
+                                <th>报文/消息类型</th>  
+                                <th>Lane 0 控制字符</th>  
+                                <th>O-code值（位34:37）</th>  
+                                <th>PCS块类型</th>  
+                                <th>用途</th>  
+                            </tr>  
+                        </thead>  
+                        <tbody>  
+                            <tr>  
+                                <td><strong>IPG IDLE报文</strong></td>  
+                                <td><span class="code-highlight">0x9C</span></td>  
+                                <td><span class="code-highlight">0x0</span></td>  
+                                <td><span class="code-highlight">0x4B</span></td>  
+                                <td>标准序列有序集</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>LLR CtlOS消息</strong></td>  
+                                <td><span class="code-highlight">0x5C</span></td>  
+                                <td><span class="code-highlight">0x6</span></td>  
+                                <td><span class="code-highlight">0x4B</span></td>  
+                                <td>链路层重试/CBFC消息</td>  
+                            </tr>  
+                        </tbody>  
+                    </table>  
+                </div>  
+                
+                <div class="note">  
+                    <strong>关键区分点：</strong>MII接口上通过Lane 0的不同控制字符（0x9C vs 0x5C）进行初级识别，PCS编码后的O-code值（0x0 vs 0x6）进行最终验证。CtlOS必须满足D4[3:0] = 0x6的强制要求。  
+                </div>  
+            </div>  
+            
+            <!-- 第三部分：PCS层改进 -->  
+            <div class="section">  
+                <div class="section-title">PCS层必需改进（64B/66B编码）</div>  
+                
+                <div class="module-grid">  
+                    <div class="module-card">  
+                        <div class="module-card-title">编码侧修改（Table 6-4）</div>  
+                        <div class="module-card-content">  
+                            MII Lane 0控制字符 0x5C 映射为：  
+                            <ul class="module-card-list">  
+                                <li>块同步头：'10'（2比特）</li>  
+                                <li>块类型：0x4B（8比特）</li>  
+                                <li>O-code：0x6（4比特）</li>  
+                                <li>数据有效载荷：D1-D7（56比特）</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                    
+                    <div class="module-card">  
+                        <div class="module-card-title">解码侧修改（Table 6-5）</div>  
+                        <div class="module-card-content">  
+                            使用无状态解码规则：  
+                            <ul class="module-card-list">  
+                                <li>O-code[34:37] = 0x0 → MII_D0=0x9C</li>  
+                                <li>O-code[34:37] = 0x6 → MII_D0=0x5C</li>  
+                                <li>支持包抢占（Preemption）</li>  
+                                <li>CtlOS可在数据包中间插入</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                    
+                    <div class="module-card">  
+                        <div class="module-card-title">状态机改进（Table 6-6）</div>  
+                        <div class="module-card-content">  
+                            从状态机改为无状态规则：  
+                            <ul class="module-card-list">  
+                                <li>Reset=1：输出LBLOCK_T</li>  
+                                <li>Reset=0：直接ENCODE(tx_raw)</li>  
+                                <li>无需跟踪历史块状态</li>  
+                                <li>降低延迟和复杂度</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                </div>  
+                
+                <div class="pcs-process">  
+                    <h3 style="margin-bottom: 20px; color: #333;">PCS编码过程详解</h3>  
+                    
+                    <div class="process-row">  
+                        <div class="process-step input">  
+                            输入（MII接口）<br>  
+                            TXD[7:0]=0x5C<br>  
+                            TXD[63:8]=$D_1:D_7$<br>  
+                            D4[3:0]=0x6  
+                        </div>  
+                        <div class="process-arrow">→</div>  
+                        <div class="process-step operation">  
+                            PCS编码<br>  
+                            映射规则（Table 6-4）<br>  
+                            应用无状态编码规则  
+                        </div>  
+                        <div class="process-arrow">→</div>  
+                        <div class="process-step output">  
+                            输出（64B/66B块）<br>  
+                            Sync='10'<br>  
+                            Block Type=0x4B<br>  
+                            O-code=0x6  
+                        </div>  
+                    </div>  
+                </div>  
+            </div>  
+            
+            <!-- 第四部分：RS层改进 -->  
+            <div class="section">  
+                <div class="section-title">RS层必需改进</div>  
+                
+                <div class="module-grid">  
+                    <div class="module-card">  
+                        <div class="module-card-title">发送端（TX RS）</div>  
+                        <div class="module-card-content">  
+                            <strong>功能：</strong>将MAC请求转换为MII信号  
+                            <ul class="module-card-list">  
+                                <li>MAC发送CtlOS请求</li>  
+                                <li>RS输出MII信号：</li>  
+                                <li>TXD[7:0]=0x5C（Lane 0）</li>  
+                                <li>TXD[63:8]=D1:D7数据</li>  
+                                <li>必须8字节对齐到Lane 0</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                    
+                    <div class="module-card">  
+                        <div class="module-card-title">接收端（RX RS）</div>  
+                        <div class="module-card-content">  
+                            <strong>功能：</strong>识别并转发CtlOS消息  
+                            <ul class="module-card-list">  
+                                <li>检测RXC[0]=control且RXD[7:0]=0x5C</li>  
+                                <li>验证有效CtlOS</li>  
+                                <li>向MAC层发送指示</li>  
+                                <li>不影响DATA_VALID_STATUS</li>  
+                                <li>跳过CtlOS用于Start字符判断</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                    
+                    <div class="module-card">  
+                        <div class="module-card-title">CtlOS插入规则</div>  
+                        <div class="module-card-content">  
+                            <strong>约束条件：</strong>  
+                            <ul class="module-card-list">  
+                                <li>不能在包前256字节内</li>  
+                                <li>最小间距：≥400字节</li>  
+                                <li>推荐间距：~1600字节</li>  
+                                <li>≤2%链路带宽占用</li>  
+                                <li>不破坏802.3包完整性</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                </div>  
+                
+                <div class="info">  
+                    <strong>RS DATA_VALID_STATUS处理：</strong>单个有效CtlOS不导致DATA_VALID_STATUS=DATA_NOT_VALID。在2048比特窗口内多个CtlOS才被视为错误。CtlOS前的数据用于确定后续Start字符的DATA_VALID状态。  
+                </div>  
+            </div>  
+            
+            <!-- 第五部分：MAC层集成 -->  
+            <div class="section">  
+                <div class="section-title">MAC层集成要求</div>  
+                
+                <div class="module-grid">  
+                    <div class="module-card">  
+                        <div class="module-card-title">发送端（TX MAC）</div>  
+                        <div class="module-card-content">  
+                            <ul class="module-card-list">  
+                                <li>支持CtlOS消息请求接口</li>  
+                                <li>通过MA_DATA.request传递</li>  
+                                <li>允许CtlOS抢占数据包</li>  
+                                <li>维持相对顺序关系</li>  
+                                <li>确保包完整性和连续性</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                    
+                    <div class="module-card">  
+                        <div class="module-card-title">接收端（RX MAC）</div>  
+                        <div class="module-card-content">  
+                            <ul class="module-card-list">  
+                                <li>识别和分类CtlOS消息</li>  
+                                <li>CF_Update：直接转发到CBFC层</li>  
+                                <li>CC_Update：转发到MAC客户端</li>  
+                                <li>保持数据包接收顺序</li>  
+                                <li>通过MA_CONTROL.indication指示</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                    
+                    <div class="module-card">  
+                        <div class="module-card-title">CtlOS消息类型（Table 5-29）</div>  
+                        <div class="module-card-content">  
+                            <ul class="module-card-list">  
+                                <li><strong>LLR ACK</strong>：0x01</li>  
+                                <li><strong>LLR NACK</strong>：0x02</li>  
+                                <li><strong>LLR INIT</strong>：0x03</li>  
+                                <li><strong>LLR INIT_ECHO</strong>：0x04</li>  
+                                <li><strong>CBFC CF_Update</strong>：0x10</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                </div>  
+            </div>  
+            
+            <!-- 第六部分：编码/解码详细规格 -->  
+            <div class="section">  
+                <div class="section-title">PCS 64B/66B编码详细规格</div>  
+                
+                <div class="table-wrapper">  
+                    <table>  
+                        <thead>  
+                            <tr>  
+                                <th>比特位置</th>  
+                                <th>字段名</th>  
+                                <th>IPG IDLE（O-code=0x0）</th>  
+                                <th>CtlOS（O-code=0x6）</th>  
+                                <th>说明</th>  
+                            </tr>  
+                        </thead>  
+                        <tbody>  
+                            <tr>  
+                                <td>0:1</td>  
+                                <td>Sync</td>  
+                                <td colspan="2" style="text-align: center;"><span class="code-highlight">'10'</span></td>  
+                                <td>同步头（固定值）</td>  
+                            </tr>  
+                            <tr>  
+                                <td>2:9</td>  
+                                <td>Block Type</td>  
+                                <td colspan="2" style="text-align: center;"><span class="code-highlight">0x4B</span></td>  
+                                <td>块类型（相同）</td>  
+                            </tr>  
+                            <tr>  
+                                <td>10:17</td>  
+                                <td>D1</td>  
+                                <td colspan="2" style="text-align: center;">数据</td>  
+                                <td>IDLE:0, CtlOS:Type</td>  
+                            </tr>  
+                            <tr>  
+                                <td>18:25</td>  
+                                <td>D2</td>  
+                                <td colspan="2" style="text-align: center;">数据</td>  
+                                <td>IDLE:0, CtlOS:数据</td>  
+                            </tr>  
+                            <tr>  
+                                <td>26:33</td>  
+                                <td>D3</td>  
+                                <td colspan="2" style="text-align: center;">数据</td>  
+                                <td>IDLE:0, CtlOS:数据</td>  
+                            </tr>  
+                            <tr>  
+                                <td>34:37</td>  
+                                <td><strong>O-code</strong></td>  
+                                <td><span class="code-highlight">0x0</span></td>  
+                                <td><span class="code-highlight">0x6</span></td>  
+                                <td><strong>关键区分字段</strong></td>  
+                            </tr>  
+                            <tr>  
+                                <td>38:41</td>  
+                                <td>D4[7:4]</td>  
+                                <td colspan="2" style="text-align: center;">数据</td>  
+                                <td>IDLE:0, CtlOS:D4[7:4]</td>  
+                            </tr>  
+                            <tr>  
+                                <td>42:49</td>  
+                                <td>D5</td>  
+                                <td colspan="2" style="text-align: center;">数据</td>  
+                                <td>IDLE:0, CtlOS:D5</td>  
+                            </tr>  
+                            <tr>  
+                                <td>50:57</td>  
+                                <td>D6</td>  
+                                <td colspan="2" style="text-align: center;">数据</td>  
+                                <td>IDLE:0, CtlOS:D6</td>  
+                            </tr>  
+                            <tr>  
+                                <td>58:65</td>  
+                                <td>D7</td>  
+                                <td colspan="2" style="text-align: center;">数据</td>  
+                                <td>IDLE:0, CtlOS:D7</td>  
+                            </tr>  
+                        </tbody>  
+                    </table>  
+                </div>  
+            </div>  
+            
+            <!-- 第七部分：关键技术指标 -->
+			            <!-- 第七部分：关键技术指标 -->  
+            <div class="section">  
+                <div class="section-title">关键技术指标汇总</div>  
+                
+                <div class="metrics">  
+                    <div class="metrics-grid">  
+                        <div class="metric-item">  
+                            <div class="metric-label">CtlOS大小</div>  
+                            <div class="metric-value">8字节</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">Lane 0控制字符(CtlOS)</div>  
+                            <div class="metric-value">0x5C</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">Lane 0控制字符(IDLE)</div>  
+                            <div class="metric-value">0x9C</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">PCS块类型</div>  
+                            <div class="metric-value">0x4B</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">O-code (CtlOS)</div>  
+                            <div class="metric-value">0x6</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">O-code (Sequence)</div>  
+                            <div class="metric-value">0x0</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">对齐要求</div>  
+                            <div class="metric-value">8字节到Lane 0</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">最小间距</div>  
+                            <div class="metric-value">≥400字节</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">推荐间距</div>  
+                            <div class="metric-value">~1600字节</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">链路占用比</div>  
+                            <div class="metric-value">≤2%</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">支持速率范围</div>  
+                            <div class="metric-value">100GE-800GE</div>  
+                        </div>  
+                        <div class="metric-item">  
+                            <div class="metric-label">错误检测窗口</div>  
+                            <div class="metric-value">2048比特</div>  
+                        </div>  
+                    </div>  
+                </div>  
+            </div>  
+            
+            <!-- 第八部分：IDLE vs CtlOS对比 -->  
+            <div class="section">  
+                <div class="section-title">IPG IDLE vs LLR CtlOS 详细对比</div>  
+                
+                <div class="table-wrapper">  
+                    <table>  
+                        <thead>  
+                            <tr>  
+                                <th style="width: 20%;">对比项</th>  
+                                <th style="width: 40%;">IPG IDLE报文</th>  
+                                <th style="width: 40%;">LLR CtlOS消息</th>  
+                            </tr>  
+                        </thead>  
+                        <tbody>  
+                            <tr>  
+                                <td><strong>规范来源</strong></td>  
+                                <td>IEEE 802.3标准</td>  
+                                <td>UE规范第5.2.11.1节</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>MII Lane 0</strong></td>  
+                                <td><span class="code-highlight">0x9C</span></td>  
+                                <td><span class="code-highlight">0x5C</span></td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>D4[3:0]值</strong></td>  
+                                <td><span class="code-highlight">0x0</span></td>  
+                                <td><span class="code-highlight">0x6</span>（强制）</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>O-code</strong></td>  
+                                <td><span class="code-highlight">0x0</span></td>  
+                                <td><span class="code-highlight">0x6</span></td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>块类型</strong></td>  
+                                <td colspan="2" style="text-align: center;"><span class="code-highlight">0x4B</span>（相同）</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>用途</strong></td>  
+                                <td>链路故障指示<br>（Local/Remote Fault）</td>  
+                                <td>LLR应答、CBFC反馈<br>可承载多种消息类型</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>可插入位置</strong></td>  
+                                <td>包之间（IPG期间）</td>  
+                                <td>包内任意位置<br>支持抢占</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>对Data Valid影响</strong></td>  
+                                <td>设置DATA_NOT_VALID</td>  
+                                <td>不影响（单个时）</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>支持抢占</strong></td>  
+                                <td>否</td>  
+                                <td>是</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>8字节对齐</strong></td>  
+                                <td>不要求</td>  
+                                <td>必须到Lane 0</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>处理复杂度</strong></td>  
+                                <td>简单（IEEE标准）</td>  
+                                <td>高（需改进编解码器）</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>向后兼容性</strong></td>  
+                                <td>完全兼容IEEE</td>  
+                                <td>可选功能，需协商</td>  
+                            </tr>  
+                        </tbody>  
+                    </table>  
+                </div>  
+                
+                <div class="note">  
+                    <strong>最关键的区分要点：</strong>虽然两者都使用Block Type 0x4B，但O-code字段（位34:37）是绝对区分标志：IDLE=0x0，CtlOS=0x6。这是PCS解码器的硬件判定基础。  
+                </div>  
+            </div>  
+            
+            <!-- 第九部分：完整处理流程 -->  
+            <div class="section">  
+                <div class="section-title">CtlOS完整处理流程（发送端）</div>  
+                
+                <div class="flowchart">  
+                    <div class="flow-box start">  
+                        ① MAC层：生成CtlOS消息请求  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box">  
+                        ② MAC检查先决条件：  
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px;">  
+                            <li>距上一个包 ≥256字节</li>  
+                            <li>距上一个CtlOS ≥400字节</li>  
+                            <li>选择CtlOS类型（ACK/NACK/CF_Update）</li>  
+                        </ul>  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box">  
+                        ③ RS层（发送端）：  
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px;">  
+                            <li>接收MA_DATA.request</li>  
+                            <li>在MII输出CtlOS：</li>  
+                            <li>TXD[7:0] = 0x5C</li>  
+                            <li>TXC[0] = control</li>  
+                            <li>TXD[63:8] = D1:D7</li>  
+                        </ul>  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box">  
+                        ④ PCS编码器（修改版）：  
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px;">  
+                            <li>检测MII_D0 = 0x5C</li>  
+                            <li>应用Table 6-4映射规则</li>  
+                            <li>使用无状态编码规则</li>  
+                            <li>生成64B/66B块</li>  
+                        </ul>  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box">  
+                        ⑤ 64B/66B块格式输出：  
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px;">  
+                            <li>Sync = '10'</li>  
+                            <li>Block Type = 0x4B</li>  
+                            <li>O-code = 0x6 ✓ 关键</li>  
+                            <li>数据有效载荷 D1:D7</li>  
+                        </ul>  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box end">  
+                        ⑥ 发送至物理介质  
+                    </div>  
+                </div>  
+            </div>  
+            
+            <!-- 第十部分：接收端流程 -->  
+            <div class="section">  
+                <div class="section-title">CtlOS完整处理流程（接收端）</div>  
+                
+                <div class="flowchart">  
+                    <div class="flow-box start">  
+                        ① 接收64B/66B块  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box">  
+                        ② PCS解码器检查：  
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px;">  
+                            <li>验证Sync = '10'</li>  
+                            <li>验证Block Type = 0x4B</li>  
+                            <li>检查O-code[34:37]</li>  
+                        </ul>  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box">  
+                        ③ PCS判决分支：  
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px;">  
+                            <li>IF O-code = 0x0 → IDLE (0x9C)</li>  
+                            <li>IF O-code = 0x6 → CtlOS (0x5C)</li>  
+                            <li>应用Table 6-5解码规则</li>  
+                        </ul>  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box">  
+                        ④ RS层（接收端）：  
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px;">  
+                            <li>从MII读取RXD/RXC</li>  
+                            <li>IF RXC[0]=1 AND RXD[7:0]=0x5C</li>  
+                            <li>有效CtlOS检测到</li>  
+                            <li>不影响DATA_VALID_STATUS</li>  
+                        </ul>  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box">  
+                        ⑤ RS指示MAC：  
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px;">  
+                            <li>发送MA_CONTROL.indication</li>  
+                            <li>附带CtlOS数据</li>  
+                            <li>维持包接收顺序</li>  
+                        </ul>  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box">  
+                        ⑥ MAC分类处理：  
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px;">  
+                            <li>CF_Update → CBFC层</li>  
+                            <li>LLR_ACK/NACK → LLR层</li>  
+                            <li>其他 → 相应处理模块</li>  
+                        </ul>  
+                    </div>  
+                    <div class="flow-arrow">↓</div>  
+                    
+                    <div class="flow-box end">  
+                        ⑦ 消息处理完成  
+                    </div>  
+                </div>  
+            </div>  
+            
+            <!-- 第十一部分：兼容性分析 -->  
+            <div class="section">  
+                <div class="section-title">不支持LLR的芯片兼容性分析</div>  
+                
+                <div class="compatibility support">  
+                    <div class="compatibility-title">✓ 情况1：完全兼容</div>  
+                    <div class="compatibility-desc">  
+                        <strong>条件：</strong>芯片虽然不支持LLR协议栈，但在物理层实现了PCS改进（第6.2.3节规范）。<br><br>  
+                        <strong>能力：</strong>  
+                        <ul style="margin: 8px 0 0 20px;">  
+                            <li>✓ 能够编码CtlOS消息（O-code=0x6）</li>  
+                            <li>✓ 能够解码CtlOS消息</li>  
+                            <li>✓ 正确识别0x5C控制字符</li>  
+                            <li>✓ 支持无状态64B/66B处理</li>  
+                        </ul>  
+                        <strong>应用场景：</strong>作为网络中继或交换设备，可以透传CtlOS消息而无需理解其内容。  
+                    </div>  
+                </div>  
+                
+                <div class="compatibility partial">  
+                    <div class="compatibility-title">⚠ 情况2：部分兼容</div>  
+                    <div class="compatibility-desc">  
+                        <strong>条件：</strong>芯片在某个方向（TX或RX）支持CtlOS，但另一方向不完全支持。<br><br>  
+                        <strong>能力：</strong>  
+                        <ul style="margin: 8px 0 0 20px;">  
+                            <li>~ 可能只支持编码（TX方向）</li>  
+                            <li>~ 可能只支持解码（RX方向）</li>  
+                            <li>~ O-code识别不完整</li>  
+                            <li>~ 对抢占支持有限</li>  
+                        </ul>  
+                        <strong>后果：</strong>单向数据流可能正常，但双向通信会出现问题。  
+                    </div>  
+                </div>  
+                
+                <div class="compatibility unsupport">  
+                    <div class="compatibility-title">✗ 情况3：不兼容</div>  
+                    <div class="compatibility-desc">  
+                        <strong>条件：</strong>芯片完全按照标准IEEE 802.3规范实现，没有PCS改进。<br><br>  
+                        <strong>问题：</strong>  
+                        <ul style="margin: 8px 0 0 20px;">  
+                            <li>✗ PCS编码器不支持O-code=0x6生成</li>  
+                            <li>✗ PCS解码器不识别O-code=0x6</li>  
+                            <li>✗ 0x5C控制字符被视为错误</li>  
+                            <li>✗ 可能导致链路错误或中断</li>  
+                        </ul>  
+                        <strong>解决方案：</strong>通过LLDP协商禁用LLR和CBFC功能，回退到标准IEEE 802.3模式。  
+                    </div>  
+                </div>  
+                
+                <div class="info" style="margin-top: 20px;">  
+                    <strong>协商机制（第5.3节）：</strong>两台设备在链路建立时通过LLDP交换UE Link Negotiation TLVs。如果远端不支持LLR（llr_remote_capability=0），本地设备应禁用LLR功能（llr_mode_local=OFF）。这确保了与标准IEEE 802.3设备的互操作性。  
+                </div>  
+            </div>  
+            
+            <!-- 第十二部分：适配成本分析 -->  
+            <div class="section">  
+                <div class="section-title">支持CtlOS的芯片设计适配成本</div>  
+                
+                <div class="table-wrapper">  
+                    <table>  
+                        <thead>  
+                            <tr>  
+                                <th>模块</th>  
+                                <th>改进内容</th>  
+                                <th>复杂度</th>  
+                                <th>成本评估</th>  
+                                <th>是否必需</th>  
+                            </tr>  
+                        </thead>  
+                        <tbody>  
+                            <tr>  
+                                <td><strong>PCS编码器</strong></td>  
+                                <td>支持O-code=0x6映射<br>无状态编码规则</td>  
+                                <td>中等</td>  
+                                <td>3-5周</td>  
+                                <td>是（必需）</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>PCS解码器</strong></td>  
+                                <td>O-code判决逻辑<br>块类型识别</td>  
+                                <td>中等</td>  
+                                <td>3-5周</td>  
+                                <td>是（必需）</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>RS TX层</strong></td>  
+                                <td>MII接口扩展<br>CtlOS控制信号</td>  
+                                <td>低</td>  
+                                <td>1-2周</td>  
+                                <td>是（必需）</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>RS RX层</strong></td>  
+                                <td>CtlOS识别逻辑<br>MAC指示接口</td>  
+                                <td>低</td>  
+                                <td>1-2周</td>  
+                                <td>是（必需）</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>MAC层</strong></td>  
+                                <td>消息分类处理<br>CF/CC_Update转发</td>  
+                                <td>中等</td>  
+                                <td>2-3周</td>  
+                                <td>可选</td>  
+                            </tr>  
+                            <tr>  
+                                <td><strong>验证&测试</strong></td>  
+                                <td>单元测试、集成测试<br>符合性测试</td>  
+                                <td>高</td>  
+                                <td>4-6周</td>  
+                                <td>是（必需）</td>  
+                            </tr>  
+                            <tr>  
+                                <td colspan="2"><strong>总计工作量</strong></td>  
+                                <td>中高</td>  
+                                <td><strong>14-23周</strong></td>  
+                                <td></td>  
+                            </tr>  
+                        </tbody>  
+                    </table>  
+                </div>  
+                
+                <div class="note">  
+                    <strong>总结：</strong>支持CtlOS需要对PCS编解码器和RS层进行显著改进，这涉及FPGA/ASIC重新设计和验证。如果芯片未来不需要支持LLR/CBFC功能，可以选择不实现CtlOS支持。  
+                </div>  
+            </div>  
+            
+            <!-- 第十三部分：关键设计检查清单 -->  
+            <div class="section">  
+                <div class="section-title">CtlOS支持实现检查清单</div>  
+                
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 20px;">  
+                    <h3 style="margin-bottom: 15px; color: #333;">PCS层检查项</h3>  
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="c1" disabled>  
+                            <label for="c1" style="margin: 0; cursor: pointer;">☐ 编码器支持MII_D0=0x5C → O-code=0x6映射</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="c2" disabled>  
+                            <label for="c2" style="margin: 0; cursor: pointer;">☐ 解码器检查O-code[34:37]进行判决</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="c3" disabled>  
+                            <label for="c3" style="margin: 0; cursor: pointer;">☐ 实现无状态编码规则（Table 6-6）</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="c4" disabled>  
+                            <label for="c4" style="margin: 0; cursor: pointer;">☐ 支持包抢占（CtlOS可插入数据包中）</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="c5" disabled>  
+                            <label for="c5" style="margin: 0; cursor: pointer;">☐ Block Type 0x4B正确处理IDLE和CtlOS</label>  
+                        </div>  
+                    </div>  
+                </div>  
+                
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 20px;">  
+                    <h3 style="margin-bottom: 15px; color: #333;">RS层检查项</h3>  
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="r1" disabled>  
+                            <label for="r1" style="margin: 0; cursor: pointer;">☐ TX侧支持MII输出TXD[7:0]=0x5C</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="r2" disabled>  
+                            <label for="r2" style="margin: 0; cursor: pointer;">☐ RX侧识别RXD[7:0]=0x5C且RXC[0]=1</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="r3" disabled>  
+                            <label for="r3" style="margin: 0; cursor: pointer;">☐ 8字节对齐到Lane 0检查</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="r4" disabled>  
+                            <label for="r4" style="margin: 0; cursor: pointer;">☐ RX不影响单个CtlOS的DATA_VALID_STATUS</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="r5" disabled>  
+                            <label for="r5" style="margin: 0; cursor: pointer;">☐ 2048bit窗口内多个CtlOS错误检测</label>  
+                        </div>  
+                    </div>  
+                </div>  
+                
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 20px;">  
+                    <h3 style="margin-bottom: 15px; color: #333;">MAC/接口层检查项</h3>  
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="m1" disabled>  
+                            <label for="m1" style="margin: 0; cursor: pointer;">☐ MA_DATA.request支持CtlOS消息类型</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="m2" disabled>  
+                            <label for="m2" style="margin: 0; cursor: pointer;">☐ MA_CONTROL.indication通知CtlOS到达</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="m3" disabled>  
+                            <label for="m3" style="margin: 0; cursor: pointer;">☐ CF_Update消息直接转发到CBFC层</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="m4" disabled>  
+                            <label for="m4" style="margin: 0; cursor: pointer;">☐ CtlOS最小间距约束（≥400字节）</label>  
+                        </div>  
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 4px;">  
+                            <input type="checkbox" id="m5" disabled>  
+                            <label for="m5" style="margin: 0; cursor: pointer;">☐ LLDP协商LLR能力支持</label>  
+                        </div>  
+                    </div>  
+                </div>  
+            </div>  
+            
+            <!-- 第十四部分：故障排查 -->  
+            <div class="section">  
+                <div class="section-title">常见故障排查指南</div>  
+                
+                <div class="module-grid">  
+                    <div class="module-card">  
+                        <div class="module-card-title">问题：无法识别CtlOS</div>  
+                        <div class="module-card-content">  
+                            <strong>可能原因：</strong>  
+                            <ul class="module-card-list">  
+                                <li>PCS解码器未检查O-code=0x6</li>  
+                                <li>使用了旧的IEEE解码规则</li>  
+                                <li>0x5C控制字符被错误处理</li>  
+                            </ul>  
+                            <strong>排查步骤：</strong>  
+                            <ul class="module-card-list">  
+                                <li>验证O-code[34:37]的值</li>  
+                                <li>检查解码器状态机</li>  
+                                <li>确认无状态规则实现</li>  
+                            </ul>  
+                        </div>  
+                    </div>  
+                    
+                    <div class="module-card">  
+                        <div class="module-card-title">问题：CtlOS导致链路错误</div>  
+                        <div class="module-card-content">  
+                            <strong>可能原因：</strong>  
+                            <ul class="module-card-list">  
+                                <li>对齐问题：未8字节对齐</li>  
+                                <li>间距违规：两个CtlOS间距＜400字节</li>  
+                                <li>RS层处理错误</li>  
+                            </ul>  
+                            <strong>排查步骤：</strong>  
+                            <ul class="module-card-list">  
+                                <li>检查MII时序和对齐</li>  
+                                <li>验证CtlOS间距计算</li>  
+                                <li>使用逻辑分析仪采样</li>  
+                            </ul>  
+                                            <div class="module-card">
+                        <div class="module-card-title">问题：数据对齐错误</div>
+                        <div class="module-card-content">
+                            <strong>可能原因：</strong>
+                            <ul class="module-card-list">
+                                <li>CtlOS未8字节对齐到Lane 0</li>
+                                <li>MII接口时序问题</li>
+                                <li>RS层对齐检查缺失</li>
+                            </ul>
+                            <strong>排查步骤：</strong>
+                            <ul class="module-card-list">
+                                <li>检查CtlOS的Lane 0位置</li>
+                                <li>验证8字节边界对齐</li>
+                                <li>确认RS对齐约束</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="module-card">
+                        <div class="module-card-title">问题：数据丢失或不完整</div>
+                        <div class="module-card-content">
+                            <strong>可能原因：</strong>
+                            <ul class="module-card-list">
+                                <li>PCS编码错误</li>
+                                <li>RS层丢弃了CtlOS</li>
+                                <li>MAC层未正确识别</li>
+                            </ul>
+                            <strong>排查步骤：</strong>
+                            <ul class="module-card-list">
+                                <li>检查O-code编码</li>
+                                <li>验证Block Type 0x4B</li>
+                                <li>使用示波器采样MII信号</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 第十五部分：总结和最佳实践 -->
+            <div class="section">
+                <div class="section-title">实现总结和最佳实践</div>
+                
+                <div class="module-grid">
+                    <div class="module-card">
+                        <div class="module-card-title">✓ 必做项</div>
+                        <div class="module-card-content">
+                            <ul class="module-card-list">
+                                <li><strong>1. PCS改造</strong><br>编解码器支持O-code=0x6</li>
+                                <li><strong>2. RS接口</strong><br>MII层支持0x5C识别</li>
+                                <li><strong>3. 无状态规则</strong><br>实现Table 6-5/6-6规则</li>
+                                <li><strong>4. 验证框架</strong><br>建立测试基础设施</li>
+                                <li><strong>5. 文档更新</strong><br>编译设计规范文档</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="module-card">
+                        <div class="module-card-title">⚡ 性能优化建议</div>
+                        <div class="module-card-content">
+                            <ul class="module-card-list">
+                                <li>使用硬件状态机而非软件处理</li>
+                                <li>最小化CtlOS插入延迟</li>
+                                <li>优化O-code判决逻辑</li>
+                                <li>并行处理多个CtlOS</li>
+                                <li>缓存CtlOS统计信息</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="module-card">
+                        <div class="module-card-title">🔒 安全考虑</div>
+                        <div class="module-card-content">
+                            <ul class="module-card-list">
+                                <li>验证CtlOS源的合法性</li>
+                                <li>防止恶意CtlOS注入</li>
+                                <li>实现CtlOS速率限制</li>
+                                <li>记录所有CtlOS事件</li>
+                                <li>通过LLDP协商认证</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info">
+                    <strong>核心成功要素：</strong>
+                    <ol style="margin: 10px 0 0 20px; font-size: 13px;">
+                        <li>理解O-code=0x6是绝对的硬件识别标志</li>
+                        <li>确保无状态编码规则的正确实现</li>
+                        <li>严格遵守8字节对齐到Lane 0的约束</li>
+                        <li>通过全面的硬件和系统级测试</li>
+                        <li>与LLR/CBFC栈的完整集成验证</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <!-- 第十六部分：参考文档 -->
+            <div class="section">
+                <div class="section-title">相关规范文档引用</div>
+                
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>章节</th>
+                                <th>标题</th>
+                                <th>关键内容</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>5.1</strong></td>
+                                <td>Link Layer Retry (LLR)</td>
+                                <td>CtlOS消息在LLR中的应用</td>
+                            </tr>
+                            <tr>
+                                <td><strong>5.2.6</strong></td>
+                                <td>CBFC Message Formats</td>
+                                <td>CF_Update消息格式（0x5C，0x6）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>5.2.11</strong></td>
+                                <td>Control Ordered Sets (CtlOS)</td>
+                                <td>核心规范定义</td>
+                            </tr>
+                            <tr>
+                                <td><strong>6.2</strong></td>
+                                <td>Control Ordered Sets（Physical）</td>
+                                <td>物理层改进（本分析重点）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>6.2.1</strong></td>
+                                <td>Sequence vs Control OS Background</td>
+                                <td>IEEE 802.3 vs UE区分</td>
+                            </tr>
+                            <tr>
+                                <td><strong>6.2.2</strong></td>
+                                <td>Control Ordered Sets Format</td>
+                                <td>MII/Lane 0/O-code定义</td>
+                            </tr>
+                            <tr>
+                                <td><strong>6.2.3</strong></td>
+                                <td>PCS Required Modifications</td>
+                                <td>编解码器改进要求</td>
+                            </tr>
+                            <tr>
+                                <td><strong>6.2.4</strong></td>
+                                <td>RS Required Modifications</td>
+                                <td>协调子层改进要求</td>
+                            </tr>
+                            <tr>
+                                <td><strong>5.3</strong></td>
+                                <td>UE Link Negotiation</td>
+                                <td>LLDP协商和兼容性检测</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 最后的总结框 -->
+            <div class="section">
+                <div class="section-title">核心要点速记</div>
+                
+                <div style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border-radius: 8px; padding: 25px; border-left: 4px solid #667eea;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <h4 style="color: #333; margin-bottom: 12px; font-size: 14px;">🎯 IDLE vs CtlOS</h4>
+                            <div style="font-size: 12px; color: #555; line-height: 1.8;">
+                                <strong>IDLE（0x9C）：</strong><br>
+                                • IEEE标准序列有序集<br>
+                                • Lane 0 = 0x9C<br>
+                                • O-code = 0x0<br>
+                                • 仅包间可用<br><br>
+                                <strong>CtlOS（0x5C）：</strong><br>
+                                • UE链路层消息<br>
+                                • Lane 0 = 0x5C<br>
+                                • O-code = 0x6 ⭐<br>
+                                • 包内任意可用
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 style="color: #333; margin-bottom: 12px; font-size: 14px;">⚙️ PCS层关键改动</h4>
+                            <div style="font-size: 12px; color: #555; line-height: 1.8;">
+                                <strong>编码器（Table 6-4）：</strong><br>
+                                MII 0x5C → O-code=0x6<br><br>
+                                <strong>解码器（Table 6-5）：</strong><br>
+                                O-code[34:37]判决<br><br>
+                                <strong>状态机（Table 6-6）：</strong><br>
+                                无状态规则<br><br>
+                                <strong>关键字段：</strong><br>
+                                • Block Type: 0x4B<br>
+                                • D4[3:0]: 0x6
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 style="color: #333; margin-bottom: 12px; font-size: 14px;">📋 RS层关键改动</h4>
+                            <div style="font-size: 12px; color: #555; line-height: 1.8;">
+                                <strong>发送端：</strong><br>
+                                • MA_DATA.request → TXD[7:0]=0x5C<br>
+                                • 8字节对齐到Lane 0<br><br>
+                                <strong>接收端：</strong><br>
+                                • 识别RXD[7:0]=0x5C<br>
+                                • MA_CONTROL.indication<br>
+                                • 不影响DATA_VALID_STATUS<br><br>
+                                <strong>约束条件：</strong><br>
+                                • 最小间距≥400字节
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 style="color: #333; margin-bottom: 12px; font-size: 14px;">✅ 兼容性判决</h4>
+                            <div style="font-size: 12px; color: #555; line-height: 1.8;">
+                                <strong>支持LLR的芯片：</strong><br>
+                                ✓ 完全支持CtlOS<br><br>
+                                <strong>不支持LLR的芯片：</strong><br>
+                                ✗ 需通过LLDP协商<br>
+                                ✗ 禁用LLR功能<br>
+                                ✗ 回退到IEEE 802.3<br><br>
+                                <strong>协商机制：</strong><br>
+                                LLDP UE Link Neg TLVs
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 简单的交互效果
+        document.querySelectorAll('.module-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-4px)';
+            });
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+        
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // 复制表格（带格式和颜色）为 HTML，并同时提供纯文本
+        function getInlineStyle(el) {
+            const s = window.getComputedStyle(el);
+            return [
+                'background:' + (s.backgroundColor || 'white'),
+                'color:' + (s.color || 'inherit'),
+                'border:1px solid ' + (s.borderColor || '#e0e0e0'),
+                'padding:' + (s.padding || '8px 12px'),
+                'font-size:' + (s.fontSize || '13px'),
+                'font-weight:' + (s.fontWeight || 'normal'),
+                'text-align:' + (s.textAlign || 'left')
+            ].join(';');
+        }
+
+        function copyTableWithFormat(table) {
+            const clone = table.cloneNode(true);
+            clone.querySelectorAll('th, td').forEach(cell => {
+                cell.setAttribute('style', getInlineStyle(cell));
+            });
+            const html = '<meta charset="utf-8">' + clone.outerHTML;
+            const plain = [];
+            table.querySelectorAll('tr').forEach(tr => {
+                const cells = [];
+                tr.querySelectorAll('th, td').forEach(cell => {
+                    cells.push(cell.innerText.trim().replace(/\n/g, ' '));
+                });
+                plain.push(cells.join('\t'));
+            });
+            const text = plain.join('\n');
+            const blobHtml = new Blob([html], { type: 'text/html' });
+            const blobText = new Blob([text], { type: 'text/plain' });
+            const item = new ClipboardItem({
+                'text/html': blobHtml,
+                'text/plain': blobText
+            });
+            return navigator.clipboard.write([item]).then(() => true).catch(() => false);
+        }
+
+        document.querySelectorAll('.table-wrapper').forEach(wrapper => {
+            const table = wrapper.querySelector('table');
+            if (!table) return;
+            const toolbar = document.createElement('div');
+            toolbar.className = 'table-toolbar';
+            const btn = document.createElement('button');
+            btn.className = 'table-copy-btn';
+            btn.type = 'button';
+            btn.textContent = '📋 复制';
+            btn.title = '复制表格（含格式与颜色，可粘贴到 Word 等）';
+            btn.addEventListener('click', function () {
+                copyTableWithFormat(table).then(ok => {
+                    if (ok) {
+                        const orig = btn.textContent;
+                        btn.textContent = '✓ 已复制';
+                        btn.classList.add('copied');
+                        setTimeout(() => {
+                            btn.textContent = orig;
+                            btn.classList.remove('copied');
+                        }, 1500);
+                    } else {
+                        btn.textContent = '复制失败';
+                        setTimeout(() => { btn.textContent = '📋 复制'; }, 1500);
+                    }
+                });
+            });
+            toolbar.appendChild(btn);
+            const scroll = document.createElement('div');
+            scroll.className = 'table-scroll';
+            wrapper.insertBefore(toolbar, table);
+            wrapper.removeChild(table);
+            scroll.appendChild(table);
+            wrapper.appendChild(scroll);
+        });
+    </script>
+</body>
+</html>

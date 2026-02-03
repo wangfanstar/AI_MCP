@@ -1,0 +1,2391 @@
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>PCS & FEC层内部处理详细动画 - 前导码与IPG处理</title>  
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 10px;
+        min-height: 100vh;
+        overflow-x: hidden;
+        font-size: 15px; /* 增加基础字体大小 */
+    }
+
+    .main-container {
+        display: grid;
+        grid-template-columns: 320px 1fr 360px; /* 增加左右面板宽度 */
+        gap: 15px;
+        max-width: 1920px;
+        margin: 0 auto;
+        height: calc(100vh - 20px);
+    }
+
+    /* ==================== 左侧控制面板 ==================== */
+    .left-panel {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        overflow-y: auto;
+        position: sticky;
+        top: 10px;
+        height: calc(100vh - 20px);
+    }
+
+    .panel-title {
+        font-size: 20px; /* 从18px增加到20px */
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 15px;
+        text-align: center;
+        padding: 12px;
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+        border-radius: 8px;
+    }
+
+    .control-group {
+        background: #ecf0f1;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .control-group-title {
+        font-size: 15px; /* 从13px增加到15px */
+        font-weight: bold;
+        color: #34495e;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 14px; /* 从12px增加到14px */
+        border: none;
+        border-radius: 8px;
+        font-size: 16px; /* 从14px增加到16px */
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .btn:active {
+        transform: translateY(0);
+    }
+
+    .btn-start {
+        background: linear-gradient(135deg, #27ae60, #229954);
+        color: white;
+    }
+
+    .btn-pause {
+        background: linear-gradient(135deg, #e67e22, #d35400);
+        color: white;
+    }
+
+    .btn-step {
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        color: white;
+    }
+
+    .btn-reset {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .mode-toggle {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .mode-btn {
+        flex: 1;
+        padding: 12px; /* 从10px增加到12px */
+        border: 2px solid #3498db;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px; /* 从12px增加到14px */
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .mode-btn.active {
+        background: #3498db;
+        color: white;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px;
+        background: white;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .checkbox-group:hover {
+        background: #e8f5e9;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+        width: 20px; /* 从18px增加到20px */
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .checkbox-group label {
+        flex: 1;
+        font-size: 15px; /* 从13px增加到15px */
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .select-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .select-group label {
+        font-size: 14px; /* 从12px增加到14px */
+        font-weight: bold;
+        color: #34495e;
+    }
+
+    .select-group select {
+        padding: 10px; /* 从8px增加到10px */
+        border: 2px solid #bdc3c7;
+        border-radius: 6px;
+        font-size: 14px; /* 从13px增加到14px */
+        cursor: pointer;
+        background: white;
+    }
+
+    /* 状态指示 */
+    .status-indicators {
+        background: #ecf0f1;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .status-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px; /* 从8px增加到10px */
+        background: white;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        border-left: 4px solid #3498db;
+    }
+
+    .status-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .status-label {
+        font-size: 13px; /* 从11px增加到13px */
+        color: #7f8c8d;
+        font-weight: bold;
+    }
+
+    .status-value {
+        font-size: 15px; /* 从13px增加到15px */
+        font-weight: bold;
+        color: #2c3e50;
+    }
+
+    .status-item.active {
+        border-left-color: #27ae60;
+        background: #e8f5e9;
+    }
+
+    /* 步骤进度 */
+    .step-progress {
+        background: #ecf0f1;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .progress-bar-container {
+        width: 100%;
+        height: 24px; /* 从20px增加到24px */
+        background: #bdc3c7;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #27ae60, #229954);
+        transition: width 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px; /* 从10px增加到12px */
+        font-weight: bold;
+    }
+
+    .step-info {
+        font-size: 14px; /* 从12px增加到14px */
+        color: #34495e;
+        text-align: center;
+    }
+
+    /* 日志面板 */
+    .log-container {
+        background: #2c3e50;
+        border-radius: 10px;
+        padding: 12px; /* 从10px增加到12px */
+        max-height: 220px; /* 从200px增加 */
+        overflow-y: auto;
+        margin-top: 15px;
+    }
+
+    .log-entry {
+        font-family: 'Courier New', monospace;
+        font-size: 12px; /* 从10px增加到12px */
+        color: #ecf0f1;
+        margin-bottom: 5px; /* 从4px增加 */
+        padding: 5px; /* 从4px增加 */
+        border-left: 3px solid #3498db;
+        padding-left: 10px; /* 从8px增加 */
+        line-height: 1.5; /* 增加行高 */
+    }
+
+    .log-entry.info { border-left-color: #3498db; }
+    .log-entry.success { border-left-color: #27ae60; }
+    .log-entry.warning { border-left-color: #f39c12; }
+    .log-entry.error { border-left-color: #e74c3c; }
+
+    .log-time {
+        color: #95a5a6;
+        margin-right: 6px; /* 从5px增加 */
+    }
+
+    /* ==================== 中间内容区域 ==================== */
+    .center-panel {
+        background: white;
+        border-radius: 15px;
+        padding: 22px; /* 从20px增加 */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        overflow-y: auto;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .header h1 {
+        color: #2c3e50;
+        font-size: 28px; /* 从24px增加到28px */
+        margin-bottom: 10px; /* 从8px增加 */
+    }
+
+    .header .subtitle {
+        color: #7f8c8d;
+        font-size: 15px; /* 从13px增加到15px */
+    }
+
+    /* 参考标准 */
+    .reference-section {
+        background: #e8f5e9;
+        border-left: 4px solid #4caf50;
+        padding: 14px; /* 从12px增加 */
+        margin-bottom: 15px;
+        border-radius: 5px;
+    }
+
+    .reference-title {
+        font-weight: bold;
+        color: #2e7d32;
+        margin-bottom: 8px;
+        font-size: 15px; /* 从13px增加到15px */
+    }
+
+    .reference-list {
+        font-size: 13px; /* 从11px增加到13px */
+        color: #424242;
+        line-height: 1.8; /* 从1.6增加 */
+    }
+
+    .reference-list li {
+        margin-bottom: 5px; /* 从3px增加 */
+    }
+
+    /* 层容器 */
+    .layers-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .layer-box {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 16px; /* 从15px增加 */
+        border: 3px solid #3498db;
+    }
+
+    .layer-box.fec {
+        border-color: #1abc9c;
+    }
+
+    .layer-box-title {
+        font-size: 18px; /* 从16px增加到18px */
+        font-weight: bold;
+        color: white;
+        margin-bottom: 14px; /* 从12px增加 */
+        text-align: center;
+        padding: 12px; /* 从10px增加 */
+        background: linear-gradient(135deg, #3498db, #2980b9);
+        border-radius: 8px;
+    }
+
+    .layer-box-title.fec {
+        background: linear-gradient(135deg, #1abc9c, #16a085);
+    }
+
+    /* 子模块 */
+    .sub-module {
+        background: white;
+        border: 2px solid #bdc3c7;
+        border-radius: 8px;
+        padding: 14px; /* 从12px增加 */
+        margin-bottom: 12px;
+        transition: all 0.3s;
+    }
+
+    .sub-module:hover {
+        transform: translateX(3px);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .sub-module.active {
+        border-color: #e74c3c;
+        background: #fff5f5;
+        box-shadow: 0 0 12px rgba(231, 76, 60, 0.3);
+    }
+
+    .sub-module-header {
+        display: flex;
+        align-items: center;
+        gap: 10px; /* 从8px增加 */
+        margin-bottom: 10px; /* 从8px增加 */
+    }
+
+    .status-dot {
+        width: 12px; /* 从10px增加 */
+        height: 12px;
+        border-radius: 50%;
+        background: #95a5a6;
+    }
+
+    .status-dot.active {
+        background: #27ae60;
+        animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.2); }
+    }
+
+    .sub-module-name {
+        font-weight: bold;
+        color: #2c3e50;
+        font-size: 15px; /* 从13px增加到15px */
+        flex: 1;
+    }
+
+    .sub-module-desc {
+        font-size: 12px; /* 从10px增加到12px */
+        color: #7f8c8d;
+        margin-bottom: 10px; /* 从8px增加 */
+        line-height: 1.5; /* 增加行高 */
+    }
+
+    .sub-module-content {
+        font-family: 'Courier New', monospace;
+        font-size: 12px; /* 从10px增加到12px */
+        background: #ecf0f1;
+        padding: 12px; /* 从10px增加 */
+        border-radius: 5px;
+        min-height: 60px; /* 从50px增加 */
+        max-height: 140px; /* 从120px增加 */
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        line-height: 1.6; /* 增加行高 */
+    }
+
+    /* 数据流可视化 */
+    .data-flow-box {
+        background: white;
+        border: 2px solid #34495e;
+        border-radius: 8px;
+        padding: 14px; /* 从12px增加 */
+        margin-bottom: 12px;
+    }
+
+    .data-flow-title {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 12px; /* 从10px增加 */
+        font-size: 14px; /* 从12px增加到14px */
+    }
+
+    .data-blocks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px; /* 从4px增加 */
+        min-height: 70px; /* 从60px增加 */
+        align-items: center;
+    }
+
+    .data-block {
+        padding: 8px 12px; /* 从6px 10px增加 */
+        border-radius: 5px; /* 从4px增加 */
+        font-size: 11px; /* 从9px增加到11px */
+        font-family: 'Courier New', monospace;
+        border: 1px solid;
+        transition: all 0.3s;
+        white-space: nowrap;
+        font-weight: 500; /* 增加字重 */
+    }
+
+    .data-block:hover {
+        transform: scale(1.15);
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .data-block.preamble { background: #f39c12; color: white; border-color: #d68910; }
+    .data-block.sfd { background: #e74c3c; color: white; border-color: #c0392b; }
+    .data-block.mac-data { background: #3498db; color: white; border-color: #2980b9; }
+    .data-block.payload { background: #27ae60; color: white; border-color: #229954; }
+    .data-block.fcs { background: #9b59b6; color: white; border-color: #8e44ad; }
+    .data-block.ipg { background: #95a5a6; color: white; border-color: #7f8c8d; }
+    .data-block.encoded { background: #16a085; color: white; border-color: #138d75; }
+    .data-block.parity { background: #d35400; color: white; border-color: #ba4a00; }
+    .data-block.llr-marker { background: #e67e22; color: white; border-color: #ca6f1e; }
+    .data-block.llr-seq { background: #f39c12; color: white; border-color: #d68910; }
+    .data-block.llr-control { background: #8e44ad; color: white; border-color: #7d3c98; }
+
+    .data-block.animated {
+        animation: blockPulse 0.5s;
+    }
+
+    @keyframes blockPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.2); box-shadow: 0 0 15px currentColor; }
+    }
+
+    /* 比特流可视化 */
+    .bitstream-box {
+        background: #263238;
+        border-radius: 8px;
+        padding: 14px; /* 从12px增加 */
+        margin-bottom: 12px;
+    }
+
+    .bitstream-title {
+        color: #4fc3f7;
+        font-weight: bold;
+        margin-bottom: 10px; /* 从8px增加 */
+        font-size: 13px; /* 从11px增加到13px */
+    }
+
+    .bitstream-content {
+        color: #b2ff59;
+        font-size: 11px; /* 从9px增加到11px */
+        line-height: 2; /* 从1.8增加 */
+        overflow-x: auto;
+        font-family: 'Courier New', monospace;
+    }
+
+    .bit {
+        display: inline-block;
+        margin: 0 2px; /* 从1px增加 */
+    }
+
+    .bit.one { color: #b2ff59; }
+    .bit.zero { color: #64b5f6; }
+    .bit.sync { color: #ff6e40; font-weight: bold; }
+
+    /* 详细说明框 */
+    .explanation-box {
+        background: #fff3cd;
+        border-left: 4px solid #f39c12;
+        padding: 16px; /* 从15px增加 */
+        border-radius: 5px;
+        margin-top: 15px;
+    }
+
+    .explanation-title {
+        font-weight: bold;
+        color: #d68910;
+        margin-bottom: 10px; /* 从8px增加 */
+        font-size: 16px; /* 从14px增加到16px */
+    }
+
+    .explanation-content {
+        font-size: 14px; /* 从12px增加到14px */
+        color: #424242;
+        line-height: 1.8; /* 从1.6增加 */
+    }
+
+    /* ==================== 右侧报文格式面板 ==================== */
+    .right-panel {
+        background: white;
+        border-radius: 15px;
+        padding: 22px; /* 从20px增加 */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        overflow-y: auto;
+        position: sticky;
+        top: 10px;
+        height: calc(100vh - 20px);
+    }
+
+    .packet-format-title {
+        font-size: 18px; /* 从16px增加到18px */
+        font-weight: bold;
+        color: white;
+        margin-bottom: 16px; /* 从15px增加 */
+        text-align: center;
+        padding: 12px; /* 从10px增加 */
+        background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        border-radius: 8px;
+    }
+
+    /* 报文格式图 */
+    .packet-diagram {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 16px; /* 从15px增加 */
+        margin-bottom: 16px; /* 从15px增加 */
+    }
+
+    .packet-section {
+        margin-bottom: 14px; /* 从12px增加 */
+    }
+
+    .packet-field {
+        display: flex;
+        margin-bottom: 6px; /* 从4px增加 */
+        border-radius: 5px; /* 从4px增加 */
+        overflow: hidden;
+        font-size: 13px; /* 从11px增加到13px */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .packet-field-label {
+        padding: 10px 12px; /* 从8px 10px增加 */
+        font-weight: bold;
+        color: white;
+        min-width: 110px; /* 从100px增加 */
+        display: flex;
+        align-items: center;
+    }
+
+    .packet-field-value {
+        padding: 10px 12px; /* 从8px 10px增加 */
+        background: white;
+        flex: 1;
+        border-left: 2px solid;
+        font-family: 'Courier New', monospace;
+        line-height: 1.5; /* 增加行高 */
+    }
+
+    .packet-field.preamble .packet-field-label { background: #f39c12; }
+    .packet-field.preamble .packet-field-value { border-left-color: #f39c12; }
+    .packet-field.sfd .packet-field-label { background: #e74c3c; }
+    .packet-field.sfd .packet-field-value { border-left-color: #e74c3c; }
+    .packet-field.mac .packet-field-label { background: #3498db; }
+    .packet-field.mac .packet-field-value { border-left-color: #3498db; }
+    .packet-field.payload .packet-field-label { background: #27ae60; }
+    .packet-field.payload .packet-field-value { border-left-color: #27ae60; }
+    .packet-field.fcs .packet-field-label { background: #9b59b6; }
+    .packet-field.fcs .packet-field-value { border-left-color: #9b59b6; }
+    .packet-field.ipg .packet-field-label { background: #95a5a6; }
+    .packet-field.ipg .packet-field-value { border-left-color: #95a5a6; }
+    .packet-field.llr .packet-field-label { background: #e67e22; }
+    .packet-field.llr .packet-field-value { border-left-color: #e67e22; }
+
+    .packet-field.highlight {
+        animation: fieldHighlight 1s;
+    }
+
+    @keyframes fieldHighlight {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+    }
+
+    /* 编码层次 */
+    .encoding-layers {
+        background: #ecf0f1;
+        border-radius: 10px;
+        padding: 16px; /* 从15px增加 */
+        margin-bottom: 16px; /* 从15px增加 */
+    }
+
+    .encoding-layer-title {
+        font-size: 15px; /* 从13px增加到15px */
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 12px; /* 从10px增加 */
+    }
+
+    .encoding-layer {
+        background: white;
+        border-left: 4px solid #3498db;
+        padding: 11px; /* 从10px增加 */
+        margin-bottom: 8px;
+        border-radius: 4px;
+        font-size: 13px; /* 从11px增加到13px */
+    }
+
+    .encoding-layer.active {
+        border-left-color: #27ae60;
+        background: #e8f5e9;
+    }
+
+    .layer-name {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 5px; /* 从4px增加 */
+        font-size: 14px; /* 增加层名字体 */
+    }
+
+    .layer-desc {
+        color: #7f8c8d;
+        font-size: 12px; /* 从10px增加到12px */
+        line-height: 1.5; /* 增加行高 */
+    }
+
+    /* 统计信息 */
+    .stats-box {
+        background: #ecf0f1;
+        border-radius: 10px;
+        padding: 16px; /* 从15px增加 */
+        margin-bottom: 16px; /* 从15px增加 */
+    }
+
+    .stats-title {
+        font-size: 15px; /* 从13px增加到15px */
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 12px; /* 从10px增加 */
+    }
+
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 12px; /* 从6px 10px增加 */
+        background: white;
+        border-radius: 4px;
+        margin-bottom: 7px; /* 从6px增加 */
+        font-size: 13px; /* 从11px增加到13px */
+    }
+
+    .stat-label {
+        color: #7f8c8d;
+        font-weight: bold;
+    }
+
+    .stat-value {
+        color: #2c3e50;
+        font-weight: bold;
+        font-family: 'Courier New', monospace;
+    }
+
+    /* 图例 */
+    .legend-box {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 16px; /* 从15px增加 */
+    }
+
+    .legend-title {
+        font-size: 15px; /* 从13px增加到15px */
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 12px; /* 从10px增加 */
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px; /* 从8px增加 */
+        margin-bottom: 8px; /* 从6px增加 */
+        font-size: 13px; /* 从11px增加到13px */
+    }
+
+    .legend-color {
+        width: 24px; /* 从20px增加 */
+        height: 24px;
+        border-radius: 3px;
+        border: 1px solid #bdc3c7;
+    }
+
+    /* 响应式 */
+    @media (max-width: 1600px) {
+        .main-container {
+            grid-template-columns: 300px 1fr 340px;
+        }
+    }
+
+    @media (max-width: 1200px) {
+        .main-container {
+            grid-template-columns: 1fr;
+            height: auto;
+        }
+        
+        .left-panel, .right-panel {
+            position: relative;
+            height: auto;
+        }
+        
+        .layers-container {
+            grid-template-columns: 1fr;
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+        }
+    }
+
+    /* 滚动条样式 */
+    ::-webkit-scrollbar {
+        width: 10px; /* 从8px增加 */
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #ecf0f1;
+        border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #95a5a6;
+        border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #7f8c8d;
+    }
+</style>
+</head>  
+<body>  
+    <div class="main-container">  
+        <!-- ==================== 左侧控制面板 ==================== -->  
+        <div class="left-panel">  
+            <div class="panel-title">🎮 控制面板</div>  
+
+            <!-- 播放控制 -->  
+            <div class="control-group">  
+                <div class="control-group-title">▶️ 播放控制</div>  
+                <button class="btn btn-start" id="btnStart">  
+                    <span>▶️</span>  
+                    <span>开始播放</span>  
+                </button>  
+                <button class="btn btn-pause" id="btnPause">  
+                    <span>⏸️</span>  
+                    <span>暂停/继续</span>  
+                </button>  
+                <button class="btn btn-step" id="btnStep">  
+                    <span>⏭️</span>  
+                    <span>单步执行</span>  
+                </button>  
+                <button class="btn btn-reset" id="btnReset">  
+                    <span>🔄</span>  
+                    <span>重置</span>  
+                </button>  
+            </div>  
+
+            <!-- 模式选择 -->  
+            <div class="control-group">  
+                <div class="control-group-title">🔀 模式选择</div>  
+                <div class="mode-toggle">  
+                    <button class="mode-btn active" data-mode="tx">📤 TX发送</button>  
+                    <button class="mode-btn" data-mode="rx">📥 RX接收</button>  
+                </div>  
+                <div class="checkbox-group">  
+                    <input type="checkbox" id="llrMode">  
+                    <label for="llrMode">⭐ LLR模式</label>  
+                </div>  
+                <div class="checkbox-group">  
+                    <input type="checkbox" id="autoStep">  
+                    <label for="autoStep">🔁 自动步进</label>  
+                </div>  
+            </div>  
+
+            <!-- 速度控制 -->  
+            <div class="control-group">  
+                <div class="control-group-title">⚡ 速度控制</div>  
+                <div class="select-group">  
+                    <label>播放速度:</label>  
+                    <select id="speedSelect">  
+                        <option value="3">0.33x (慢)</option>  
+                        <option value="2">0.5x</option>  
+                        <option value="1" selected>1x (正常)</option>  
+                        <option value="0.5">2x (快)</option>  
+                        <option value="0.25">4x (很快)</option>  
+                    </select>  
+                </div>  
+            </div>  
+
+            <!-- 状态指示 -->  
+            <div class="status-indicators">  
+                <div class="control-group-title">📊 状态信息</div>  
+                <div class="status-item" id="statusMode">  
+                    <span class="status-label">当前模式</span>  
+                    <span class="status-value">TX发送</span>  
+                </div>  
+                <div class="status-item" id="statusStep">  
+                    <span class="status-label">当前步骤</span>  
+                    <span class="status-value">0/12</span>  
+                </div>  
+                <div class="status-item" id="statusLLR">  
+                    <span class="status-label">LLR状态</span>  
+                    <span class="status-value">关闭</span>  
+                </div>  
+                <div class="status-item" id="statusState">  
+                    <span class="status-label">播放状态</span>  
+                    <span class="status-value">就绪</span>  
+                </div>  
+            </div>  
+
+            <!-- 步骤进度 -->  
+            <div class="step-progress">  
+                <div class="control-group-title">📈 进度条</div>  
+                <div class="progress-bar-container">  
+                    <div class="progress-bar" id="progressBar" style="width: 0%">0%</div>  
+                </div>  
+                <div class="step-info" id="stepInfo">等待开始...</div>  
+            </div>  
+
+            <!-- 日志 -->  
+            <div class="log-container" id="logContainer">  
+                <div class="log-entry info">  
+                    <span class="log-time">[00:00.000]</span>  
+                    <span>系统初始化完成</span>  
+                </div>  
+            </div>  
+        </div>  
+
+        <!-- ==================== 中间内容区域 ==================== -->  
+        <div class="center-panel">  
+            <!-- 标题 -->  
+            <div class="header">  
+                <h1>🔬 PCS & FEC层内部处理详细动画</h1>  
+                <p class="subtitle">前导码生成、64B/66B编码、FEC编码、IPG处理完整流程</p>  
+            </div>  
+
+            <!-- IEEE标准参考 -->  
+            <div class="reference-section">  
+                <div class="reference-title">📚 参考IEEE标准文档</div>  
+                <div class="reference-list">  
+                    <ul>  
+                        <li><strong>IEEE 802.3-2022</strong> - Ethernet Standard (Clause 36, 49, 82, 91, 108, 119)</li>  
+                        <li><strong>Ultra Ethernet LLR</strong> - Link Layer Reliability Specification v1.0</li>  
+                        <li><strong>Clause 49.2.4</strong> - 64B/66B编码 | <strong>Clause 91.5.2</strong> - RS-FEC编码</li>  
+                    </ul>  
+                </div>  
+            </div>  
+
+            <!-- 层处理容器 -->  
+            <div class="layers-container">  
+                <!-- PCS层 -->  
+                <div class="layer-box">  
+                    <div class="layer-box-title">🔷 PCS层处理</div>  
+                    
+                    <div class="sub-module" id="pcsModule1">  
+                        <div class="sub-module-header">  
+                            <span class="status-dot"></span>  
+                            <span class="sub-module-name" id="pcsModule1Title">前导码生成器</span>  
+                        </div>  
+                        <div class="sub-module-desc" id="pcsModule1Desc">Preamble Generator - 生成7字节0x55 + 1字节0xD5</div>  
+                        <div class="sub-module-content" id="pcsModule1Content">等待输入...</div>  
+                    </div>  
+
+                    <div class="sub-module" id="pcsModule2">  
+                        <div class="sub-module-header">  
+                            <span class="status-dot"></span>  
+                            <span class="sub-module-name">IPG控制器</span>  
+                        </div>  
+                        <div class="sub-module-desc">IPG Controller - 管理帧间隔</div>  
+                        <div class="sub-module-content" id="pcsModule2Content">等待帧结束...</div>  
+                    </div>  
+
+                    <div class="sub-module" id="pcsModule3">  
+                        <div class="sub-module-header">  
+                            <span class="status-dot"></span>  
+                            <span class="sub-module-name" id="pcsModule3Title">64B/66B编码器</span>  
+                        </div>  
+                        <div class="sub-module-desc" id="pcsModule3Desc">64B/66B Encoder - 添加2-bit同步头</div>  
+                        <div class="sub-module-content" id="pcsModule3Content">等待数据...</div>  
+                    </div>  
+
+                    <div class="sub-module" id="pcsModule4">  
+                        <div class="sub-module-header">  
+                            <span class="status-dot"></span>  
+                            <span class="sub-module-name" id="pcsModule4Title">扰码器</span>  
+                        </div>  
+                        <div class="sub-module-desc" id="pcsModule4Desc">Scrambler - 使频谱均匀分布</div>  
+                        <div class="sub-module-content" id="pcsModule4Content">等待编码数据...</div>  
+                    </div>  
+
+                    <div class="data-flow-box">  
+                        <div class="data-flow-title">📊 PCS数据流</div>  
+                        <div class="data-blocks" id="pcsDataFlow">  
+                            <span style="color: #7f8c8d; font-size: 11px;">等待数据...</span>  
+                        </div>  
+                    </div>  
+
+                    <div class="bitstream-box">  
+                        <div class="bitstream-title">🔢 PCS比特流</div>  
+                        <div class="bitstream-content" id="pcsBitstream">等待数据...</div>  
+                    </div>  
+                </div>  
+
+                <!-- FEC层 -->  
+                <div class="layer-box fec">  
+                    <div class="layer-box-title fec">🔶 FEC层处理</div>  
+                    
+                    <div class="sub-module" id="fecModule1">  
+                        <div class="sub-module-header">  
+                            <span class="status-dot"></span>  
+                            <span class="sub-module-name" id="fecModule1Title">符号映射器</span>  
+                        </div>  
+                        <div class="sub-module-desc" id="fecModule1Desc">Symbol Mapper - 将比特转换为符号</div>  
+                        <div class="sub-module-content" id="fecModule1Content">等待PCS输出...</div>  
+                    </div>  
+
+                    <div class="sub-module" id="fecModule2">  
+                        <div class="sub-module-header">  
+                            <span class="status-dot"></span>  
+                            <span class="sub-module-name" id="fecModule2Title">RS编码器</span>  
+                        </div>  
+                        <div class="sub-module-desc" id="fecModule2Desc">Reed-Solomon Encoder - RS(544,514) 添加30个校验符号</div>  
+                        <div class="sub-module-content" id="fecModule2Content">等待符号...</div>  
+                    </div>  
+
+                    <div class="sub-module" id="fecModule3">  
+                        <div class="sub-module-header">  
+                            <span class="status-dot"></span>  
+                            <span class="sub-module-name" id="fecModule3Title">交织器</span>  
+                        </div>  
+                        <div class="sub-module-desc" id="fecModule3Desc">Interleaver - 分散突发错误</div>  
+                        <div class="sub-module-content" id="fecModule3Content">等待编码...</div>  
+                    </div>  
+
+                    <div class="sub-module" id="fecModule4">  
+                        <div class="sub-module-header">  
+                            <span class="status-dot"></span>  
+                            <span class="sub-module-name" id="fecModule4Title">对齐标记插入器</span>  
+                        </div>  
+                        <div class="sub-module-desc" id="fecModule4Desc">Alignment Marker - 每16384 blocks插入标记</div>  
+                        <div class="sub-module-content" id="fecModule4Content">等待交织数据...</div>  
+                    </div>  
+
+                    <div class="data-flow-box">  
+                        <div class="data-flow-title">📊 FEC数据流</div>  
+                        <div class="data-blocks" id="fecDataFlow">  
+                            <span style="color: #7f8c8d; font-size: 11px;">等待数据...</span>  
+                        </div>  
+                    </div>  
+
+                    <div class="bitstream-box">  
+                        <div class="bitstream-title">🔢 FEC比特流</div>  
+                        <div class="bitstream-content" id="fecBitstream">等待数据...</div>  
+                    </div>  
+                </div>  
+            </div>  
+
+            <!-- 详细说明 -->  
+            <div class="explanation-box">  
+                <div class="explanation-title">💡 当前步骤详解</div>  
+                <div class="explanation-content" id="detailExplanation">  
+                    点击"开始播放"或"单步执行"启动动画...  
+                </div>  
+            </div>  
+        </div>  
+
+        <!-- ==================== 右侧报文格式面板 ==================== -->  
+        <div class="right-panel">  
+            <div class="packet-format-title">📦 报文格式详解</div>  
+
+            <!-- 标准以太网帧 -->  
+            <div class="packet-diagram">  
+                <div class="packet-section">  
+                    <h4 style="font-size: 13px; color: #2c3e50; margin-bottom: 10px; font-weight: bold;">  
+                        🔸 标准以太网帧格式  
+                    </h4>  
+                    
+                    <div class="packet-field preamble" id="field-preamble">  
+                        <div class="packet-field-label">前导码</div>  
+                        <div class="packet-field-value">7 bytes: 0x55×7</div>  
+                    </div>  
+                    
+                    <div class="packet-field sfd" id="field-sfd">  
+                        <div class="packet-field-label">SFD</div>  
+                        <div class="packet-field-value">1 byte: 0xD5</div>  
+                    </div>  
+                    
+                    <div class="packet-field mac" id="field-dst">  
+                        <div class="packet-field-label">目的MAC</div>  
+                        <div class="packet-field-value">6 bytes</div>  
+                    </div>  
+                    
+                    <div class="packet-field mac" id="field-src">  
+                        <div class="packet-field-label">源MAC</div>  
+                        <div class="packet-field-value">6 bytes</div>  
+                    </div>  
+                    
+                    <div class="packet-field mac" id="field-type">  
+                        <div class="packet-field-label">类型/长度</div>  
+                        <div class="packet-field-value">2 bytes</div>  
+                    </div>  
+                    
+                    <div class="packet-field payload" id="field-payload">  
+                        <div class="packet-field-label">数据</div>  
+                        <div class="packet-field-value">46-1500 bytes</div>  
+                    </div>  
+                    
+                    <div class="packet-field fcs" id="field-fcs">  
+                        <div class="packet-field-label">FCS</div>  
+                        <div class="packet-field-value">4 bytes (CRC-32)</div>  
+                    </div>  
+                    
+                    <div class="packet-field ipg" id="field-ipg">  
+                        <div class="packet-field-label">IPG</div>  
+                        <div class="packet-field-value">≥12 bytes</div>  
+                    </div>  
+                </div>  
+            </div>  
+
+            <!-- LLR增强帧 -->  
+            <div class="packet-diagram" id="llrPacketDiagram" style="display: none;">  
+                <div class="packet-section">  
+                    <h4 style="font-size: 13px; color: #2c3e50; margin-bottom: 10px; font-weight: bold;">  
+                        ⭐ LLR增强帧格式  
+                    </h4>  
+                    
+                    <div class="packet-field llr" id="field-llr-marker">  
+                        <div class="packet-field-label">LLR标记</div>  
+                        <div class="packet-field-value">1 byte: 0xFB</div>  
+                    </div>  
+                    
+                    <div class="packet-field llr" id="field-llr-seq">  
+                        <div class="packet-field-label">序列号</div>  
+                        <div class="packet-field-value">20 bits (3 bytes)</div>  
+                    </div>  
+                    
+                    <div class="packet-field preamble" id="field-llr-preamble">  
+                        <div class="packet-field-label">前导码缩短</div>  
+                        <div class="packet-field-value">3.5 bytes: 0x55</div>  
+                    </div>  
+                    
+                    <div class="packet-field sfd" id="field-llr-sfd">  
+                        <div class="packet-field-label">SFD</div>  
+                        <div class="packet-field-value">1 byte: 0xD5</div>  
+                    </div>  
+                    
+                    <div class="packet-field mac">  
+                        <div class="packet-field-label">MAC帧</div>  
+                        <div class="packet-field-value">同标准格式</div>  
+                    </div>  
+                    
+                    <div class="packet-field llr" id="field-llr-ack">  
+                        <div class="packet-field-label">LLR ACK/NACK</div>  
+                        <div class="packet-field-value">控制块 (IPG中)</div>  
+                    </div>  
+                    
+                    <div class="packet-field ipg">  
+                        <div class="packet-field-label">IDLE填充</div>  
+                        <div class="packet-field-value">≥4 bytes</div>  
+                    </div>  
+                </div>  
+            </div>  
+
+            <!-- 编码层次 -->  
+            <div class="encoding-layers">  
+                <div class="encoding-layer-title">🔄 编码层次结构</div>  
+                
+                <div class="encoding-layer" id="layer-mac">  
+                    <div class="layer-name">1️⃣ MAC层</div>  
+                    <div class="layer-desc">DST+SRC+Type+Data+FCS (无前导码)</div>  
+                </div>  
+                
+                <div class="encoding-layer" id="layer-pcs-preamble">  
+                    <div class="layer-name">2️⃣ PCS - 前导码</div>  
+                    <div class="layer-desc">添加8字节前导码+SFD</div>  
+                </div>  
+                
+                <div class="encoding-layer" id="layer-pcs-ipg">  
+                    <div class="layer-name">3️⃣ PCS - IPG</div>  
+                    <div class="layer-desc">添加帧间隔≥12字节</div>  
+                </div>  
+                
+                <div class="encoding-layer" id="layer-pcs-encode">  
+                    <div class="layer-name">4️⃣ PCS - 64B/66B</div>  
+                    <div class="layer-desc">编码效率: 97.0%</div>  
+                </div>  
+                
+                <div class="encoding-layer" id="layer-pcs-scramble">  
+                    <div class="layer-name">5️⃣ PCS - 扰码</div>  
+                    <div class="layer-desc">x^58+x^39+1多项式</div>  
+                </div>  
+                
+                <div class="encoding-layer" id="layer-fec-symbol">  
+                    <div class="layer-name">6️⃣ FEC - 符号映射</div>  
+                    <div class="layer-desc">比特→10-bit符号</div>  
+                </div>  
+                
+                <div class="encoding-layer" id="layer-fec-rs">  
+                    <div class="layer-name">7️⃣ FEC - RS编码</div>  
+                    <div class="layer-desc">RS(544,514) 纠错15符号</div>  
+                </div>  
+                
+                <div class="encoding-layer" id="layer-fec-interleave">  
+                    <div class="layer-name">8️⃣ FEC - 交织</div>  
+                    <div class="layer-desc">分散突发错误</div>  
+                </div>  
+                
+                <div class="encoding-layer" id="layer-fec-marker">  
+                    <div class="layer-name">9️⃣ FEC - 对齐标记</div>  
+                    <div class="layer-desc">每16384块插入</div>  
+                </div>  
+                
+                <div class="encoding-layer" id="layer-pma">  
+                    <div class="layer-name">🔟 PMA/PMD层</div>  
+                    <div class="layer-desc">物理传输</div>  
+                </div>  
+            </div>  
+
+            <!-- 统计信息 -->  
+            <div class="stats-box">  
+                <div class="stats-title">📊 开销统计</div>  
+                
+                <div class="stat-item">  
+                    <span class="stat-label">前导码开销</span>  
+                    <span class="stat-value">8 bytes</span>  
+                </div>  
+                
+                <div class="stat-item">  
+                    <span class="stat-label">IPG开销</span>  
+                    <span class="stat-value">≥12 bytes</span>  
+                </div>  
+                
+                <div class="stat-item">  
+                    <span class="stat-label">64B/66B开销</span>  
+                    <span class="stat-value">3.0%</span>  
+                </div>  
+                
+                <div class="stat-item">  
+                    <span class="stat-label">FEC开销</span>  
+                    <span class="stat-value">5.8%</span>  
+                </div>  
+                
+                <div class="stat-item">  
+                    <span class="stat-label">总编码效率</span>  
+                    <span class="stat-value">~91.2%</span>  
+                </div>  
+                
+                <div class="stat-item" id="stat-llr" style="display: none;">  
+                    <span class="stat-label">LLR序列号</span>  
+                    <span class="stat-value">20 bits</span>  
+                </div>  
+            </div>  
+
+            <!-- 图例 -->  
+            <div class="legend-box">  
+                <div class="legend-title">🎨 颜色图例</div>  
+                
+                <div class="legend-item">  
+                    <div class="legend-color" style="background: #f39c12;"></div>  
+                    <span>前导码 (Preamble)</span>  
+                </div>  
+                
+                <div class="legend-item">  
+                    <div class="legend-color" style="background: #e74c3c;"></div>  
+                    <span>SFD (帧起始定界符)</span>  
+                </div>  
+                
+                <div class="legend-item">  
+                    <div class="legend-color" style="background: #3498db;"></div>  
+                    <span>MAC头 (Header)</span>  
+                </div>  
+                
+                <div class="legend-item">  
+                    <div class="legend-color" style="background: #27ae60;"></div>  
+                    <span>数据负载 (Payload)</span>  
+                </div>  
+                
+                <div class="legend-item">  
+                    <div class="legend-color" style="background: #9b59b6;"></div>  
+                    <span>FCS (校验和)</span>  
+                </div>  
+                
+                <div class="legend-item">  
+                    <div class="legend-color" style="background: #95a5a6;"></div>  
+                    <span>IPG (帧间隔)</span>  
+                </div>  
+                
+                <div class="legend-item">  
+                    <div class="legend-color" style="background: #16a085;"></div>  
+                    <span>编码数据</span>  
+                </div>  
+                
+                <div class="legend-item">  
+                    <div class="legend-color" style="background: #d35400;"></div>  
+                    <span>FEC校验</span>  
+                </div>  
+                
+                <div class="legend-item">  
+                    <div class="legend-color" style="background: #e67e22;"></div>  
+                    <span>LLR标记</span>  
+                </div>  
+            </div>  
+        </div>  
+    </div>  
+
+    <script>  
+        // ==================== 全局状态 ====================  
+        const state = {  
+            running: false,  
+            paused: false,  
+            mode: 'tx',  
+            llrEnabled: false,  
+            autoStep: false,  
+            speed: 1,  
+            currentStep: 0,  
+            totalSteps: 12  
+        };  
+
+        // ==================== TX模式动画步骤 ====================  
+        const txSteps = [  
+            {  
+                step: 1,  
+                module: 'pcsModule1',  
+                highlightFields: ['field-preamble', 'field-sfd', 'field-llr-marker', 'field-llr-seq'],  
+                highlightLayers: ['layer-pcs-preamble'],  
+                action: function() {  
+                    const content = state.llrEnabled ?   
+                        `LLR模式:\n生成: 0xFB (LLR标记)\n序列号: 0x00001 (20-bit)\n标准部分: 0x55×3.5\nSFD: 0xD5` :  
+                        `标准模式:\n生成: 0x55×7 (前导码)\nSFD: 0xD5`;  
+                    updateModule('pcsModule1Content', content);  
+                    
+                    const blocks = state.llrEnabled ? [  
+                        {text: '0xFB', class: 'llr-marker'},  
+                        {text: 'seq:0x00001', class: 'llr-seq'},  
+                        {text: '0x55×3.5', class: 'preamble'},  
+                        {text: '0xD5', class: 'sfd'}  
+                    ] : [  
+                        {text: '0x55×7', class: 'preamble'},  
+                        {text: '0xD5', class: 'sfd'}  
+                    ];  
+                    
+                    updateDataFlow('pcsDataFlow', blocks);  
+                    
+                    const bitstream = state.llrEnabled ?  
+                        '<span class="bit sync">11111011</span> <span class="bit one">00000000 00000000 00010101</span> <span class="bit one">01010101 01010101 01010101</span> <span class="bit sync">11010101</span>' :  
+                        '<span class="bit one">01010101</span> '.repeat(7) + '<span class="bit sync">11010101</span>';  
+                    updateBitstream('pcsBitstream', bitstream);  
+                },  
+                log: state.llrEnabled ?   
+                    '⭐ PCS前导码生成器: LLR模式 - 0xFB + seq(0x00001) + 0x55×3.5 + 0xD5' :  
+                    'PCS前导码生成器: 标准模式 - 0x55×7 + 0xD5',  
+                explanation: state.llrEnabled ?  
+                    '<strong>LLR前导码生成:</strong><br>• Byte 0: 0xFB - LLR识别标记<br>• Bytes 1-3: 20-bit序列号 (0x00001)<br>• Bytes 4-6.5: 0x55 (保持时钟同步)<br>• Byte 7: 0xD5 (SFD)<br><br><strong>参考: Ultra Ethernet LLR Specification Section 3.2</strong>' :  
+                    '<strong>标准前导码生成:</strong><br>• 前导码: 7 bytes 0x55 (01010101)<br>• 作用: 接收端时钟同步和位同步<br>• SFD: 1 byte 0xD5 (11010101)<br>• 作用: 标记帧数据的起始位置<br><br><strong>参考: IEEE 802.3 Clause 36.2.4.7</strong>',  
+                duration: 2000  
+            },  
+            {  
+                step: 2,  
+                module: 'pcsModule1',  
+                highlightFields: ['field-dst', 'field-src', 'field-type', 'field-payload', 'field-fcs'],  
+                highlightLayers: ['layer-mac'],  
+                action: function() {  
+                    updateModule('pcsModule1Content',   
+                        `前导码: 已生成\nMAC帧: 正在附加\nDST: FF:FF:FF:FF:FF:FF\nSRC: 00:11:22:33:44:55\nType: 0x0800 (IPv4)\nPayload: 46 bytes\nFCS: CRC-32`);  
+                    
+                    const blocks = state.llrEnabled ? [  
+                        {text: '0xFB', class: 'llr-marker'},  
+                        {text: 'seq', class: 'llr-seq'},  
+                        {text: '0x55×3.5', class: 'preamble'},  
+                        {text: 'SFD', class: 'sfd'},  
+                        {text: 'DST', class: 'mac-data'},  
+                        {text: 'SRC', class: 'mac-data'},  
+                        {text: 'Type', class: 'mac-data'},  
+                        {text: 'Data', class: 'payload'},  
+                        {text: 'FCS', class: 'fcs'}  
+                    ] : [  
+                        {text: '0x55×7', class: 'preamble'},  
+                        {text: 'SFD', class: 'sfd'},  
+                        {text: 'DST', class: 'mac-data'},  
+                        {text: 'SRC', class: 'mac-data'},  
+                        {text: 'Type', class: 'mac-data'},  
+                        {text: 'Data', class: 'payload'},  
+                        {text: 'FCS', class: 'fcs'}  
+                    ];  
+                    
+                    updateDataFlow('pcsDataFlow', blocks);  
+                },  
+                log: 'PCS接收来自MAC层的完整帧 (64 bytes)',  
+                explanation: '<strong>完整以太网帧组装:</strong><br>• 前导码 (8 bytes) - 由PCS生成<br>• MAC头 (14 bytes) - 来自MAC层<br>• Payload (46-1500 bytes) - 用户数据<br>• FCS (4 bytes) - CRC-32校验<br><br><strong>参考: IEEE 802.3 Clause 3.1.1</strong>',  
+                duration: 1500  
+            },  
+            {  
+                step: 3,  
+                module: 'pcsModule2',  
+                highlightFields: ['field-ipg', 'field-llr-ack'],  
+                highlightLayers: ['layer-pcs-ipg'],  
+                action: function() {  
+                    const ipgContent = state.llrEnabled ?  
+                        `LLR IPG模式:\n控制块类型: 0x1E\nSubtype: 0x03 (ACK)\nACK序列号: 0x00000\nIDLE填充: 4+ bytes` :  
+                        `标准IPG模式:\nIDLE字符: 0x07\n最小长度: 12 bytes\n当前: 12 bytes`;  
+                    
+                    updateModule('pcsModule2Content', ipgContent);  
+                    
+                    const blocks = [  
+                        {text: 'Preamble', class: 'preamble'},  
+                        {text: 'Frame', class: 'payload'}  
+                    ];  
+                    
+                    if (state.llrEnabled) {  
+                        blocks.push({text: 'LLR_ACK', class: 'llr-control'});  
+                        blocks.push({text: 'IDLE×4', class: 'ipg'});  
+                    } else {  
+                        blocks.push({text: 'IDLE×12', class: 'ipg'});  
+                    }  
+                    
+                    updateDataFlow('pcsDataFlow', blocks);  
+                },  
+                log: state.llrEnabled ?  
+                    '⭐ IPG控制器: 插入LLR ACK控制块 + IDLE填充' :  
+                    'IPG控制器: 插入标准IDLE字符 (最小12 bytes)',  
+                explanation: state.llrEnabled ?  
+                    '<strong>LLR IPG处理:</strong><br>• 64B/66B控制块: 10 | 0x1E | 0x03 | ACK_data<br>• ACK序列号: 确认已接收的帧序号<br>• IDLE填充: 保证最小IPG要求<br>• 总长度: ≥12 bytes<br><br><strong>参考: Ultra Ethernet LLR Spec Section 3.4</strong>' :  
+                    '<strong>标准IPG处理:</strong><br>• IPG = Inter-Packet Gap<br>• 最小值: 12 bytes (96 bit times)<br>• IDLE字符: 0x07 (64B/66B控制块)<br>• 作用: 给接收端处理时间<br><br><strong>参考: IEEE 802.3 Clause 4.2.3.2.2</strong>',  
+                duration: 2000  
+            },  
+            {  
+                step: 4,  
+                module: 'pcsModule3',  
+                highlightFields: [],  
+                highlightLayers: ['layer-pcs-encode'],  
+                action: function() {  
+                    updateModule('pcsModule3Content',  
+                        `64B/66B编码:\n编码块数: 计算中...\nStart块: 10|0x78|Preamble\nData块: 01|64-bit data\nTerm块: 10|0x87|End+FCS\nIDLE块: 10|0x1E|IDLE`);  
+                    
+                    const blocks = [  
+                        {text: '66b-Start', class: 'encoded'},  
+                        {text: '66b-Data', class: 'encoded'},  
+                        {text: '66b-Data', class: 'encoded'},  
+                        {text: '66b-Data', class: 'encoded'},  
+                        {text: '66b-Term', class: 'encoded'},  
+                        {text: '66b-IDLE', class: 'encoded'}  
+                    ];  
+                    
+                    updateDataFlow('pcsDataFlow', blocks);  
+                    
+                    const bitstream =   
+                        '<span class="bit sync">10</span><span class="bit one">01111000</span> (Start) ' +  
+                        '<span class="bit sync">01</span><span class="bit one">...</span> (Data) ' +  
+                        '<span class="bit sync">10</span><span class="bit one">10000111</span> (Term) ' +  
+                        '<span class="bit sync">10</span><span class="bit zero">00011110</span> (IDLE)';  
+                    updateBitstream('pcsBitstream', bitstream);  
+                },  
+                log: '64B/66B编码器: 将数据分组为64-bit块，添加2-bit同步头',  
+                explanation: '<strong>64B/66B编码详解:</strong><br>• 同步头 (2 bits):<br>  - 01 = 数据块 (Data Block)<br>  - 10 = 控制块 (Control Block)<br>• 数据/控制 (64 bits):<br>  - Start块 (0x78): 包含前导码起始<br>  - Data块: 纯数据<br>  - Terminate块 (0x87): 包含FCS和帧结束<br>  - IDLE块 (0x1E): IPG填充<br>• 编码效率: 64/66 = 97.0%<br><br><strong>参考: IEEE 802.3 Clause 49.2.4</strong>',  
+                duration: 2500  
+            },  
+            {  
+                step: 5,  
+                module: 'pcsModule3',  
+                highlightFields: [],  
+                highlightLayers: ['layer-pcs-encode'],  
+                action: function() {  
+                    updateModule('pcsModule3Content',  
+                        `块类型映射:\n0x78 (Start): 帧开始\n0x33,0x66,0x55: 数据+控制\n0x87,0x99,0xAA: 帧结束\n0x1E: IDLE\n${state.llrEnabled ? '0x1E|0x03: LLR ACK\n0x1E|0x04: LLR NACK' : ''}`);  
+                    
+                    const bitstream = state.llrEnabled ?  
+                        '<span class="bit sync">10</span> 01111000 (0x78 Start)<br>' +  
+                        '<span class="bit sync">01</span> [64-bit data]<br>' +  
+                        '<span class="bit sync">10</span> 10000111 (0x87 Term)<br>' +  
+                        '<span class="bit sync">10</span> 00011110 00000011 (0x1E|0x03 LLR_ACK)<br>' +  
+                        '<span class="bit sync">10</span> 00011110 00000000 (0x1E IDLE)' :  
+                        '<span class="bit sync">10</span> 01111000 (0x78 Start)<br>' +  
+                        '<span class="bit sync">01</span> [64-bit data]<br>' +  
+                        '<span class="bit sync">10</span> 10000111 (0x87 Term)<br>' +  
+                        '<span class="bit sync">10</span> 00011110 (0x1E IDLE)';  
+                    
+                    updateBitstream('pcsBitstream', bitstream);  
+                },  
+                log: '64B/66B编码器: 分配控制块类型标识',  
+                explanation: '<strong>控制块类型表 (IEEE 802.3 Table 49-1):</strong><br>' +  
+                    '• 0x78: Start - 前导码开始<br>' +  
+                    '• 0x33, 0x66, 0x55: 混合块 (控制+数据)<br>' +  
+                    '• 0x87, 0x99, 0xAA, 0xB4, 0xCC, 0xD2, 0xE1, 0xFF: Terminate块<br>' +  
+                    '• 0x1E: IDLE块<br>' +  
+                    (state.llrEnabled ? '• 0x1E + subtype: LLR扩展控制块<br>  - 0x03: ACK<br>  - 0x04: NACK<br>  - 0x01: INIT<br>' : '') +  
+                    '<br><strong>参考: IEEE 802.3 Clause 49.2.4.4, Table 49-1</strong>',  
+                duration: 2000  
+            },  
+            {  
+                step: 6,  
+                module: 'pcsModule4',  
+                highlightFields: [],  
+                highlightLayers: ['layer-pcs-scramble'],  
+                action: function() {  
+                    updateModule('pcsModule4Content',  
+                        `自同步扰码器:\n多项式: x^58+x^39+1\n初始值: 0x3FF...FFF\n状态: 运行中\n输出: 扰码后66-bit块`);  
+                    
+                    const bitstream =   
+                        '<span class="bit one">扰码前:</span> 10 01111000 01010101...<br>' +  
+                        '<span class="bit sync">扰码后:</span> 10 11001101 10101100...';  
+                    updateBitstream('pcsBitstream', bitstream);  
+                },  
+                log: '扰码器: 使用x^58+x^39+1多项式进行自同步扰码',  
+                explanation: '<strong>扰码器 (Scrambler) 详解:</strong><br>• 目的: 使信号频谱均匀，避免长连0或连1<br>• 多项式: 1 + x^39 + x^58<br>• 类型: 自同步扰码 (Self-synchronous)<br>• 处理: 对除同步头外的64位进行扰码<br>• 同步头不扰码: 保证接收端块对齐<br>• 解扰: 接收端使用相同多项式自动解扰<br><br><strong>参考: IEEE 802.3 Clause 49.2.6</strong>',  
+                duration: 2000  
+            },  
+            {  
+                step: 7,  
+                module: 'fecModule1',  
+                highlightFields: [],  
+                highlightLayers: ['layer-fec-symbol'],  
+                action: function() {  
+                    updateModule('fecModule1Content',  
+                        `符号映射:\n输入: 66-bit块流\n符号宽度: 10 bits\n符号数: 514 (数据)\n符号值: 0-1023 (GF(2^10))`);  
+                    
+                    const blocks = [  
+                        {text: 'Symbol-0', class: 'encoded'},  
+                        {text: 'Symbol-1', class: 'encoded'},  
+                        {text: 'Symbol-2', class: 'encoded'},  
+                        {text: '...', class: 'encoded'},  
+                        {text: 'Symbol-513', class: 'encoded'}  
+                    ];  
+                    updateDataFlow('fecDataFlow', blocks);  
+                },  
+                log: 'FEC符号映射器: 将66-bit块转换为10-bit符号',  
+                explanation: '<strong>符号映射 (Symbol Mapping):</strong><br>• GF(2^10): 伽罗瓦域 1024个元素<br>• 每个符号: 10 bits = 1024种可能<br>• 66-bit块 → 多个10-bit符号<br>• RS(544,514) 需要:<br>  - 514个数据符号<br>  - 30个校验符号<br>  - 共544个符号/码字<br><br><strong>参考: IEEE 802.3 Clause 91.5.2.3</strong>',  
+                duration: 1800  
+            },  
+            {  
+                step: 8,  
+                module: 'fecModule2',  
+                highlightFields: [],  
+                highlightLayers: ['layer-fec-rs'],  
+                action: function() {  
+                    updateModule('fecModule2Content',  
+                        `RS(544,514)编码:\n数据符号: 514\n校验符号: 30\n生成多项式: g(x)\n码率: 514/544 = 94.5%\n纠错能力: ≤15符号`);  
+                    
+                    const blocks = [  
+                        {text: 'Data×514', class: 'encoded'},  
+                        {text: 'Parity-0', class: 'parity'},  
+                        {text: 'Parity-1', class: 'parity'},  
+                        {text: '...', class: 'parity'},  
+                        {text: 'Parity-29', class: 'parity'}  
+                    ];  
+                    updateDataFlow('fecDataFlow', blocks);  
+                },  
+                log: 'RS编码器: 计算30个校验符号，可纠正≤15个符号错误',  
+                explanation: '<strong>Reed-Solomon编码详解:</strong><br>' +  
+                    '• RS(n, k) = RS(544, 514)<br>' +  
+                    '  - n = 544: 码字长度<br>' +  
+                    '  - k = 514: 数据符号数<br>' +  
+                    '  - n-k = 30: 校验符号数<br>' +  
+                    '• 纠错能力: t = (n-k)/2 = 15个符号<br>' +  
+                    '• 每个符号10 bits，可纠正150 bits错误<br>' +  
+                    '• 生成多项式: g(x) = (x-α^0)(x-α^1)...(x-α^29)<br>' +  
+                    '  其中α是GF(2^10)的本原元<br>' +  
+                    '• 冗余率: 30/544 = 5.5%<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 91.5.2.4</strong>',  
+                duration: 2500  
+            },  
+            {  
+                step: 9,  
+                module: 'fecModule2',  
+                highlightFields: [],  
+                highlightLayers: ['layer-fec-rs'],  
+                action: function() {  
+                    updateModule('fecModule2Content',  
+                        `校验计算:\nm(x): 数据多项式\ng(x): 生成多项式\nc(x) = m(x)·x^30 - r(x)\nr(x): 余数 = 校验符号\n状态: 计算完成 ✓`);  
+                    
+                    const bitstream =   
+                        '<span class="bit one">数据: </span>S0 S1 S2 ... S513<br>' +  
+                        '<span class="bit sync">校验: </span>P0 P1 P2 ... P29<br>' +  
+                        '<span class="bit one">码字: </span>S0 S1 ... S513 P0 ... P29';  
+                    updateBitstream('fecBitstream', bitstream);  
+                },  
+                log: 'RS编码器: 完成校验符号计算',  
+                explanation: '<strong>RS编码计算过程:</strong><br>' +  
+                    '1. 将数据符号作为多项式系数<br>' +  
+                    '   m(x) = m0 + m1·x + ... + m513·x^513<br>' +  
+                    '2. 左移30位: m(x)·x^30<br>' +  
+                    '3. 除以生成多项式g(x)得余数r(x)<br>' +  
+                    '4. 校验符号: c(x) = m(x)·x^30 - r(x)<br>' +  
+                    '5. 最终码字: [数据符号 | 校验符号]<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 91.5.2.4.2</strong>',  
+                duration: 2000  
+            },  
+            {  
+                step: 10,  
+                module: 'fecModule3',  
+                highlightFields: [],  
+                highlightLayers: ['layer-fec-interleave'],  
+                action: function() {  
+                    updateModule('fecModule3Content',  
+                        `交织器:\n类型: 块交织\n深度: 根据标准配置\n目的: 分散突发错误\n状态: 交织中...`);  
+                    
+                    const blocks = [  
+                        {text: 'CW0-S0', class: 'encoded'},  
+                        {text: 'CW1-S0', class: 'encoded'},  
+                        {text: 'CW2-S0', class: 'encoded'},  
+                        {text: '...', class: 'encoded'},  
+                        {text: 'CW0-S1', class: 'encoded'},  
+                        {text: 'CW1-S1', class: 'encoded'}  
+                    ];  
+                    updateDataFlow('fecDataFlow', blocks);  
+                },  
+                log: 'FEC交织器: 重排符号顺序，提高抗突发错误能力',  
+                explanation: '<strong>交织 (Interleaving) 详解:</strong><br>' +  
+                    '• 目的: 将连续错误分散到不同码字<br>' +  
+                    '• 原理: 多个码字并行处理，按列写入按行读出<br>' +  
+                    '• 例如突发10个符号错误:<br>' +  
+                    '  - 不交织: 全部在1个码字 → 无法纠正<br>' +  
+                    '  - 交织: 分散到10个码字 → 每个1个错误 → 可纠正<br>' +  
+                    '• 延迟: 引入额外处理延迟<br>' +  
+                    '• 与解交织器配对使用<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 91.5.2.6</strong>',  
+                duration: 2000  
+            },  
+            {  
+                step: 11,  
+                module: 'fecModule4',  
+                highlightFields: [],  
+                highlightLayers: ['layer-fec-marker'],  
+                action: function() {  
+                    updateModule('fecModule4Content',  
+                        `对齐标记插入:\n周期: 每16384个66b块\n标记值: 固定模式\n用途: FEC边界对齐\n下次插入: 16384 blocks`);  
+                    
+                    const blocks = [  
+                        {text: 'Data', class: 'encoded'},  
+                        {text: 'Data', class: 'encoded'},  
+                        {text: '...', class: 'encoded'},  
+                        {text: 'Marker', class: 'llr-marker'},  
+                        {text: 'Data', class: 'encoded'}  
+                    ];  
+                    updateDataFlow('fecDataFlow', blocks);  
+                },  
+                log: 'FEC对齐标记: 每16384块插入标记，用于FEC边界检测',  
+                explanation: '<strong>对齐标记 (Alignment Marker):</strong><br>' +  
+                    '• 插入周期: 每16384个66-bit块<br>' +  
+                    '• 标记模式: 固定的可识别序列<br>' +  
+                    '• 作用:<br>' +  
+                    '  1. FEC码字边界对齐<br>' +  
+                    '  2. 时钟补偿<br>' +  
+                    '  3. 解码同步<br>' +  
+                    '• 不参与FEC编码<br>' +  
+                    '• 接收端用于对齐解码器<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 82.2.10</strong>',  
+                duration: 1800  
+            },  
+            {  
+                step: 12,  
+                module: 'fecModule4',  
+                highlightFields: [],  
+                highlightLayers: ['layer-pma'],  
+                action: function() {  
+                    updateModule('fecModule4Content',  
+                        `输出准备:\nFEC编码: 完成 ✓\n数据速率: 25.78125 Gbps\n传递给PMA层\n状态: 就绪`);  
+                    
+                    const bitstream =   
+                        '<span class="bit sync">完整数据流:</span><br>' +  
+                        'Preamble(FEC) | Frame(FEC) | IPG(FEC) | Alignment | ...<br>' +  
+                        '<span class="bit one">总开销:</span> 64B/66B(3%) + FEC(5.5%) = 8.5%';  
+                    updateBitstream('fecBitstream', bitstream);  
+                },  
+                log: '✅ FEC层处理完成，数据传递给PMA层进行物理传输',  
+                explanation: '<strong>TX路径总结:</strong><br>' +  
+                    '1. MAC层 → 提供完整帧(无前导码)<br>' +  
+                    '2. PCS前导码生成器 → 添加8字节前导码<br>' +  
+                    '3. PCS IPG控制器 → 添加≥12字节IPG<br>' +  
+                    '4. PCS 64B/66B编码 → 添加2-bit同步头<br>' +  
+                    '5. PCS扰码器 → 频谱均匀化<br>' +  
+                    '6. FEC符号映射 → 转换为10-bit符号<br>' +  
+                    '7. FEC RS编码 → 添加30个校验符号<br>' +  
+                    '8. FEC交织 → 分散突发错误<br>' +  
+                    '9. FEC对齐标记 → 插入同步标记<br>' +  
+                    '10. PMA层 → 物理传输<br>' +  
+                    '<br><strong>前导码状态: 已添加并编码，包含在传输数据中</strong>',  
+                duration: 2500  
+            }  
+        ];  
+
+        // ==================== RX模式动画步骤 ====================  
+        const rxSteps = [  
+            {  
+                step: 1,  
+                module: 'fecModule4',  
+                highlightFields: [],  
+                highlightLayers: ['layer-pma'],  
+                action: function() {  
+                    updateModule('fecModule4Content',  
+                        `对齐标记检测:\n搜索标记模式...\n找到标记 ✓\nFEC边界对齐 ✓\n准备解码`);  
+                    
+                    const blocks = [  
+                        {text: 'Marker', class: 'llr-marker'},  
+                        {text: 'Data', class: 'encoded'},  
+                        {text: 'Data', class: 'encoded'},  
+                        {text: '...', class: 'encoded'}  
+                    ];  
+                    updateDataFlow('fecDataFlow', blocks);  
+                },  
+                log: 'RX-FEC对齐标记检测器: 找到同步标记，FEC边界已对齐',  
+                explanation: '<strong>对齐标记检测:</strong><br>' +  
+                    '• 搜索固定标记模式<br>' +  
+                    '• 确定FEC码字边界<br>' +  
+                    '• 同步解码器状态<br>' +  
+                    '• 建立时钟域关系<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 82.2.10</strong>',  
+                duration: 1500  
+            },  
+            {  
+                step: 2,  
+                module: 'fecModule3',  
+                highlightFields: [],  
+                highlightLayers: ['layer-fec-interleave'],  
+                action: function() {  
+                    updateModule('fecModule3Content',  
+                        `解交织器:\n恢复原始符号顺序\n重组码字\n状态: 解交织中...`);  
+                    
+                    const blocks = [  
+                        {text: 'CW0', class: 'encoded'},  
+                        {text: 'CW1', class: 'encoded'},  
+                        {text: 'CW2', class: 'encoded'},  
+                        {text: '...', class: 'encoded'}  
+                    ];  
+                    updateDataFlow('fecDataFlow', blocks);  
+                },  
+                log: 'RX-FEC解交织器: 恢复符号顺序',  
+                explanation: '<strong>解交织 (De-interleaving):</strong><br>' +  
+                    '• 逆转发送端交织操作<br>' +  
+                    '• 恢复码字的原始顺序<br>' +  
+                    '• 为RS解码器准备数据<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 91.5.2.6</strong>',  
+                duration: 1500  
+            },  
+            {  
+                step: 3,  
+                module: 'fecModule2',  
+                highlightFields: [],  
+                highlightLayers: ['layer-fec-rs'],  
+                action: function() {  
+                    updateModule('fecModule2Content',  
+                        `RS(544,514)解码:\n检测错误: 3个符号\n定位错误: 完成\n纠正错误: 3/15 ✓\n输出: 514个数据符号`);  
+                    
+                    const blocks = [  
+                        {text: 'Data×514', class: 'encoded'},  
+                        {text: '(3 errors corrected)', class: 'parity'}  
+                    ];  
+                    updateDataFlow('fecDataFlow', blocks);  
+                    
+                    const bitstream =   
+                        '<span class="bit sync">接收:</span> S0...S513 P0...P29<br>' +  
+                        '<span class="bit one">错误:</span> S100(错), S200(错), S300(错)<br>' +  
+                        '<span class="bit sync">纠正后:</span> S0...S513 (全部正确)';  
+                    updateBitstream('fecBitstream', bitstream);  
+                },  
+                log: 'RX-RS解码器: 检测并纠正3个符号错误',  
+                explanation: '<strong>RS解码过程:</strong><br>' +  
+                    '1. 计算伴随式 (Syndrome)<br>' +  
+                    '   S_i = r(α^i), i=0...29<br>' +  
+                    '2. 如果S_i全为0 → 无错误<br>' +  
+                    '3. 否则使用Berlekamp-Massey算法:<br>' +  
+                    '   - 找错误定位多项式<br>' +  
+                    '   - Chien搜索找错误位置<br>' +  
+                    '   - Forney算法计算错误值<br>' +  
+                    '4. 纠正错误<br>' +  
+                    '5. 输出纠正后的数据符号<br>' +  
+                    '<br>本例: 3个错误 ≤ 15 → 成功纠正<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 91.5.2.5</strong>',  
+                duration: 2500  
+            },  
+            {  
+                step: 4,  
+                module: 'fecModule1',  
+                highlightFields: [],  
+                highlightLayers: ['layer-fec-symbol'],  
+                action: function() {  
+                    updateModule('fecModule1Content',  
+                        `符号解映射:\n输入: 514个10-bit符号\n输出: 66-bit块流\n转换完成`);  
+                    
+                    const blocks = [  
+                        {text: '66b-Block', class: 'encoded'},  
+                        {text: '66b-Block', class: 'encoded'},  
+                        {text: '...', class: 'encoded'}  
+                    ];  
+                    updateDataFlow('fecDataFlow', blocks);  
+                },  
+                log: 'RX-FEC符号解映射: 10-bit符号 → 66-bit块',  
+                explanation: '<strong>符号解映射:</strong><br>' +  
+                    '• 将10-bit符号转换回66-bit块<br>' +  
+                    '• 传递给PCS层进行解码<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 91.5.2.3</strong>',  
+                duration: 1500  
+            },  
+            {  
+                step: 5,  
+                module: 'pcsModule4',  
+                highlightFields: [],  
+                highlightLayers: ['layer-pcs-scramble'],  
+                action: function() {  
+                    updateModule('pcsModule4Content',  
+                        `自同步解扰器:\n多项式: x^58+x^39+1\n状态: 同步中...\n输出: 解扰后66-bit块`);  
+                    
+                    const bitstream =   
+                        '<span class="bit sync">扰码数据:</span> 10 11001101 10101100...<br>' +  
+                        '<span class="bit one">解扰后:</span> 10 01111000 01010101...';  
+                    updateBitstream('pcsBitstream', bitstream);  
+                },  
+                log: 'RX-解扰器: 使用x^58+x^39+1多项式解扰',  
+                explanation: '<strong>解扰器 (Descrambler):</strong><br>' +  
+                    '• 使用与发送端相同的多项式<br>' +  
+                    '• 自同步特性: 自动同步无需额外信令<br>' +  
+                    '• 恢复原始数据<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 49.2.7</strong>',  
+                duration: 1800  
+            },  
+            {  
+                step: 6,  
+                module: 'pcsModule3',  
+                highlightFields: [],  
+                highlightLayers: ['layer-pcs-encode'],  
+                action: function() {  
+                    updateModule('pcsModule3Content',  
+                        `64B/66B解码:\n同步头检测: ✓\n块对齐: 完成\n解码块类型:\n- Start (0x78)\n- Data (0x01)\n- Term (0x87)\n- IDLE (0x1E)`);  
+                    
+                    const blocks = [  
+                        {text: 'Preamble', class: 'preamble'},  
+                        {text: 'Frame', class: 'payload'},  
+                        {text: 'IPG', class: 'ipg'}  
+                    ];  
+                    updateDataFlow('pcsDataFlow', blocks);  
+                },  
+                log: 'RX-64B/66B解码器: 移除同步头，提取数据',  
+                explanation: '<strong>64B/66B解码:</strong><br>' +  
+                    '1. 检测同步头 (01或10)<br>' +  
+                    '2. 块对齐<br>' +  
+                    '3. 解析块类型字段<br>' +  
+                    '4. 提取64-bit数据<br>' +  
+                    '5. 重组MAC帧<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 49.2.5</strong>',  
+                duration: 2000  
+            },  
+            {  
+                step: 7,  
+                module: 'pcsModule1',  
+                highlightFields: ['field-preamble', 'field-sfd', 'field-llr-marker', 'field-llr-seq'],  
+                highlightLayers: ['layer-pcs-preamble'],  
+                action: function() {  
+                    const content = state.llrEnabled ?  
+                        `LLR前导码检测:\n0xFB: 发现 ✓\n序列号提取: 0x00001\n0x55×3.5: 检测到\nSFD 0xD5: 发现 ✓\n\n⭐提取序列号: 0x00001\n准备剥离前导码...` :  
+                        `标准前导码检测:\n0x55×7: 检测中...\n找到: ✓\nSFD 0xD5: 检测中...\n找到: ✓\n\n准备剥离前导码...`;  
+                    
+                    updateModule('pcsModule1Content', content);  
+                    
+                    const blocks = state.llrEnabled ? [  
+                        {text: '0xFB', class: 'llr-marker'},  
+                        {text: 'seq:0x00001', class: 'llr-seq'},  
+                        {text: '0x55×3.5', class: 'preamble'},  
+                        {text: '0xD5', class: 'sfd'},  
+                        {text: 'Frame', class: 'payload'}  
+                    ] : [  
+                        {text: '0x55×7', class: 'preamble'},  
+                        {text: '0xD5', class: 'sfd'},  
+                        {text: 'Frame', class: 'payload'}  
+                    ];  
+                    
+                    updateDataFlow('pcsDataFlow', blocks);  
+                },  
+                log: state.llrEnabled ?  
+                    '⭐ RX-前导码检测器: LLR模式 - 0xFB找到，提取序列号0x00001' :  
+                    'RX-前导码检测器: 标准模式 - 0x55×7 + 0xD5检测成功',  
+                explanation: state.llrEnabled ?  
+                    '<strong>LLR前导码检测:</strong><br>' +  
+                    '1. 搜索0xFB标记 (LLR识别符)<br>' +  
+                    '2. 提取20-bit序列号<br>' +  
+                    '3. 验证后续0x55模式<br>' +  
+                    '4. 确认SFD (0xD5)<br>' +  
+                    '5. 记录序列号用于ACK/NACK<br>' +  
+                    '6. 准备剥离整个前导码<br>' +  
+                    '<br><strong>参考: Ultra Ethernet LLR Spec Section 3.3</strong>' :  
+                    '<strong>标准前导码检测:</strong><br>' +  
+                    '1. 搜索0x55字节模式<br>' +  
+                    '2. 计数连续0x55 (应为7个)<br>' +  
+                    '3. 检测SFD (0xD5)<br>' +  
+                    '4. 确定帧起始位置<br>' +  
+                    '5. 准备剥离前导码<br>' +  
+                    '<br><strong>参考: IEEE 802.3 Clause 36.2.4.7</strong>',  
+                duration: 2500  
+            },  
+            {  
+                step: 8,  
+                module: 'pcsModule1',  
+                highlightFields: ['field-dst', 'field-src', 'field-type', 'field-payload', 'field-fcs'],
+                highlightLayers: ['layer-mac'],
+                action: function() {
+                    updateModule('pcsModule1Content',
+                        state.llrEnabled ?
+                            `前导码剥离完成:\n移除: 0xFB + seq + 0x55×3.5 + 0xD5\n保留序列号: 0x00001\n输出: 纯MAC帧\n传递给MAC层` :
+                            `前导码剥离完成:\n移除: 0x55×7 + 0xD5\n输出: 纯MAC帧\n传递给MAC层`);
+                    
+                    const blocks = [
+                        {text: 'DST MAC', class: 'mac-data'},
+                        {text: 'SRC MAC', class: 'mac-data'},
+                        {text: 'Type', class: 'mac-data'},
+                        {text: 'Payload', class: 'payload'},
+                        {text: 'FCS', class: 'fcs'}
+                    ];
+                    updateDataFlow('pcsDataFlow', blocks);
+                },
+                log: state.llrEnabled ?
+                    '⭐ RX-PCS: 前导码已剥离 (含LLR信息)，序列号已记录' :
+                    'RX-PCS: 前导码已剥离，MAC帧准备就绪',
+                explanation: '<strong>⚠️ 关键点: 前导码剥离</strong><br>' +
+                    '• 前导码在PCS层被完全移除<br>' +
+                    '• MAC层接收到的是纯MAC帧<br>' +
+                    '• MAC层永远看不到前导码<br>' +
+                    (state.llrEnabled ? '• LLR序列号保存在PCS状态中<br>• 用于生成ACK/NACK响应<br>' : '') +
+                    '<br><strong>传递给MAC层的数据:</strong><br>' +
+                    'DST MAC (6B) | SRC MAC (6B) | Type (2B) | Payload | FCS (4B)<br>' +
+                    '<br><strong>参考: IEEE 802.3 Clause 36.2.5.1</strong>',
+                duration: 2500
+            },
+            {
+                step: 9,
+                module: 'pcsModule2',
+                highlightFields: ['field-ipg', 'field-llr-ack'],
+                highlightLayers: ['layer-pcs-ipg'],
+                action: function() {
+                    const content = state.llrEnabled ?
+                        `LLR IPG处理:\n检测控制块: 0x1E\nSubtype检测: 0x03 (ACK)\n提取ACK序列号: 0x00000\n确认帧接收\n剥离IDLE字符` :
+                        `标准IPG处理:\n检测IDLE字符: 0x1E\n计数IDLE字节\n剥离IPG\n准备下一帧`;
+                    
+                    updateModule('pcsModule2Content', content);
+                },
+                log: state.llrEnabled ?
+                    '⭐ RX-IPG控制器: 提取LLR ACK(seq=0x00000)，更新确认状态' :
+                    'RX-IPG控制器: 剥离IDLE字符',
+                explanation: state.llrEnabled ?
+                    '<strong>LLR IPG处理:</strong><br>' +
+                    '1. 检测0x1E块类型<br>' +
+                    '2. 读取subtype字段<br>' +
+                    '   - 0x03 = ACK<br>' +
+                    '   - 0x04 = NACK<br>' +
+                    '3. 提取控制消息数据<br>' +
+                    '4. 更新链路状态<br>' +
+                    '5. 触发重传(如果NACK)<br>' +
+                    '6. 剥离IDLE填充<br>' +
+                    '<br><strong>参考: Ultra Ethernet LLR Spec Section 3.4</strong>' :
+                    '<strong>标准IPG处理:</strong><br>' +
+                    '• 识别IDLE块 (0x1E)<br>' +
+                    '• 剥离所有IDLE字符<br>' +
+                    '• 不传递给MAC层<br>' +
+                    '<br><strong>参考: IEEE 802.3 Clause 49.2.4.5</strong>',
+                duration: 2000
+            },
+            {
+                step: 10,
+                module: 'pcsModule2',
+                highlightFields: [],
+                highlightLayers: ['layer-mac'],
+                action: function() {
+                    updateModule('pcsModule2Content',
+                        `RX-PCS处理完成:\n✓ 前导码已剥离\n✓ IPG已剥离\n${state.llrEnabled ? '✓ LLR序列号已记录\n✓ LLR控制消息已处理\n' : ''}✓ MAC帧准备就绪\n传递给MAC层`);
+                    
+                    const blocks = [
+                        {text: 'Pure MAC Frame', class: 'payload'}
+                    ];
+                    updateDataFlow('pcsDataFlow', blocks);
+                },
+                log: '✅ RX-PCS处理完成，干净的MAC帧传递给MAC层',
+                explanation: '<strong>RX路径总结:</strong><br>' +
+                    '1. PMA层 → 接收物理信号<br>' +
+                    '2. FEC对齐标记检测 → 同步<br>' +
+                    '3. FEC解交织 → 恢复顺序<br>' +
+                    '4. FEC RS解码 → 纠错<br>' +
+                    '5. FEC符号解映射 → 转66-bit块<br>' +
+                    '6. PCS解扰 → 恢复数据<br>' +
+                    '7. PCS 64B/66B解码 → 提取数据<br>' +
+                    '8. ⭐PCS前导码检测 → 找到前导码<br>' +
+                    '9. ⭐PCS前导码剥离 → 移除前导码<br>' +
+                    '10. PCS IPG处理 → 剥离IPG' +
+                    (state.llrEnabled ? '，提取LLR控制' : '') + '<br>' +
+                    '11. MAC层 → 接收纯MAC帧<br>' +
+                    '<br><strong>⚠️ 前导码在步骤9被剥离，MAC层看不到！</strong>',
+                duration: 2500
+            }
+        ];
+
+        // ==================== 辅助函数 ====================
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const time = new Date();
+            const timeStr = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}:${String(time.getSeconds()).padStart(2, '0')}.${String(time.getMilliseconds()).padStart(3, '0')}`;
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="log-time">[${timeStr}]</span><span>${message}</span>`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // 限制日志数量
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        function updateModule(elementId, content) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = content;
+                
+                // 激活模块
+                const module = element.closest('.sub-module');
+                if (module) {
+                    document.querySelectorAll('.sub-module').forEach(m => {
+                        m.classList.remove('active');
+                        const dot = m.querySelector('.status-dot');
+                        if (dot) dot.classList.remove('active');
+                    });
+                    
+                    module.classList.add('active');
+                    const dot = module.querySelector('.status-dot');
+                    if (dot) dot.classList.add('active');
+                }
+            }
+        }
+
+        function updateDataFlow(containerId, blocks) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            container.innerHTML = '';
+            blocks.forEach((block, index) => {
+                const div = document.createElement('div');
+                div.className = `data-block ${block.class}`;
+                div.textContent = block.text;
+                div.title = block.text;
+                container.appendChild(div);
+                
+                // 动画效果
+                setTimeout(() => {
+                    div.classList.add('animated');
+                }, index * 50);
+            });
+        }
+
+        function updateBitstream(elementId, content) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = content;
+            }
+        }
+
+        function updateExplanation(text) {
+            const element = document.getElementById('detailExplanation');
+            if (element) {
+                element.innerHTML = text;
+            }
+        }
+
+        function updateStatusValue(itemId, value) {
+            const item = document.getElementById(itemId);
+            if (item) {
+                const valueEl = item.querySelector('.status-value');
+                if (valueEl) valueEl.textContent = value;
+            }
+        }
+
+        function updateProgress(current, total) {
+            const progressBar = document.getElementById('progressBar');
+            const stepInfo = document.getElementById('stepInfo');
+            const percentage = Math.round((current / total) * 100);
+            
+            if (progressBar) {
+                progressBar.style.width = percentage + '%';
+                progressBar.textContent = percentage + '%';
+            }
+            
+            if (stepInfo) {
+                stepInfo.textContent = `步骤 ${current}/${total} - ${percentage}%`;
+            }
+        }
+
+        function highlightFields(fieldIds) {
+            // 清除所有高亮
+            document.querySelectorAll('.packet-field').forEach(field => {
+                field.classList.remove('highlight');
+            });
+            
+            // 添加新高亮
+            if (fieldIds && fieldIds.length > 0) {
+                fieldIds.forEach(id => {
+                    const field = document.getElementById(id);
+                    if (field) {
+                        field.classList.add('highlight');
+                    }
+                });
+            }
+        }
+
+        function highlightLayers(layerIds) {
+            // 清除所有高亮
+            document.querySelectorAll('.encoding-layer').forEach(layer => {
+                layer.classList.remove('active');
+            });
+            
+            // 添加新高亮
+            if (layerIds && layerIds.length > 0) {
+                layerIds.forEach(id => {
+                    const layer = document.getElementById(id);
+                    if (layer) {
+                        layer.classList.add('active');
+                    }
+                });
+            }
+        }
+
+        // ==================== 动画执行 ====================
+        async function executeStep(stepIndex) {
+            const steps = state.mode === 'tx' ? txSteps : rxSteps;
+            
+            if (stepIndex >= steps.length) {
+                addLog('✅ 所有步骤完成', 'success');
+                state.running = false;
+                updateStatusValue('statusState', '已完成');
+                updateProgress(steps.length, steps.length);
+                return;
+            }
+            
+            const step = steps[stepIndex];
+            state.currentStep = stepIndex;
+            
+            // 更新状态
+            updateStatusValue('statusStep', `${stepIndex + 1}/${steps.length}`);
+            updateStatusValue('statusState', state.paused ? '已暂停' : '运行中');
+            updateProgress(stepIndex + 1, steps.length);
+            
+            // 执行动作
+            if (typeof step.action === 'function') {
+                step.action();
+            }
+            
+            // 高亮报文字段
+            if (step.highlightFields) {
+                highlightFields(step.highlightFields);
+            }
+            
+            // 高亮编码层次
+            if (step.highlightLayers) {
+                highlightLayers(step.highlightLayers);
+            }
+            
+            // 添加日志
+            if (step.log) {
+                const log = typeof step.log === 'function' ? step.log() : step.log;
+                addLog(log, 'info');
+            }
+            
+            // 更新说明
+            if (step.explanation) {
+                const explanation = typeof step.explanation === 'function' ? step.explanation() : step.explanation;
+                updateExplanation(explanation);
+            }
+            
+            // 等待（如果是自动模式）
+            if (state.autoStep && state.running) {
+                const duration = (step.duration || 1500) * state.speed;
+                await new Promise(resolve => setTimeout(resolve, duration));
+                
+                // 检查暂停
+                while (state.paused && state.running) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                // 继续下一步
+                if (state.running) {
+                    executeStep(stepIndex + 1);
+                }
+            }
+        }
+
+        function startAnimation() {
+            if (state.running) return;
+            
+            // 如果不是自动步进模式，需要启用它
+            if (!state.autoStep) {
+                document.getElementById('autoStep').checked = true;
+                state.autoStep = true;
+                addLog('💡 已自动启用"自动步进"模式', 'info');
+            }
+            
+            state.running = true;
+            state.paused = false;
+            state.currentStep = 0;
+            
+            updateStatusValue('statusState', '运行中');
+            addLog(`▶️ 开始${state.mode === 'tx' ? 'TX发送' : 'RX接收'}流程动画`, 'info');
+            executeStep(0);
+        }
+
+        function pauseAnimation() {
+            if (!state.running) return;
+            
+            state.paused = !state.paused;
+            updateStatusValue('statusState', state.paused ? '已暂停' : '运行中');
+            addLog(state.paused ? '⏸️ 动画已暂停' : '▶️ 动画继续', 'warning');
+        }
+
+        function stepAnimation() {
+            const steps = state.mode === 'tx' ? txSteps : rxSteps;
+            
+            if (!state.running) {
+                // 首次单步，初始化
+                state.running = true;
+                state.paused = true;
+                state.currentStep = 0;
+                updateStatusValue('statusState', '单步模式');
+                addLog('⏭️ 进入单步模式', 'info');
+            }
+            
+            // 执行当前步骤
+            executeStep(state.currentStep);
+            
+            // 准备下一步
+            state.currentStep++;
+            
+            if (state.currentStep >= steps.length) {
+                addLog('✅ 所有步骤完成', 'success');
+                state.running = false;
+                state.currentStep = 0;
+                updateStatusValue('statusState', '已完成');
+            }
+        }
+
+        function resetAnimation() {
+            state.running = false;
+            state.paused = false;
+            state.currentStep = 0;
+            
+            // 清空所有模块
+            document.querySelectorAll('.sub-module-content').forEach(el => {
+                el.textContent = '等待输入...';
+            });
+            
+            document.querySelectorAll('.sub-module').forEach(m => {
+                m.classList.remove('active');
+                const dot = m.querySelector('.status-dot');
+                if (dot) dot.classList.remove('active');
+            });
+            
+            updateDataFlow('pcsDataFlow', [{text: '等待数据...', class: ''}]);
+            updateDataFlow('fecDataFlow', [{text: '等待数据...', class: ''}]);
+            
+            updateBitstream('pcsBitstream', '等待数据...');
+            updateBitstream('fecBitstream', '等待数据...');
+            
+            updateExplanation('点击"开始播放"或"单步执行"启动动画...');
+            
+            const steps = state.mode === 'tx' ? txSteps : rxSteps;
+            updateStatusValue('statusStep', `0/${steps.length}`);
+            updateStatusValue('statusState', '就绪');
+            updateProgress(0, steps.length);
+            
+            // 清除高亮
+            highlightFields([]);
+            highlightLayers([]);
+            
+            // 清空日志
+            document.getElementById('logContainer').innerHTML = '';
+            addLog('🔄 系统已重置', 'info');
+        }
+
+        function switchMode(mode) {
+            if (state.running) {
+                addLog('⚠️ 请先停止当前动画', 'warning');
+                return;
+            }
+            
+            state.mode = mode;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            
+            // 更新状态卡片
+            updateStatusValue('statusMode', mode === 'tx' ? 'TX发送' : 'RX接收');
+            const steps = mode === 'tx' ? txSteps : rxSteps;
+            updateStatusValue('statusStep', `0/${steps.length}`);
+            state.totalSteps = steps.length;
+            updateProgress(0, steps.length);
+            
+            // 更新模块标题
+            if (mode === 'tx') {
+                document.getElementById('pcsModule1Title').textContent = '前导码生成器';
+                document.getElementById('pcsModule1Desc').textContent = 'Preamble Generator - 生成7字节0x55 + 1字节0xD5';
+                document.getElementById('pcsModule3Title').textContent = '64B/66B编码器';
+                document.getElementById('pcsModule3Desc').textContent = '64B/66B Encoder - 添加2-bit同步头';
+                document.getElementById('pcsModule4Title').textContent = '扰码器';
+                document.getElementById('pcsModule4Desc').textContent = 'Scrambler - 使频谱均匀分布';
+                
+                document.getElementById('fecModule1Title').textContent = '符号映射器';
+                document.getElementById('fecModule1Desc').textContent = 'Symbol Mapper - 将比特转换为符号';
+                document.getElementById('fecModule2Title').textContent = 'RS编码器';
+                document.getElementById('fecModule2Desc').textContent = 'Reed-Solomon Encoder - RS(544,514) 添加30个校验符号';
+                document.getElementById('fecModule3Title').textContent = '交织器';
+                document.getElementById('fecModule3Desc').textContent = 'Interleaver - 分散突发错误';
+                document.getElementById('fecModule4Title').textContent = '对齐标记插入器';
+                document.getElementById('fecModule4Desc').textContent = 'Alignment Marker - 每16384 blocks插入标记';
+            } else {
+                document.getElementById('pcsModule1Title').textContent = '前导码检测器';
+                document.getElementById('pcsModule1Desc').textContent = 'Preamble Detector - 检测并剥离前导码';
+                document.getElementById('pcsModule3Title').textContent = '64B/66B解码器';
+                document.getElementById('pcsModule3Desc').textContent = '64B/66B Decoder - 移除2-bit同步头';
+                document.getElementById('pcsModule4Title').textContent = '解扰器';
+                document.getElementById('pcsModule4Desc').textContent = 'Descrambler - 恢复原始数据';
+                
+                document.getElementById('fecModule1Title').textContent = '符号解映射器';
+                document.getElementById('fecModule1Desc').textContent = 'Symbol Demapper - 符号转换为比特';
+                document.getElementById('fecModule2Title').textContent = 'RS解码器';
+                document.getElementById('fecModule2Desc').textContent = 'Reed-Solomon Decoder - 检测并纠正错误';
+                document.getElementById('fecModule3Title').textContent = '解交织器';
+                document.getElementById('fecModule3Desc').textContent = 'De-interleaver - 恢复原始顺序';
+                document.getElementById('fecModule4Title').textContent = '对齐标记检测器';
+                document.getElementById('fecModule4Desc').textContent = 'Alignment Detector - 检测对齐标记';
+            }
+            
+            resetAnimation();
+            addLog(`切换到${mode === 'tx' ? 'TX发送' : 'RX接收'}模式`, 'info');
+        }
+
+        function toggleLLRMode() {
+            if (state.running) {
+                addLog('⚠️ 请先停止当前动画再切换LLR模式', 'warning');
+                document.getElementById('llrMode').checked = state.llrEnabled;
+                return;
+            }
+            
+            state.llrEnabled = document.getElementById('llrMode').checked;
+            updateStatusValue('statusLLR', state.llrEnabled ? 'LLR启用' : '关闭');
+            
+            // 显示/隐藏LLR报文格式
+            const llrDiagram = document.getElementById('llrPacketDiagram');
+            const statLLR = document.getElementById('stat-llr');
+            
+            if (state.llrEnabled) {
+                if (llrDiagram) llrDiagram.style.display = 'block';
+                if (statLLR) statLLR.style.display = 'flex';
+                addLog('⭐ LLR模式已启用', 'warning');
+            } else {
+                if (llrDiagram) llrDiagram.style.display = 'none';
+                if (statLLR) statLLR.style.display = 'none';
+                addLog('LLR模式已关闭', 'info');
+            }
+        }
+
+        // ==================== 事件监听 ====================
+        document.getElementById('btnStart').addEventListener('click', startAnimation);
+        document.getElementById('btnPause').addEventListener('click', pauseAnimation);
+        document.getElementById('btnStep').addEventListener('click', stepAnimation);
+        document.getElementById('btnReset').addEventListener('click', resetAnimation);
+        
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+        });
+        
+        document.getElementById('llrMode').addEventListener('change', toggleLLRMode);
+        
+        document.getElementById('autoStep').addEventListener('change', (e) => {
+            state.autoStep = e.target.checked;
+            addLog(`自动步进: ${state.autoStep ? '启用' : '关闭'}`, 'info');
+        });
+        
+        document.getElementById('speedSelect').addEventListener('change', (e) => {
+            state.speed = parseFloat(e.target.value);
+            const speedText = {
+                '3': '0.33x (慢)',
+                '2': '0.5x',
+                '1': '1x (正常)',
+                '0.5': '2x (快)',
+                '0.25': '4x (很快)'
+            };
+            addLog(`播放速度: ${speedText[e.target.value]}`, 'info');
+        });
+        
+        // ==================== 初始化 ====================
+        window.addEventListener('load', () => {
+            addLog('💡 提示: 点击"开始播放"查看完整流程，或使用"单步执行"逐步学习', 'info');
+            addLog('💡 提示: 切换TX/RX查看发送和接收路径', 'info');
+            addLog('💡 提示: 启用LLR模式查看增强功能', 'info');
+            addLog('💡 提示: 右侧报文格式面板会根据当前步骤高亮显示', 'info');
+            
+            // 设置初始状态
+            const steps = state.mode === 'tx' ? txSteps : rxSteps;
+            updateProgress(0, steps.length);
+        });
+    </script>
+</body>
+</html>
