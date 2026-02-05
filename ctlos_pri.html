@@ -346,9 +346,43 @@
                 padding: 20px;
             }
         }
+        .doc-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: rgba(30, 41, 59, 0.98); border-bottom: 1px solid #475569; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .doc-nav-back { color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 14px; }
+        .doc-nav-back:hover { color: #7dd3fc; }
+        .doc-nav-others { position: relative; }
+        .doc-nav-toggle { background: #475569; color: #e2e8f0; border: 1px solid #64748b; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .doc-nav-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 200px; background: #1e293b; border: 1px solid #475569; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); padding: 8px; max-height: 70vh; overflow-y: auto; }
+        .doc-nav-others:hover .doc-nav-dropdown { display: block; }
+        .doc-nav-dropdown a { display: block; padding: 8px 12px; color: #e2e8f0; text-decoration: none; font-size: 13px; border-radius: 4px; }
+        .doc-nav-dropdown a:hover { background: #334155; }
+        body.doc-nav-page { padding-top: 52px !important; }
     </style>
 </head>
-<body>
+<body class="doc-nav-page">
+    <nav class="doc-nav">
+        <a href="index.html" class="doc-nav-back">← 返回目录</a>
+        <div class="doc-nav-others">
+            <span class="doc-nav-toggle">其他页面 ▼</span>
+            <div class="doc-nav-dropdown">
+                <a href="index.html">目录</a>
+                <a href="LLR.html">LLR</a>
+                <a href="LLR_FLASH.html">LLR Flash</a>
+                <a href="LLR_REQUIRE.html">LLR 需求</a>
+                <a href="LLR_REQUIRE2.html">LLR 需求2</a>
+                <a href="LLR_PCS_MAC.HTML">LLR PCS/MAC</a>
+                <a href="LLR-module-detail.html">LLR 模块详情</a>
+                <a href="LLR%20状态机.html">LLR 状态机</a>
+                <a href="ctlos_pri.html">CtlOS 优先级</a>
+                <a href="PCS_MAC.HTML">PCS MAC</a>
+                <a href="前导码.html">前导码</a>
+                <a href="报文收发链路层物理层标准处理流程.html">报文收发流程</a>
+                <a href="报文数据发送字段变化.html">报文字段变化</a>
+                <a href="packet_66B.html">64/66B 报文演示</a>
+                <a href="SYNCE-module-detail.html">SYNCE 模块</a>
+                <a href="PRBS-module-detail.html">PRBS 模块</a>
+            </div>
+        </div>
+    </nav>
     <div class="container">
         <div class="header">
             <h1>⚡ CtlOS传输优先级详解</h1>

@@ -61,6 +61,97 @@
         .block-66.idle-2d .sync { background: #fbbf24; color: #78350f; }
         .block-66.ctlos { border-color: #a78bfa; background: rgba(167, 139, 250, 0.2); }
         .block-66.ctlos .sync { background: #fbbf24; color: #78350f; }
+        /* 混发流四类：标准前导码、LLR 前导、报文、IDLE 分别用不同颜色与模块 */
+        .block-66.mix-preamble { border-color: #14b8a6; background: rgba(20, 184, 166, 0.22); }
+        .block-66.mix-preamble .sync { background: #14b8a6; color: #0f766e; }
+        .block-66.mix-packet { border-color: #3b82f6; background: rgba(59, 130, 246, 0.22); }
+        .block-66.mix-packet .sync { background: #34d399; color: #064e3b; }
+        .block-66.mix-ctlos { border-color: #a78bfa; background: rgba(167, 139, 250, 0.28); }
+        .block-66.mix-ctlos .sync { background: #fbbf24; color: #78350f; }
+        .block-66.mix-idle { border-color: #eab308; background: rgba(234, 179, 8, 0.28); }
+        .block-66.mix-idle .sync { background: #f59e0b; color: #78350f; }
+        .block-66 .preamble-64 { font-size: 11px; color: #0f766e; }
+        .preamble-66-detail {
+            margin-top: 12px;
+            padding: 10px 12px;
+            background: rgba(52, 211, 153, 0.08);
+            border-radius: 8px;
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        .preamble-66-label { font-size: 12px; color: #94a3b8; margin-right: 4px; }
+        .block-66.preamble-64b { font-size: 11px; }
+        .sop-fig {
+            margin-top: 14px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 2px solid #34d399;
+            background: rgba(52, 211, 153, 0.08);
+        }
+        .sop-fig-title { font-size: 12px; font-weight: 700; color: #34d399; margin-bottom: 10px; }
+        .sop-fig-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+        .sop-fig-row:last-child { margin-bottom: 0; }
+        .sop-fig-label { font-size: 11px; color: #94a3b8; min-width: 48px; }
+        .sop-fig-block { padding: 6px 10px; border-radius: 6px; border: 2px solid #34d399; background: rgba(52, 211, 153, 0.15); font-family: Consolas, monospace; font-size: 11px; font-weight: 600; }
+        .llr-preamble-fig {
+            margin-top: 18px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            border: 2px dashed #a78bfa;
+            background: rgba(15, 23, 42, 0.9);
+        }
+        .llr-preamble-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #e9d5ff;
+            margin-bottom: 8px;
+        }
+        .llr-preamble-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .llr-preamble-row:last-child { margin-bottom: 0; }
+        .llr-preamble-label {
+            font-size: 11px;
+            color: #94a3b8;
+            min-width: 72px;
+        }
+        .llr-preamble-note {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        .preamble-compare {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px dashed #64748b;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .preamble-compare-col {
+            flex: 1;
+            min-width: 210px;
+        }
+        .preamble-compare-title {
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .preamble-compare-title.std { color: #34d399; }
+        .preamble-compare-title.llr { color: #a78bfa; }
+        .preamble-compare-text {
+            font-size: 11px;
+            color: #cbd5e1;
+            line-height: 1.7;
+        }
 
         .section {
             margin-bottom: 32px;
@@ -183,9 +274,43 @@
             border-radius: 4px;
             border: 2px solid;
         }
+        .doc-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: rgba(30, 41, 59, 0.98); border-bottom: 1px solid #475569; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .doc-nav-back { color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 14px; }
+        .doc-nav-back:hover { color: #7dd3fc; }
+        .doc-nav-others { position: relative; }
+        .doc-nav-toggle { background: #475569; color: #e2e8f0; border: 1px solid #64748b; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .doc-nav-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 200px; background: #1e293b; border: 1px solid #475569; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); padding: 8px; max-height: 70vh; overflow-y: auto; }
+        .doc-nav-others:hover .doc-nav-dropdown { display: block; }
+        .doc-nav-dropdown a { display: block; padding: 8px 12px; color: #e2e8f0; text-decoration: none; font-size: 13px; border-radius: 4px; }
+        .doc-nav-dropdown a:hover { background: #334155; }
+        body.doc-nav-page { padding-top: 52px !important; }
     </style>
 </head>
-<body>
+<body class="doc-nav-page">
+    <nav class="doc-nav">
+        <a href="index.html" class="doc-nav-back">← 返回目录</a>
+        <div class="doc-nav-others">
+            <span class="doc-nav-toggle">其他页面 ▼</span>
+            <div class="doc-nav-dropdown">
+                <a href="index.html">目录</a>
+                <a href="LLR.html">LLR</a>
+                <a href="LLR_FLASH.html">LLR Flash</a>
+                <a href="LLR_REQUIRE.html">LLR 需求</a>
+                <a href="LLR_REQUIRE2.html">LLR 需求2</a>
+                <a href="LLR_PCS_MAC.HTML">LLR PCS/MAC</a>
+                <a href="LLR-module-detail.html">LLR 模块详情</a>
+                <a href="LLR%20状态机.html">LLR 状态机</a>
+                <a href="ctlos_pri.html">CtlOS 优先级</a>
+                <a href="PCS_MAC.HTML">PCS MAC</a>
+                <a href="前导码.html">前导码</a>
+                <a href="报文收发链路层物理层标准处理流程.html">报文收发流程</a>
+                <a href="报文数据发送字段变化.html">报文字段变化</a>
+                <a href="packet_66B.html">64/66B 报文演示</a>
+                <a href="SYNCE-module-detail.html">SYNCE 模块</a>
+                <a href="PRBS-module-detail.html">PRBS 模块</a>
+            </div>
+        </div>
+    </nav>
     <div class="container">
         <h1>64/66B 报文格式转换演示</h1>
         <p class="subtitle">正常报文、IDLE、CtlOS 统一对比 · 每 66B 一块色框 · 支持三种报文混发</p>
@@ -196,8 +321,8 @@
             <div class="section-body">
                 <div class="desc-box">
                     <strong>说明：</strong>
-                    <span class="tag" style="background:#34d399;color:#064e3b">SOP</span> 报文起始：同步头 <strong>10</strong> + 块类型 <strong>0x78</strong>（Start），替代前导码首字节，含前导码剩余 6B。
-                    <span class="tag" style="background:#38bdf8;color:#1e3a5f">Data</span> 数据块：同步头 <strong>01</strong> + 64 bit 数据（MAC 帧体）。
+                    <span class="tag" style="background:#34d399;color:#064e3b">SOP</span> 报文起始：同步头 <strong>10</strong> + 块类型 <strong>0x78</strong>（Start），64b 载荷为 Start 字符（/S/）加上前导码的一部分（0x55×6 + 0xD5）。<strong>前导码和 MAC 帧内容不在同一个 66B 块中</strong>。
+                    <span class="tag" style="background:#38bdf8;color:#1e3a5f">Data</span> 数据块：同步头 <strong>01</strong> + 64 bit 数据（MAC 帧体：DA/SA/Type/Payload/FCS 等）。
                     <span class="tag" style="background:#22c55e;color:#052e16">EOP</span> 报文结束：同步头 <strong>10</strong> + 块类型 <strong>0x87</strong>（Terminate），含 FCS 与帧结束。其后常跟 IDLE 填充 IPG。
                 </div>
                 <div class="flow-row">
@@ -213,11 +338,39 @@
                     <div class="panel" style="flex: 2;">
                         <div class="panel-title">66B 输出（每格一个 66-bit 块）</div>
                         <div class="blocks-row" id="blocks-normal">
-                            <span class="block-66 packet-sop"><span class="sync">10</span> 0x78 SOP+前导</span>
-                            <span class="block-66 packet-data"><span class="sync">01</span> 64b Data</span>
+                            <span class="block-66 packet-sop" title="Start块：10+0x78+64b(/S/+前导码部分)，MAC帧在后续Data块"><span class="sync">10</span> 0x78 <span class="preamble-64">Start+前导</span></span>
+                            <span class="block-66 packet-data" title="Data块：01+64b(MAC帧：DA/SA/Type/Payload/FCS等)"><span class="sync">01</span> 64b MAC帧</span>
                             <span class="block-66 packet-data"><span class="sync">01</span> 64b Data</span>
                             <span class="block-66 packet-eop"><span class="sync">10</span> 0x87 EOP+FCS</span>
                             <span class="block-66 idle-1e"><span class="sync">10</span> 0x1E IDLE</span>
+                        </div>
+                        <div class="preamble-66-detail">
+                            <span class="preamble-66-label">Start块（0x78）内容：</span>
+                            <span class="block-66 packet-sop"><span class="sync">10</span></span>
+                            <span class="block-66 packet-sop"><span class="sync">0x78</span></span>
+                            <span class="block-66 packet-sop preamble-64b">/S/ + 前导码部分</span>
+                            <span style="color: #94a3b8; font-size: 11px; margin-left: 8px;">（MAC帧在后续Data块中）</span>
+                        </div>
+                        <div class="sop-fig">
+                            <div class="sop-fig-title">SOP 图示（Start of Packet，报文起始 66B 块）</div>
+                            <div class="sop-fig-row">
+                                <span class="sop-fig-label">66b 块</span>
+                                <span class="sop-fig-block">2b 同步头</span>
+                                <span class="sop-fig-block">8b 块类型</span>
+                                <span class="sop-fig-block">64b 载荷</span>
+                            </div>
+                            <div class="sop-fig-row">
+                                <span class="sop-fig-label">取值</span>
+                                <span class="sop-fig-block">10</span>
+                                <span class="sop-fig-block">0x78</span>
+                                <span class="sop-fig-block">/S/ + 0x55×6 + 0xD5</span>
+                            </div>
+                            <div class="sop-fig-row">
+                                <span class="sop-fig-label">含义</span>
+                                <span style="font-size: 11px; color: #94a3b8;">控制块</span>
+                                <span style="font-size: 11px; color: #94a3b8;">Start</span>
+                                <span style="font-size: 11px; color: #94a3b8;">Start 字符 + 前导码剩余 + SFD</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -277,32 +430,70 @@
                         </div>
                     </div>
                 </div>
+                <div class="llr-preamble-fig">
+                    <div class="llr-preamble-title">LLR 链路控制握手序列示意（CtlOS 报文，区别于物理层前导码）</div>
+                    <div class="llr-preamble-row">
+                        <span class="llr-preamble-label">典型 66B 流</span>
+                        <span class="block-66 idle-1e"><span class="sync">10</span> 0x1E IDLE</span>
+                        <span class="block-66 ctlos" title="LLR INIT CtlOS"><span class="sync">10</span> 0x4B LLR INIT</span>
+                        <span class="block-66 idle-1e"><span class="sync">10</span> 0x1E IDLE</span>
+                        <span class="block-66 ctlos" title="LLR INIT_ECHO CtlOS"><span class="sync">10</span> 0x4B INIT_ECHO</span>
+                        <span class="block-66 ctlos" title="LLR ACK CtlOS"><span class="sync">10</span> 0x4B ACK</span>
+                        <span class="block-66 packet-sop" title="第一个数据帧的 SOP Start块"><span class="sync">10</span> 0x78 SOP</span>
+                    </div>
+                    <div class="llr-preamble-row">
+                        <span class="llr-preamble-label">含义</span>
+                        <span class="llr-preamble-note">
+                            LLR 利用 CtlOS INIT/INIT_ECHO/ACK 在正式数据帧 <strong>SOP</strong> 之前建立可靠链路，
+                            以太网 8B 前导码本身仍由 SOP Start 块携带（见上文 SOP 图示），
+                            两者是不同层次的“前导”概念，不应混淆。
+                        </span>
+                    </div>
+                </div>
+                <div class="preamble-compare">
+                    <div class="preamble-compare-col">
+                        <div class="preamble-compare-title std">标准前导码（物理层 Preamble）</div>
+                        <div class="preamble-compare-text">
+                            • 位置：每个以太网数据帧之前，固定 8B：0x55×7 + 0xD5。<br>
+                            • 承载：被 PCS 打包进一个 <strong>SOP Start(0x78)</strong> 控制块的 64b 载荷中（见上方 SOP 图示）。<br>
+                            • 作用：帮助收发两端完成时钟锁定、字节对齐，是 IEEE 802.3 定义的物理层前导码。
+                        </div>
+                    </div>
+                    <div class="preamble-compare-col">
+                        <div class="preamble-compare-title llr">LLR “前导”序列（链路控制握手）</div>
+                        <div class="preamble-compare-text">
+                            • 位置：链路建立 / 恢复时，在若干个 <strong>CtlOS</strong> 控制块中发送，如 INIT / INIT_ECHO / ACK 等。<br>
+                            • 承载：使用 Sync=10、Type=0x4B 的 66B 控制块，不改变以太网物理前导码的格式。<br>
+                            • 作用：在 MAC/LLR 层建立可靠链路，是 UEC LLR 规范定义的控制报文序列，与 8B 物理前导码职责不同。
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- 四、三种报文混发 -->
+        <!-- 四、四种序列混发（标准前导码 + LLR 前导 + 报文 + IDLE） -->
         <div class="section">
-            <div class="section-header mixed">四、三种报文混发（同一链路时序）</div>
+            <div class="section-header mixed">四、四种报文/序列混发（同一链路时序）</div>
             <div class="section-body">
                 <div class="desc-box">
                     <strong>说明：</strong>
-                    同一链路上时间顺序可交替出现：正常报文（SOP→Data→EOP）、IDLE 填充、CtlOS 控制消息。例如：一段数据帧后跟 IPG IDLE，再插入 CtlOS（如 LLR ACK），再发下一帧。下面为示例 66B 块流（每框一个 66-bit 块）。
+                    同一链路上时间顺序可交替出现四类：<strong>标准前导码</strong>（SOP Start 块携带 8B Preamble）、<strong>LLR 前导序列</strong>（CtlOS INIT/ACK 握手）、<strong>正常报文</strong>（SOP→Data→EOP）、<strong>IDLE</strong> 填充 IPG。下面为示例 66B 块流（每框一个 66-bit 块）。
                 </div>
                 <div class="mixed-stream">
                     <div class="stream-label">66B 块流（从左到右为时间顺序）</div>
                     <div class="blocks-row" id="blocks-mixed">
-                        <span class="block-66 packet-sop"><span class="sync">10</span> 0x78 SOP</span>
-                        <span class="block-66 packet-data"><span class="sync">01</span> Data</span>
-                        <span class="block-66 packet-data"><span class="sync">01</span> Data</span>
-                        <span class="block-66 packet-eop"><span class="sync">10</span> 0x87 EOP</span>
-                        <span class="block-66 idle-1e"><span class="sync">10</span> 0x1E IDLE</span>
-                        <span class="block-66 idle-1e"><span class="sync">10</span> 0x1E IDLE</span>
-                        <span class="block-66 ctlos"><span class="sync">10</span> 0x4B CtlOS</span>
-                        <span class="block-66 idle-1e"><span class="sync">10</span> 0x1E IDLE</span>
-                        <span class="block-66 packet-sop"><span class="sync">10</span> 0x78 SOP</span>
-                        <span class="block-66 packet-data"><span class="sync">01</span> Data</span>
-                        <span class="block-66 packet-eop"><span class="sync">10</span> 0x87 EOP</span>
-                        <span class="block-66 idle-1e"><span class="sync">10</span> 0x1E IDLE</span>
+                        <span class="block-66 mix-preamble" title="标准前导码：PCS 64/66B Start块 0x78，携带 8B Preamble"><span class="sync">10</span> 0x78 标准前导</span>
+                        <span class="block-66 mix-packet" title="报文：PCS Data块 MAC帧"><span class="sync">01</span> 报文</span>
+                        <span class="block-66 mix-packet" title="报文：PCS Data块 MAC帧"><span class="sync">01</span> 报文</span>
+                        <span class="block-66 mix-packet" title="报文：PCS Term块 EOP+FCS"><span class="sync">10</span> 0x87 EOP</span>
+                        <span class="block-66 mix-idle" title="IDLE：PCS IPG/IDLE 0x1E"><span class="sync">10</span> 0x1E IDLE</span>
+                        <span class="block-66 mix-idle" title="IDLE：PCS IPG/IDLE 0x1E"><span class="sync">10</span> 0x1E IDLE</span>
+                        <span class="block-66 mix-ctlos" title="LLR 前导：PCS CtlOS块 0x4B（如 INIT / ACK）"><span class="sync">10</span> 0x4B LLR前导</span>
+                        <span class="block-66 mix-idle" title="IDLE：PCS IPG/IDLE 0x1E"><span class="sync">10</span> 0x1E IDLE</span>
+                        <span class="block-66 mix-preamble" title="标准前导码：PCS 64/66B Start块 0x78，携带 8B Preamble"><span class="sync">10</span> 0x78 标准前导</span>
+                        <span class="block-66 mix-packet" title="报文：PCS Data块 MAC帧"><span class="sync">01</span> 报文</span>
+                        <span class="block-66 mix-packet" title="报文：PCS Term块 EOP+FCS"><span class="sync">10</span> 0x87 EOP</span>
+                        <span class="block-66 mix-idle" title="IDLE：PCS IPG/IDLE 0x1E"><span class="sync">10</span> 0x1E IDLE</span>
                     </div>
                 </div>
             </div>
@@ -311,14 +502,12 @@
         <button class="play-btn" id="playBtn">▶ 播放混发动画</button>
 
         <div class="legend">
-            <div class="legend-title">图例（每框 = 一个 66-bit 块：2b 同步头 + 64b 载荷）</div>
+            <div class="legend-title">图例（混发流：前导码 / 报文 / CtlOS / IDLE 对应模块与颜色）</div>
             <div class="legend-grid">
-                <div class="legend-item"><span class="legend-box" style="border-color:#34d399;background:rgba(52,211,153,0.2)"></span> SOP (0x78)</div>
-                <div class="legend-item"><span class="legend-box" style="border-color:#38bdf8;background:rgba(56,189,248,0.2)"></span> Data (01)</div>
-                <div class="legend-item"><span class="legend-box" style="border-color:#22c55e;background:rgba(34,197,94,0.2)"></span> EOP (0x87)</div>
-                <div class="legend-item"><span class="legend-box" style="border-color:#eab308;background:rgba(234,179,8,0.2)"></span> IDLE (0x1E)</div>
-                <div class="legend-item"><span class="legend-box" style="border-color:#f59e0b;background:rgba(245,158,11,0.2)"></span> IDLE (0x2D)</div>
-                <div class="legend-item"><span class="legend-box" style="border-color:#a78bfa;background:rgba(167,139,250,0.2)"></span> CtlOS (0x4B)</div>
+                <div class="legend-item"><span class="legend-box legend-preamble" style="border-color:#14b8a6;background:rgba(20,184,166,0.22)"></span> <strong>前导码</strong> PCS 64/66B Start块 (0x78)</div>
+                <div class="legend-item"><span class="legend-box legend-packet" style="border-color:#3b82f6;background:rgba(59,130,246,0.22)"></span> <strong>报文</strong> PCS 64/66B Data/EOP (01, 0x87)</div>
+                <div class="legend-item"><span class="legend-box legend-ctlos" style="border-color:#a78bfa;background:rgba(167,139,250,0.28)"></span> <strong>CtlOS</strong> PCS CtlOS块 (0x4B)</div>
+                <div class="legend-item"><span class="legend-box legend-idle" style="border-color:#eab308;background:rgba(234,179,8,0.28)"></span> <strong>IDLE</strong> PCS IPG/IDLE (0x1E)</div>
             </div>
         </div>
     </div>

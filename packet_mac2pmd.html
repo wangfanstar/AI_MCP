@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAC 到 SerDes TX 报文格式变换</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #1e3a5f 100%);
+            padding: 24px;
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        h1 { text-align: center; font-size: 1.85rem; margin-bottom: 8px; color: #f8fafc; }
+        .subtitle { text-align: center; color: #94a3b8; font-size: 0.95rem; margin-bottom: 24px; }
+        .block-66 {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 2px solid;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 11px;
+            font-weight: 600;
+            margin: 3px;
+        }
+        .block-66 .sync { padding: 2px 5px; border-radius: 4px; }
+        .block-66.packet-sop { border-color: #34d399; background: rgba(52, 211, 153, 0.15); }
+        .block-66.packet-sop .sync { background: #34d399; color: #064e3b; }
+        .block-66.packet-data { border-color: #38bdf8; background: rgba(56, 189, 248, 0.12); }
+        .block-66.packet-data .sync { background: #34d399; color: #064e3b; }
+        .block-66.packet-eop { border-color: #22c55e; background: rgba(34, 197, 94, 0.15); }
+        .block-66.packet-eop .sync { background: #fbbf24; color: #78350f; }
+        .block-66.idle-1e { border-color: #eab308; background: rgba(234, 179, 8, 0.2); }
+        .block-66.idle-1e .sync { background: #fbbf24; color: #78350f; }
+        .block-scrambled { border-color: #c084fc; background: rgba(192, 132, 252, 0.2); color: #e9d5ff; }
+        .block-fec { border-color: #f472b6; background: rgba(244, 114, 182, 0.2); color: #fce7f3; }
+        .block-pam4 { border-color: #fb923c; background: rgba(251, 146, 60, 0.2); color: #fff7ed; }
+        .block-am { border-color: #2dd4bf; background: rgba(45, 212, 191, 0.25); color: #0f766e; font-weight: 700; }
+        .block-am.inserting { animation: amInsert 0.6s ease-out; }
+        @keyframes amInsert {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .byte-block {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 2px solid #64748b;
+            font-family: Consolas, monospace;
+            font-size: 11px;
+            margin: 3px;
+            background: rgba(100, 116, 139, 0.25);
+        }
+        .byte-block.preamble { border-color: #fbbf24; background: rgba(251, 191, 36, 0.2); }
+        .byte-block.mac { border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); }
+        .byte-block.fcs { border-color: #f472b6; background: rgba(244, 114, 182, 0.2); }
+        .pipeline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 12px; margin-bottom: 20px; }
+        .stage {
+            flex: 1;
+            min-width: 180px;
+            border-radius: 12px;
+            border: 2px solid #475569;
+            background: rgba(30, 41, 59, 0.8);
+            overflow: hidden;
+        }
+        .stage-header {
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #f8fafc;
+            border-bottom: 1px solid #475569;
+        }
+        .stage.mac .stage-header { background: linear-gradient(90deg, rgba(56, 189, 248, 0.3), transparent); }
+        .stage.enc66 .stage-header { background: linear-gradient(90deg, rgba(52, 211, 153, 0.3), transparent); }
+        .stage.scramble .stage-header { background: linear-gradient(90deg, rgba(192, 132, 252, 0.3), transparent); }
+        .stage.am .stage-header { background: linear-gradient(90deg, rgba(45, 212, 191, 0.35), transparent); }
+        .stage.fec .stage-header { background: linear-gradient(90deg, rgba(244, 114, 182, 0.3), transparent); }
+        .stage.pma .stage-header { background: linear-gradient(90deg, rgba(251, 146, 60, 0.3), transparent); }
+        .stage.pam4 .stage-header { background: linear-gradient(90deg, rgba(251, 113, 133, 0.3), transparent); }
+        .stage-body { padding: 12px 14px; }
+        .lane-row {
+            margin-bottom: 14px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(51, 65, 85, 0.4);
+            border: 1px solid #475569;
+        }
+        .lane-row:last-child { margin-bottom: 0; }
+        .lane-label { font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; }
+        .blocks-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+        .arrow-stage { flex-shrink: 0; display: flex; align-items: center; color: #64748b; font-size: 24px; }
+        .arrow-stage.anim { animation: arrowPulse 1s ease-in-out infinite; }
+        @keyframes arrowPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        .desc-box {
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.7;
+            color: #cbd5e1;
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid #475569;
+        }
+        .desc-box strong { color: #f8fafc; }
+        .desc-box .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; margin-right: 6px; font-size: 12px; }
+        .play-btn {
+            display: block;
+            margin: 24px auto 0;
+            padding: 12px 32px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 15px;
+            box-shadow: 0 4px 14px rgba(102, 126, 234, 0.45);
+        }
+        .play-btn:hover { transform: translateY(-2px); }
+        .play-btn:disabled { background: #475569; cursor: not-allowed; transform: none; }
+        .legend { margin-top: 28px; padding: 18px; border-radius: 10px; background: rgba(51, 65, 85, 0.6); border: 1px solid #475569; font-size: 12px; color: #94a3b8; }
+        .legend-title { font-weight: 700; color: #e2e8f0; margin-bottom: 10px; }
+        .legend-grid { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .legend-box { width: 24px; height: 16px; border-radius: 4px; border: 2px solid; }
+        .stage.highlight { border-color: #38bdf8; box-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
+        .am-demo { padding: 16px; margin-top: 16px; border-radius: 10px; background: rgba(15, 23, 42, 0.5); border: 2px dashed #2dd4bf; }
+        .am-demo-title { font-size: 12px; color: #94a3b8; margin-bottom: 10px; }
+        .am-demo .blocks-row { justify-content: center; }
+        .am-demo .block-am { min-width: 70px; justify-content: center; }
+        body.doc-nav-page { padding-top: 52px !important; }
+        .doc-nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; background: rgba(30, 41, 59, 0.98); border-bottom: 1px solid #475569; }
+        .doc-nav-back { color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 14px; }
+        .doc-nav-back:hover { color: #7dd3fc; }
+        .doc-nav-others { position: relative; }
+        .doc-nav-toggle { background: #475569; color: #e2e8f0; border: 1px solid #64748b; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .doc-nav-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; min-width: 200px; background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 8px; max-height: 70vh; overflow-y: auto; }
+        .doc-nav-others:hover .doc-nav-dropdown { display: block; }
+        .doc-nav-dropdown a { display: block; padding: 8px 12px; color: #e2e8f0; text-decoration: none; font-size: 13px; border-radius: 4px; }
+        .doc-nav-dropdown a:hover { background: #334155; }
+    </style>
+</head>
+<body class="doc-nav-page">
+    <nav class="doc-nav">
+        <a href="index.html" class="doc-nav-back">← 返回目录</a>
+        <div class="doc-nav-others">
+            <span class="doc-nav-toggle">其他页面 ▼</span>
+            <div class="doc-nav-dropdown">
+                <a href="index.html">目录</a>
+                <a href="LLR.html">LLR</a>
+                <a href="LLR_FLASH.html">LLR Flash</a>
+                <a href="LLR_REQUIRE.html">LLR 需求</a>
+                <a href="LLR_REQUIRE2.html">LLR 需求2</a>
+                <a href="LLR_PCS_MAC.HTML">LLR PCS/MAC</a>
+                <a href="LLR-module-detail.html">LLR 模块详情</a>
+                <a href="LLR%20状态机.html">LLR 状态机</a>
+                <a href="ctlos_pri.html">CtlOS 优先级</a>
+                <a href="PCS_MAC.HTML">PCS MAC</a>
+                <a href="前导码.html">前导码</a>
+                <a href="报文收发链路层物理层标准处理流程.html">报文收发流程</a>
+                <a href="报文数据发送字段变化.html">报文字段变化</a>
+                <a href="packet_66B.html">64/66B 报文演示</a>
+                <a href="packet_mac2pmd.html">MAC→SerDes TX</a>
+                <a href="SYNCE-module-detail.html">SYNCE 模块</a>
+                <a href="PRBS-module-detail.html">PRBS 模块</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>芯片内部 MAC 到 SerDes TX 报文格式变换</h1>
+        <p class="subtitle">双 Lane，MAC 经 64/66B、扰码、FEC、后续处理到 PAM4 电光</p>
+        <div class="desc-box">
+            <strong>说明：</strong>
+            MAC 输出字节流（前导码、DA/SA、Payload、FCS）经
+            <span class="tag" style="background:#34d399;color:#064e3b">64/66B</span> 编码为 66-bit 块，
+            <span class="tag" style="background:#c084fc;color:#3b0764">扰码</span>（G(x)=1+x39+x58），
+            <span class="tag" style="background:#2dd4bf;color:#0f766e">AM 对齐标记</span>（每 16383 个 66b 块插入 1 个 AM，用于 RX Lane 对齐），
+            <span class="tag" style="background:#f472b6;color:#831843">FEC</span>（RS(544,514)）生成码字，
+            再经并串与
+            <span class="tag" style="background:#fb923c;color:#431407">PAM4</span> 电信号/光模块驱动输出到 SerDes TX。两条 Lane 独立并行。
+        </div>
+        <div class="pipeline" id="pipeline">
+            <div class="stage mac" data-stage="0">
+                <div class="stage-header">1. MAC 输出</div>
+                <div class="stage-body">
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 0</div>
+                        <div class="blocks-row">
+                            <span class="byte-block preamble">Preamble</span>
+                            <span class="byte-block mac">DA/SA</span>
+                            <span class="byte-block mac">Payload</span>
+                            <span class="byte-block fcs">FCS</span>
+                        </div>
+                    </div>
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 1</div>
+                        <div class="blocks-row">
+                            <span class="byte-block preamble">Preamble</span>
+                            <span class="byte-block mac">DA/SA</span>
+                            <span class="byte-block mac">Payload</span>
+                            <span class="byte-block fcs">FCS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="arrow-stage anim">→</div>
+            <div class="stage enc66" data-stage="1">
+                <div class="stage-header">2. 64/66B 编码</div>
+                <div class="stage-body">
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 0</div>
+                        <div class="blocks-row">
+                            <span class="block-66 packet-sop"><span class="sync">10</span> 0x78</span>
+                            <span class="block-66 packet-data"><span class="sync">01</span> 64b</span>
+                            <span class="block-66 packet-eop"><span class="sync">10</span> 0x87</span>
+                            <span class="block-66 idle-1e"><span class="sync">10</span> 0x1E</span>
+                        </div>
+                    </div>
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 1</div>
+                        <div class="blocks-row">
+                            <span class="block-66 packet-sop"><span class="sync">10</span> 0x78</span>
+                            <span class="block-66 packet-data"><span class="sync">01</span> 64b</span>
+                            <span class="block-66 packet-eop"><span class="sync">10</span> 0x87</span>
+                            <span class="block-66 idle-1e"><span class="sync">10</span> 0x1E</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="arrow-stage anim">→</div>
+            <div class="stage scramble" data-stage="2">
+                <div class="stage-header">3. 扰码</div>
+                <div class="stage-body">
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 0</div>
+                        <div class="blocks-row">
+                            <span class="block-66 block-scrambled">10|扰码64b</span>
+                            <span class="block-66 block-scrambled">01|扰码64b</span>
+                            <span class="block-66 block-scrambled">10|扰码64b</span>
+                        </div>
+                    </div>
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 1</div>
+                        <div class="blocks-row">
+                            <span class="block-66 block-scrambled">10|扰码64b</span>
+                            <span class="block-66 block-scrambled">01|扰码64b</span>
+                            <span class="block-66 block-scrambled">10|扰码64b</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="arrow-stage anim">→</div>
+            <div class="stage fec" data-stage="3">
+                <div class="stage-header">4. FEC (RS)</div>
+                <div class="stage-body">
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 0</div>
+                        <div class="blocks-row">
+                            <span class="block-66 block-fec">514+30 码字</span>
+                            <span class="block-66 block-fec">514+30 码字</span>
+                        </div>
+                    </div>
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 1</div>
+                        <div class="blocks-row">
+                            <span class="block-66 block-fec">514+30 码字</span>
+                            <span class="block-66 block-fec">514+30 码字</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="arrow-stage anim">→</div>
+            <div class="stage pma" data-stage="4">
+                <div class="stage-header">5. 并串/映射</div>
+                <div class="stage-body">
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 0</div>
+                        <div class="blocks-row">
+                            <span class="block-66 block-pam4">10b-串</span>
+                            <span class="block-66 block-pam4">Symbol流</span>
+                        </div>
+                    </div>
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 1</div>
+                        <div class="blocks-row">
+                            <span class="block-66 block-pam4">10b-串</span>
+                            <span class="block-66 block-pam4">Symbol流</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="arrow-stage anim">→</div>
+            <div class="stage pam4" data-stage="5">
+                <div class="stage-header">6. PAM4 / SerDes TX</div>
+                <div class="stage-body">
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 0</div>
+                        <div class="blocks-row">
+                            <span class="block-66 block-pam4">+3</span>
+                            <span class="block-66 block-pam4">+1</span>
+                            <span class="block-66 block-pam4">-1</span>
+                            <span class="block-66 block-pam4">-3</span>
+                        </div>
+                    </div>
+                    <div class="lane-row">
+                        <div class="lane-label">Lane 1</div>
+                        <div class="blocks-row">
+                            <span class="block-66 block-pam4">+3</span>
+                            <span class="block-66 block-pam4">-1</span>
+                            <span class="block-66 block-pam4">+1</span>
+                            <span class="block-66 block-pam4">-3</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button class="play-btn" id="playBtn">播放格式变换动画</button>
+        <div class="legend">
+            <div class="legend-title">图例</div>
+            <div class="legend-grid">
+                <div class="legend-item"><span class="legend-box" style="border-color:#fbbf24;background:rgba(251,191,36,0.2)"></span> Preamble/MAC/FCS</div>
+                <div class="legend-item"><span class="legend-box" style="border-color:#34d399;background:rgba(52,211,153,0.2)"></span> 66b SOP/Data/EOP/IDLE</div>
+                <div class="legend-item"><span class="legend-box" style="border-color:#c084fc;background:rgba(192,132,252,0.2)"></span> 扰码后66b</div>
+                <div class="legend-item"><span class="legend-box" style="border-color:#f472b6;background:rgba(244,114,182,0.2)"></span> FEC码字</div>
+                <div class="legend-item"><span class="legend-box" style="border-color:#fb923c;background:rgba(251,146,60,0.2)"></span> PAM4 电平</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function() {
+            var playBtn = document.getElementById('playBtn');
+            var stages = document.querySelectorAll('#pipeline .stage');
+            playBtn.addEventListener('click', function() {
+                var idx = 0;
+                stages.forEach(function(s) { s.classList.remove('highlight'); });
+                playBtn.disabled = true;
+                playBtn.textContent = '播放中...';
+                function next() {
+                    if (idx > 0) stages[idx - 1].classList.remove('highlight');
+                    if (idx < stages.length) {
+                        stages[idx].classList.add('highlight');
+                        idx++;
+                        setTimeout(next, 900);
+                    } else {
+                        stages[stages.length - 1].classList.remove('highlight');
+                        playBtn.disabled = false;
+                        playBtn.textContent = '播放格式变换动画';
+                    }
+                }
+                next();
+            });
+        })();
+    </script>
+</body>
+</html>
