@@ -1,0 +1,1551 @@
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+<meta charset="UTF-8">  
+<meta name="viewport" content="width=device-width, initial-scale=1.0">  
+<title>Ultra Ethernet LLR 编码对比动画</title>  
+<style>  
+  :root {  
+    --bg-dark: #0a0e1a;  
+    --bg-card: #111827;  
+    --bg-card-hover: #1a2340;  
+    --border: #1e2d4a;  
+    --accent-blue: #3b82f6;  
+    --accent-cyan: #06b6d4;  
+    --accent-green: #10b981;  
+    --accent-orange: #f59e0b;  
+    --accent-red: #ef4444;  
+    --accent-purple: #8b5cf6;  
+    --accent-pink: #ec4899;  
+    --text-primary: #f1f5f9;  
+    --text-secondary: #94a3b8;  
+    --text-dim: #64748b;  
+  }  
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }  
+
+  body {  
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;  
+    background: var(--bg-dark);  
+    color: var(--text-primary);  
+    overflow-x: hidden;  
+    min-height: 100vh;  
+  }  
+
+  /* 背景网格 */  
+  body::before {  
+    content: '';  
+    position: fixed;  
+    top: 0; left: 0;  
+    width: 100%; height: 100%;  
+    background:  
+      linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),  
+      linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);  
+    background-size: 40px 40px;  
+    pointer-events: none;  
+    z-index: 0;  
+  }  
+
+  .container {  
+    max-width: 1400px;  
+    margin: 0 auto;  
+    padding: 30px 20px;  
+    position: relative;  
+    z-index: 1;  
+  }  
+
+  /* 标题区 */  
+  .header {  
+    text-align: center;  
+    margin-bottom: 40px;  
+  }  
+  .header h1 {  
+    font-size: 2em;  
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue), var(--accent-purple));  
+    -webkit-background-clip: text;  
+    -webkit-text-fill-color: transparent;  
+    margin-bottom: 8px;  
+    letter-spacing: 1px;  
+  }  
+  .header .subtitle {  
+    color: var(--text-secondary);  
+    font-size: 0.85em;  
+    font-weight: 300;  
+  }  
+
+  /* 控制面板 */  
+  .control-panel {  
+    display: flex;  
+    justify-content: center;  
+    gap: 12px;  
+    margin-bottom: 35px;  
+    flex-wrap: wrap;  
+  }  
+  .tab-btn {  
+    padding: 10px 24px;  
+    border: 1px solid var(--border);  
+    border-radius: 8px;  
+    background: var(--bg-card);  
+    color: var(--text-secondary);  
+    cursor: pointer;  
+    font-family: inherit;  
+    font-size: 0.82em;  
+    transition: all 0.3s ease;  
+    position: relative;  
+    overflow: hidden;  
+  }  
+  .tab-btn:hover {  
+    border-color: var(--accent-blue);  
+    color: var(--text-primary);  
+    background: var(--bg-card-hover);  
+  }  
+  .tab-btn.active {  
+    border-color: var(--accent-cyan);  
+    color: var(--accent-cyan);  
+    background: rgba(6,182,212,0.08);  
+    box-shadow: 0 0 20px rgba(6,182,212,0.15);  
+  }  
+  .tab-btn .badge {  
+    display: inline-block;  
+    padding: 1px 6px;  
+    border-radius: 4px;  
+    font-size: 0.7em;  
+    margin-left: 6px;  
+    vertical-align: middle;  
+  }  
+  .badge-ieee { background: rgba(16,185,129,0.15); color: var(--accent-green); }  
+  .badge-ue { background: rgba(139,92,246,0.15); color: var(--accent-purple); }  
+
+  /* 主展示区 */  
+  .display-area {  
+    display: none;  
+    animation: fadeSlide 0.5s ease;  
+  }  
+  .display-area.active { display: block; }  
+
+  @keyframes fadeSlide {  
+    from { opacity: 0; transform: translateY(20px); }  
+    to { opacity: 1; transform: translateY(0); }  
+  }  
+
+  /* 编码层级可视化 */  
+  .encoding-stack {  
+    display: grid;  
+    grid-template-columns: 1fr;  
+    gap: 20px;  
+    margin-bottom: 30px;  
+  }  
+
+  .layer-card {  
+    background: var(--bg-card);  
+    border: 1px solid var(--border);  
+    border-radius: 12px;  
+    padding: 20px 24px;  
+    position: relative;  
+    overflow: hidden;  
+  }  
+  .layer-card::before {  
+    content: '';  
+    position: absolute;  
+    top: 0; left: 0; right: 0;  
+    height: 2px;  
+    border-radius: 12px 12px 0 0;  
+  }  
+  .layer-card.layer-xmii::before { background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); }  
+  .layer-card.layer-pcs::before { background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); }  
+  .layer-card.layer-serial::before { background: linear-gradient(90deg, var(--accent-orange), var(--accent-red)); }  
+
+  .layer-label {  
+    font-size: 0.7em;  
+    text-transform: uppercase;  
+    letter-spacing: 2px;  
+    color: var(--text-dim);  
+    margin-bottom: 12px;  
+    display: flex;  
+    align-items: center;  
+    gap: 8px;  
+  }  
+  .layer-label .dot {  
+    width: 8px; height: 8px;  
+    border-radius: 50%;  
+    display: inline-block;  
+  }  
+  .dot-green { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }  
+  .dot-blue { background: var(--accent-blue); box-shadow: 0 0 8px var(--accent-blue); }  
+  .dot-orange { background: var(--accent-orange); box-shadow: 0 0 8px var(--accent-orange); }  
+
+  /* 字节容器 */  
+  .byte-row {  
+    display: flex;  
+    gap: 4px;  
+    flex-wrap: wrap;  
+    align-items: flex-end;  
+    margin: 10px 0;  
+  }  
+  .byte-cell {  
+    display: flex;  
+    flex-direction: column;  
+    align-items: center;  
+    gap: 4px;  
+    min-width: 68px;  
+    opacity: 0;  
+    animation: byteAppear 0.4s ease forwards;  
+  }  
+  .byte-cell .label {  
+    font-size: 0.55em;  
+    color: var(--text-dim);  
+    white-space: nowrap;  
+  }  
+  .byte-cell .value {  
+    padding: 8px 10px;  
+    border-radius: 6px;  
+    font-size: 0.85em;  
+    font-weight: 600;  
+    text-align: center;  
+    min-width: 58px;  
+    border: 1px solid transparent;  
+    transition: all 0.3s ease;  
+    position: relative;  
+  }  
+  .byte-cell .value:hover {  
+    transform: translateY(-3px);  
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);  
+  }  
+  .byte-cell .sublabel {  
+    font-size: 0.5em;  
+    color: var(--text-dim);  
+    white-space: nowrap;  
+    max-width: 80px;  
+    text-align: center;  
+  }  
+
+  /* 不同颜色主题 */  
+  .v-ctrl { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3) !important; color: #fca5a5; }  
+  .v-data { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.3) !important; color: #93c5fd; }  
+  .v-preamble { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3) !important; color: #6ee7b7; }  
+  .v-seq { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3) !important; color: #fcd34d; }  
+  .v-sync { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.3) !important; color: #c4b5fd; }  
+  .v-block { background: rgba(236,72,153,0.12); border-color: rgba(236,72,153,0.3) !important; color: #f9a8d4; }  
+  .v-ocode { background: rgba(6,182,212,0.12); border-color: rgba(6,182,212,0.3) !important; color: #67e8f9; }  
+  .v-type { background: rgba(251,146,60,0.12); border-color: rgba(251,146,60,0.3) !important; color: #fdba74; }  
+  .v-fcs { background: rgba(148,163,184,0.12); border-color: rgba(148,163,184,0.3) !important; color: #cbd5e1; }  
+  .v-term { background: rgba(220,38,38,0.12); border-color: rgba(220,38,38,0.3) !important; color: #fca5a5; }  
+  .v-idle { background: rgba(71,85,105,0.12); border-color: rgba(71,85,105,0.3) !important; color: #94a3b8; }  
+  .v-poison { background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.6) !important; color: #fca5a5; }  
+  .v-highlight {  
+    animation: pulseGlow 2s ease-in-out infinite;  
+  }  
+
+  @keyframes byteAppear {  
+    from { opacity: 0; transform: translateY(10px) scale(0.9); }  
+    to { opacity: 1; transform: translateY(0) scale(1); }  
+  }  
+
+  @keyframes pulseGlow {  
+    0%, 100% { box-shadow: 0 0 5px rgba(6,182,212,0.3); }  
+    50% { box-shadow: 0 0 20px rgba(6,182,212,0.6), 0 0 40px rgba(6,182,212,0.2); }  
+  }  
+
+  /* 连接箭头 */  
+  .arrow-down {  
+    text-align: center;  
+    padding: 8px 0;  
+    color: var(--text-dim);  
+    font-size: 1.2em;  
+    position: relative;  
+  }  
+  .arrow-down::before {  
+    content: '';  
+    display: block;  
+    width: 2px;  
+    height: 20px;  
+    background: linear-gradient(to bottom, var(--border), var(--text-dim));  
+    margin: 0 auto 4px;  
+  }  
+
+  /* 对比注释 */  
+  .annotation {  
+    margin-top: 12px;  
+    padding: 12px 16px;  
+    background: rgba(59,130,246,0.05);  
+    border-left: 3px solid var(--accent-blue);  
+    border-radius: 0 8px 8px 0;  
+    font-size: 0.75em;  
+    color: var(--text-secondary);  
+    line-height: 1.7;  
+  }  
+  .annotation strong { color: var(--accent-cyan); }  
+  .annotation .red { color: var(--accent-red); }  
+  .annotation .green { color: var(--accent-green); }  
+  .annotation .orange { color: var(--accent-orange); }  
+
+  /* 对比视图 */  
+  .comparison-grid {  
+    display: grid;  
+    grid-template-columns: 1fr 1fr;  
+    gap: 20px;  
+    margin-bottom: 25px;  
+  }  
+  @media (max-width: 900px) {  
+    .comparison-grid { grid-template-columns: 1fr; }  
+  }  
+
+  .compare-card {  
+    background: var(--bg-card);  
+    border: 1px solid var(--border);  
+    border-radius: 12px;  
+    padding: 20px;  
+    position: relative;  
+  }  
+  .compare-card .tag {  
+    display: inline-block;  
+    padding: 3px 10px;  
+    border-radius: 20px;  
+    font-size: 0.65em;  
+    font-weight: 600;  
+    margin-bottom: 12px;  
+    letter-spacing: 1px;  
+  }  
+  .tag-ieee { background: rgba(16,185,129,0.15); color: var(--accent-green); border: 1px solid rgba(16,185,129,0.3); }  
+  .tag-ue { background: rgba(139,92,246,0.15); color: var(--accent-purple); border: 1px solid rgba(139,92,246,0.3); }  
+  .compare-card h3 {  
+    font-size: 0.95em;  
+    margin-bottom: 15px;  
+    color: var(--text-primary);  
+  }  
+
+  /* 流水线动画 */  
+  .pipeline-demo {  
+    background: var(--bg-card);  
+    border: 1px solid var(--border);  
+    border-radius: 12px;  
+    padding: 24px;  
+    margin-bottom: 25px;  
+    overflow: hidden;  
+  }  
+  .pipeline-demo h3 {  
+    font-size: 0.9em;  
+    color: var(--text-secondary);  
+    margin-bottom: 16px;  
+  }  
+
+  .pipeline-stage {  
+    display: flex;  
+    align-items: center;  
+    gap: 12px;  
+    margin: 8px 0;  
+    padding: 10px;  
+    border-radius: 8px;  
+    font-size: 0.78em;  
+    transition: all 0.5s ease;  
+    position: relative;  
+    min-height: 44px;  
+  }  
+  .pipeline-stage .clock {  
+    min-width: 36px;  
+    font-weight: 700;  
+    color: var(--text-dim);  
+    font-size: 0.85em;  
+  }  
+  .pipeline-stage .content {  
+    flex: 1;  
+    display: flex;  
+    align-items: center;  
+    gap: 8px;  
+    flex-wrap: wrap;  
+  }  
+  .pipeline-stage .status {  
+    padding: 2px 8px;  
+    border-radius: 4px;  
+    font-size: 0.85em;  
+    font-weight: 600;  
+  }  
+  .status-active { background: rgba(16,185,129,0.15); color: var(--accent-green); }  
+  .status-wait { background: rgba(245,158,11,0.15); color: var(--accent-orange); }  
+  .status-done { background: rgba(59,130,246,0.15); color: var(--accent-blue); }  
+  .status-bad { background: rgba(239,68,68,0.15); color: var(--accent-red); }  
+
+  .pipeline-stage.stage-highlight {  
+    background: rgba(6,182,212,0.06);  
+    border: 1px solid rgba(6,182,212,0.2);  
+  }  
+  .pipeline-stage.stage-dim {  
+    opacity: 0.4;  
+  }  
+
+  /* 动态数据流 */  
+  .data-flow {  
+    background: var(--bg-card);  
+    border: 1px solid var(--border);  
+    border-radius: 12px;  
+    padding: 24px;  
+    margin-bottom: 25px;  
+    position: relative;  
+    overflow: hidden;  
+  }  
+  .data-flow h3 {  
+    font-size: 0.9em;  
+    color: var(--text-secondary);  
+    margin-bottom: 16px;  
+  }  
+
+  .flow-track {  
+    position: relative;  
+    height: 60px;  
+    background: rgba(15,23,42,0.6);  
+    border-radius: 8px;  
+    margin: 10px 0;  
+    overflow: hidden;  
+    border: 1px solid rgba(30,45,74,0.5);  
+  }  
+  .flow-track .track-label {  
+    position: absolute;  
+    left: 10px;  
+    top: 50%;  
+    transform: translateY(-50%);  
+    font-size: 0.65em;  
+    color: var(--text-dim);  
+    z-index: 2;  
+    pointer-events: none;  
+  }  
+
+  .flow-packet {  
+    position: absolute;  
+    top: 10px;  
+    height: 40px;  
+    border-radius: 6px;  
+    display: flex;  
+    align-items: center;  
+    justify-content: center;  
+    font-size: 0.65em;  
+    font-weight: 600;  
+    white-space: nowrap;  
+    transition: left 1s linear;  
+    padding: 0 8px;  
+    min-width: 60px;  
+  }  
+  .pkt-data {  
+    background: rgba(59,130,246,0.2);  
+    border: 1px solid rgba(59,130,246,0.4);  
+    color: #93c5fd;  
+  }  
+  .pkt-ctlos {  
+    background: rgba(236,72,153,0.25);  
+    border: 1px solid rgba(236,72,153,0.5);  
+    color: #f9a8d4;  
+    animation: ctlosPulse 1.5s ease-in-out infinite;  
+  }  
+  .pkt-preamble {  
+    background: rgba(16,185,129,0.2);  
+    border: 1px solid rgba(16,185,129,0.4);  
+    color: #6ee7b7;  
+  }  
+  .pkt-idle {  
+    background: rgba(71,85,105,0.2);  
+    border: 1px solid rgba(71,85,105,0.4);  
+    color: #94a3b8;  
+  }  
+  .pkt-seqos {  
+    background: rgba(245,158,11,0.2);  
+    border: 1px solid rgba(245,158,11,0.4);  
+    color: #fcd34d;  
+  }  
+
+  @keyframes ctlosPulse {  
+    0%, 100% { box-shadow: 0 0 5px rgba(236,72,153,0.3); }  
+    50% { box-shadow: 0 0 15px rgba(236,72,153,0.5); }  
+  }  
+
+  /* Hamming 距离可视化 */  
+  .hamming-visual {  
+    background: var(--bg-card);  
+    border: 1px solid var(--border);  
+    border-radius: 12px;  
+    padding: 24px;  
+    margin-bottom: 25px;  
+  }  
+  .hamming-visual h3 {  
+    font-size: 0.9em;  
+    color: var(--text-secondary);  
+    margin-bottom: 16px;  
+  }  
+
+  .bit-compare-row {  
+    display: flex;  
+    align-items: center;  
+    gap: 6px;  
+    margin: 10px 0;  
+    padding: 10px;  
+    border-radius: 8px;  
+    background: rgba(15,23,42,0.5);  
+    flex-wrap: wrap;  
+  }  
+  .bit-compare-row .row-label {  
+    min-width: 100px;  
+    font-size: 0.72em;  
+    color: var(--text-dim);  
+    font-weight: 600;  
+  }  
+  .bit-box {  
+    width: 38px;  
+    height: 38px;  
+    display: flex;  
+    align-items: center;  
+    justify-content: center;  
+    border-radius: 6px;  
+    font-size: 0.9em;  
+    font-weight: 700;  
+    transition: all 0.5s ease;  
+  }  
+  .bit-same {  
+    background: rgba(71,85,105,0.2);  
+    border: 1px solid rgba(71,85,105,0.3);  
+    color: var(--text-dim);  
+  }  
+  .bit-diff {  
+    background: rgba(239,68,68,0.2);  
+    border: 1px solid rgba(239,68,68,0.5);  
+    color: var(--accent-red);  
+    animation: bitFlash 2s ease-in-out infinite;  
+  }  
+  @keyframes bitFlash {  
+    0%, 100% { box-shadow: 0 0 4px rgba(239,68,68,0.3); }  
+    50% { box-shadow: 0 0 16px rgba(239,68,68,0.6); }  
+  }  
+  .hamming-result {  
+    display: inline-block;  
+    margin-left: 12px;  
+    padding: 4px 12px;  
+    border-radius: 20px;  
+    font-size: 0.72em;  
+    font-weight: 700;  
+  }  
+  .hd-1 { background: rgba(245,158,11,0.15); color: var(--accent-orange); }  
+  .hd-2 { background: rgba(16,185,129,0.15); color: var(--accent-green); }  
+  .hd-3 { background: rgba(59,130,246,0.15); color: var(--accent-blue); }  
+
+  /* O-code 表格 */  
+  .ocode-table {  
+    width: 100%;  
+    border-collapse: separate;  
+    border-spacing: 0;  
+    font-size: 0.78em;  
+    margin: 10px 0;  
+  }  
+  .ocode-table th {  
+    padding: 10px 14px;  
+    text-align: left;  
+    color: var(--text-dim);  
+    border-bottom: 1px solid var(--border);  
+    font-weight: 600;  
+    font-size: 0.9em;  
+    text-transform: uppercase;  
+    letter-spacing: 1px;  
+  }  
+  .ocode-table td {  
+    padding: 10px 14px;  
+    border-bottom: 1px solid rgba(30,45,74,0.3);  
+    color: var(--text-secondary);  
+  }  
+  .ocode-table tr:hover td {  
+    background: rgba(59,130,246,0.03);  
+  }  
+  .ocode-table tr.row-highlight td {  
+    background: rgba(6,182,212,0.06);  
+    color: var(--accent-cyan);  
+    font-weight: 600;  
+  }  
+  .ocode-table .code {  
+    font-weight: 700;  
+    font-family: inherit;  
+  }  
+
+  /* 时序图 */  
+  .timing-diagram {  
+    background: var(--bg-card);  
+    border: 1px solid var(--border);  
+    border-radius: 12px;  
+    padding: 24px;  
+    margin-bottom: 25px;  
+  }  
+  .timing-diagram h3 {  
+    font-size: 0.9em;  
+    color: var(--text-secondary);  
+    margin-bottom: 16px;  
+  }  
+
+  .timing-row {  
+    display: flex;  
+    align-items: center;  
+    margin: 6px 0;  
+    font-size: 0.75em;  
+  }  
+  .timing-row .t-label {  
+    min-width: 90px;  
+    color: var(--text-dim);  
+    font-weight: 600;  
+  }  
+  .timing-row .t-bar {  
+    flex: 1;  
+    display: flex;  
+    gap: 2px;  
+    align-items: center;  
+  }  
+  .t-segment {  
+    height: 30px;  
+    display: flex;  
+    align-items: center;  
+    justify-content: center;  
+    border-radius: 4px;  
+    font-size: 0.85em;  
+    font-weight: 600;  
+    transition: all 0.3s ease;  
+    white-space: nowrap;  
+    padding: 0 6px;  
+  }  
+  .t-segment:hover {  
+    transform: scaleY(1.15);  
+  }  
+
+  /* 底部信息 */  
+  .footer-info {  
+    text-align: center;  
+    padding: 30px 0;  
+    color: var(--text-dim);  
+    font-size: 0.7em;  
+    border-top: 1px solid var(--border);  
+    margin-top: 40px;  
+  }  
+
+  /* 折叠面板 */  
+  .collapsible { cursor: pointer; }  
+  .collapsible:hover { background: var(--bg-card-hover); }  
+
+  /* 动画延迟工具 */  
+  .byte-cell:nth-child(1) { animation-delay: 0.05s; }  
+  .byte-cell:nth-child(2) { animation-delay: 0.1s; }  
+  .byte-cell:nth-child(3) { animation-delay: 0.15s; }  
+  .byte-cell:nth-child(4) { animation-delay: 0.2s; }  
+  .byte-cell:nth-child(5) { animation-delay: 0.25s; }  
+  .byte-cell:nth-child(6) { animation-delay: 0.3s; }  
+  .byte-cell:nth-child(7) { animation-delay: 0.35s; }  
+  .byte-cell:nth-child(8) { animation-delay: 0.4s; }  
+  .byte-cell:nth-child(9) { animation-delay: 0.45s; }  
+  .byte-cell:nth-child(10) { animation-delay: 0.5s; }  
+
+  /* 速度控制 */  
+  .speed-control {  
+    display: flex;  
+    align-items: center;  
+    justify-content: center;  
+    gap: 12px;  
+    margin-bottom: 20px;  
+    font-size: 0.75em;  
+    color: var(--text-dim);  
+  }  
+  .speed-btn {  
+    padding: 4px 12px;  
+    border: 1px solid var(--border);  
+    border-radius: 6px;  
+    background: var(--bg-card);  
+    color: var(--text-secondary);  
+    cursor: pointer;  
+    font-family: inherit;  
+    font-size: 1em;  
+    transition: all 0.2s;  
+  }  
+  .speed-btn.active-speed {  
+    border-color: var(--accent-green);  
+    color: var(--accent-green);  
+    background: rgba(16,185,129,0.08);  
+  }  
+
+  .section-divider {  
+    height: 1px;  
+    background: linear-gradient(90deg, transparent, var(--border), transparent);  
+    margin: 30px 0;  
+  }  
+
+  .legend {  
+    display: flex;  
+    flex-wrap: wrap;  
+    gap: 12px;  
+    margin: 16px 0;  
+    padding: 12px;  
+    background: rgba(15,23,42,0.5);  
+    border-radius: 8px;  
+    font-size: 0.7em;  
+  }  
+  .legend-item {  
+    display: flex;  
+    align-items: center;  
+    gap: 6px;  
+    color: var(--text-secondary);  
+  }  
+  .legend-color {  
+    width: 14px;  
+    height: 14px;  
+    border-radius: 3px;  
+  }  
+
+  /* 64B/66B 块可视化 */  
+  .block-visual {  
+    position: relative;  
+    padding: 16px;  
+    margin: 12px 0;  
+    border: 1px solid var(--border);  
+    border-radius: 10px;  
+    background: rgba(15,23,42,0.4);  
+  }  
+  .block-visual .block-header {  
+    display: flex;  
+    align-items: center;  
+    gap: 6px;  
+    margin-bottom: 10px;  
+    font-size: 0.72em;  
+    color: var(--text-dim);  
+  }  
+  .block-bits {  
+    display: flex;  
+    gap: 2px;  
+    flex-wrap: wrap;  
+  }  
+  .bit-group {  
+    display: flex;  
+    flex-direction: column;  
+    align-items: center;  
+    gap: 3px;  
+  }  
+  .bit-group .bg-label {  
+    font-size: 0.55em;  
+    color: var(--text-dim);  
+  }  
+  .bit-group .bg-value {  
+    padding: 6px 8px;  
+    border-radius: 4px;  
+    font-size: 0.8em;  
+    font-weight: 600;  
+    min-width: 36px;  
+    text-align: center;  
+  }  
+
+  .vs-badge {  
+    display: flex;  
+    align-items: center;  
+    justify-content: center;  
+    width: 40px;  
+    height: 40px;  
+    border-radius: 50%;  
+    background: rgba(245,158,11,0.1);  
+    border: 2px solid rgba(245,158,11,0.3);  
+    color: var(--accent-orange);  
+    font-weight: 800;  
+    font-size: 0.8em;  
+    margin: 0 auto;  
+    align-self: center;  
+  }  
+</style>  
+</head>  
+<body>  
+
+<div class="container">  
+
+  <!-- 标题 -->  
+  <div class="header">  
+    <h1>⚡ Ultra Ethernet LLR 编码对比动画</h1>  
+    <div class="subtitle">PCS 64B/66B · xMII 控制字符映射 · O-code 设计分析 — 基于 Ultra Ethernet Specification v1.0</div>  
+  </div>  
+
+  <!-- 速度控制 -->  
+  <div class="speed-control">  
+    <span>动画速度：</span>  
+    <button class="speed-btn" onclick="setSpeed(0.5)">0.5×</button>  
+    <button class="speed-btn active-speed" onclick="setSpeed(1)">1×</button>  
+    <button class="speed-btn" onclick="setSpeed(2)">2×</button>  
+    <button class="speed-btn" onclick="setSpeed(3)">3×</button>  
+  </div>  
+
+  <!-- Tab 控制 -->  
+  <div class="control-panel">  
+    <button class="tab-btn active" onclick="switchTab('std-preamble')">  
+      标准前导码 <span class="badge badge-ieee">IEEE</span>  
+    </button>  
+    <button class="tab-btn" onclick="switchTab('llr-preamble')">  
+      LLR 前导码 <span class="badge badge-ue">UE</span>  
+    </button>  
+    <button class="tab-btn" onclick="switchTab('seq-os')">  
+      序列有序集 0x9C <span class="badge badge-ieee">IEEE</span>  
+    </button>  
+    <button class="tab-btn" onclick="switchTab('ctl-os')">  
+      控制有序集 0x5C <span class="badge badge-ue">UE</span>  
+    </button>  
+    <button class="tab-btn" onclick="switchTab('side-by-side')">  
+      ⚡ 0x9C vs 0x5C 对比  
+    </button>  
+    <button class="tab-btn" onclick="switchTab('hamming')">  
+      Hamming 距离分析  
+    </button>  
+    <button class="tab-btn" onclick="switchTab('pipeline')">  
+      流水线时序对比  
+    </button>  
+    <button class="tab-btn" onclick="switchTab('data-flow')">  
+      数据流动画  
+    </button>  
+  </div>  
+
+  <!-- ========== TAB 1: 标准以太网前导码 ========== -->  
+  <div id="tab-std-preamble" class="display-area active">  
+    <div class="encoding-stack">  
+
+      <div class="layer-card layer-xmii">  
+        <div class="layer-label"><span class="dot dot-green"></span> xMII 接口层 — 标准以太网前导码 (8 Bytes)</div>  
+        <div class="byte-row" id="std-preamble-xmii"></div>  
+        <div class="annotation">  
+          <strong>IEEE 802.3 标准前导码</strong>：7 字节 0x55 + 1 字节 SFD (0xD5)。<br>  
+          所有字节为 <strong>数据字节</strong>（TXC = 0），RS 层不做特殊处理。不携带任何 LLR 元数据。  
+        </div>  
+      </div>  
+
+      <div class="arrow-down">▼</div>  
+
+      <div class="layer-card layer-pcs">  
+        <div class="layer-label"><span class="dot dot-blue"></span> PCS 64B/66B 编码 — 数据块 (Data Block)</div>  
+        <div class="block-visual">  
+          <div class="block-header">66-bit Block Structure</div>  
+          <div class="block-bits" id="std-preamble-pcs"></div>  
+        </div>  
+        <div class="annotation">  
+          Sync Header = <strong>01</strong>（标识为纯数据块）。<br>  
+          64-bit payload = 8 字节数据原样映射，无块类型字段，无 O-code。编码开销：66/64 = <strong>3.125%</strong>  
+        </div>  
+      </div>  
+
+      <div class="arrow-down">▼</div>  
+
+      <div class="layer-card layer-serial">  
+        <div class="layer-label"><span class="dot dot-orange"></span> SerDes 串行化输出</div>  
+        <div class="timing-row" style="margin-top: 8px;">  
+          <div class="t-label">66-bit:</div>  
+          <div class="t-bar" id="std-preamble-serial"></div>  
+        </div>  
+        <div class="annotation">  
+          66 位顺序发出，在 100Gb/s/lane 下耗时约 <strong>0.66 ns</strong>。  
+        </div>  
+      </div>  
+
+    </div>  
+  </div>  
+
+  <!-- ========== TAB 2: LLR 前导码 ========== -->  
+  <div id="tab-llr-preamble" class="display-area">  
+    <div class="encoding-stack">  
+
+      <div class="layer-card layer-xmii">  
+        <div class="layer-label"><span class="dot dot-green"></span> xMII 接口层 — UE LLR 前导码 (8 Bytes)</div>  
+        <div class="byte-row" id="llr-preamble-xmii"></div>  
+        <div class="annotation">  
+          <strong>UE LLR 前导码改造</strong>：<br>  
+          • Byte 0: <span class="red">0xFB</span> — LLR Start 标识（控制字符，TXC[0]=1）<br>  
+          • Byte 1: <strong>0x07</strong> — LLR-eligible 标识（区分普通帧）<br>  
+          • Byte 1[7:4] + Byte 2 + Byte 3: <span class="orange">20-bit frame_seq 序列号</span><br>  
+          • 20-bit 空间 (0~1,048,575) 可覆盖 800Gbps 下 >500μs RTT  
+        </div>  
+      </div>  
+
+      <div class="arrow-down">▼</div>  
+
+      <div class="layer-card layer-pcs">  
+        <div class="layer-label"><span class="dot dot-blue"></span> PCS 64B/66B 编码 — 起始控制块 (Start Block)</div>  
+        <div class="block-visual">  
+          <div class="block-header">66-bit Block Structure — Block Type 0x78 (Start)</div>  
+          <div class="block-bits" id="llr-preamble-pcs"></div>  
+        </div>  
+        <div class="annotation">  
+          Sync Header = <strong>10</strong>（控制块）。Block Type = <strong>0x78</strong>（IEEE 标准 Start-of-Frame）。<br>  
+          但 payload 中嵌入了 LLR 元数据：<strong>0xFB + 0x07 + 20-bit seq</strong>，对 PCS 层 <strong>透明</strong> — PCS 不解析 LLR 语义。  
+        </div>  
+      </div>  
+
+    </div>  
+  </div>  
+
+  <!-- ========== TAB 3: 序列有序集 0x9C ========== -->  
+  <div id="tab-seq-os" class="display-area">  
+    <div class="encoding-stack">  
+
+      <div class="layer-card layer-xmii">  
+        <div class="layer-label"><span class="dot dot-green"></span> xMII 接口层 — IEEE 序列有序集 (Sequence Ordered Set)</div>  
+        <div class="byte-row" id="seq-os-xmii"></div>  
+        <div class="annotation">  
+          <strong>IEEE 802.3 Clause 82 — Sequence OS</strong>：<br>  
+          • Lane 0: <span class="red">0x9C</span>（控制字符，TXC[0]=1）— RS 层识别为序列有序集<br>  
+          • Lane 1-3: 序列号或标识数据<br>  
+          • Lane 4-7: 填充或扩展数据<br>  
+          用于 PCS 层序列号同步和链路状态通告。  
+        </div>  
+      </div>  
+
+      <div class="arrow-down">▼</div>  
+
+      <div class="layer-card layer-pcs">  
+        <div class="layer-label"><span class="dot dot-blue"></span> PCS 64B/66B 编码 — O-code 控制块</div>  
+        <div class="block-visual">  
+          <div class="block-header">66-bit Block — Block Type 0x4B + O-code 0x0</div>  
+          <div class="block-bits" id="seq-os-pcs"></div>  
+        </div>  
+        <div class="annotation">  
+          Sync = <strong>10</strong>，Block Type = <strong>0x4B</strong>（O-code 型控制块），O-code = <strong class="green">0x0</strong>（IEEE 标准序列有序集）。<br>  
+          O-code 0x0 = 0000，这是 IEEE 分配的基准码点。  
+        </div>  
+      </div>  
+
+    </div>  
+  </div>  
+
+  <!-- ========== TAB 4: 控制有序集 0x5C ========== -->  
+  <div id="tab-ctl-os" class="display-area">  
+    <div class="encoding-stack">  
+
+      <div class="layer-card layer-xmii">  
+        <div class="layer-label"><span class="dot dot-green"></span> xMII 接口层 — UE LLR 控制有序集 (CtlOS)</div>  
+        <div class="byte-row" id="ctl-os-xmii"></div>  
+        <div class="annotation">  
+          <strong>UE LLR CtlOS — 控制平面信令</strong>：<br>  
+          • Lane 0: <span class="red">0x5C</span>（控制字符，TXC[0]=1）— RS 层<strong>一个周期</strong>即可判定为 CtlOS<br>  
+          • Lane 1: 消息类型（ACK=0x1, NACK=0x2, INIT=0x3, INIT_ECHO=0x4）<br>  
+          • Lane 2-4: <span class="orange">ack_nack_seq / last_good_seq / init_seq (20-bit)</span><br>  
+          • 带宽占用 < 0.5%（推荐间隔 2048 字节）  
+        </div>  
+      </div>  
+
+      <div class="arrow-down">▼</div>  
+
+      <div class="layer-card layer-pcs">  
+        <div class="layer-label"><span class="dot dot-blue"></span> PCS 64B/66B 编码 — UE 自定义 O-code 控制块</div>  
+        <div class="block-visual">  
+          <div class="block-header">66-bit Block — Block Type 0x4B + O-code 0x6 (UE LLR)</div>  
+          <div class="block-bits" id="ctl-os-pcs"></div>  
+        </div>  
+        <div class="annotation">  
+          Sync = <strong>10</strong>，Block Type = <strong>0x4B</strong>（同 IEEE O-code 块类型），O-code = <strong style="color: var(--accent-cyan);">0x6</strong>（UE 专用码点）。<br>  
+          与 O-code 0x0 的 Hamming 距离 = <strong class="green">2 bits</strong>，提供单比特翻转保护。<br>  
+          ⚡ 关键：Block Type 沿用 0x4B，意味着 <strong>对不支持 LLR 的设备，仅表现为一个未知 O-code 的有序集</strong> — 向后兼容。  
+        </div>  
+      </div>  
+
+    </div>  
+  </div>  
+
+  <!-- ========== TAB 5: 并排对比 ========== -->  
+  <div id="tab-side-by-side" class="display-area">  
+
+    <div class="comparison-grid">  
+      <div class="compare-card">  
+        <span class="tag tag-ieee">IEEE 802.3 — Sequence OS</span>  
+        <h3>0x9C → Block Type 0x4B + O-code 0x0</h3>  
+        <div class="byte-row" id="cmp-seq-xmii"></div>  
+        <div style="margin-top: 10px;">  
+          <div class="block-visual">  
+            <div class="block-header">64B/66B 编码输出</div>  
+            <div class="block-bits" id="cmp-seq-pcs"></div>  
+          </div>  
+        </div>  
+      </div>  
+
+      <div class="compare-card">  
+        <span class="tag tag-ue">UE LLR — CtlOS</span>  
+        <h3>0x5C → Block Type 0x4B + O-code 0x6</h3>  
+        <div class="byte-row" id="cmp-ctl-xmii"></div>  
+        <div style="margin-top: 10px;">  
+          <div class="block-visual">  
+            <div class="block-header">64B/66B 编码输出</div>  
+            <div class="block-bits" id="cmp-ctl-pcs"></div>  
+          </div>  
+        </div>  
+      </div>  
+    </div>  
+
+    <div class="annotation" style="border-left-color: var(--accent-orange);">  
+      <strong style="color: var(--accent-orange);">⚡ 核心差异总结：</strong><br><br>  
+      <strong>1. xMII Lane 0 控制字符</strong>：0x9C vs 0x5C — 不同的字节让 RS 层在 <strong>同一个时钟周期</strong> 就能区分两种有序集。<br>  
+      <strong>2. 64B/66B Block Type</strong>：两者都映射到 <strong>0x4B</strong> — 共享同一种控制块格式（O-code 块）。<br>  
+      <strong>3. O-code</strong>：0x0 (IEEE) vs 0x6 (UE) — Hamming 距离 = 2，单比特误码不会导致误判。<br>  
+      <strong>4. Payload 语义</strong>：IEEE 用于 PCS 同步；UE 用于 LLR ACK/NACK/INIT 控制信令。  
+    </div>  
+
+  </div>  
+
+  <!-- ========== TAB 6: Hamming 距离分析 ========== -->  
+  <div id="tab-hamming" class="display-area">  
+
+    <div class="hamming-visual">  
+      <h3>🔬 xMII 控制字符 Hamming 距离分析</h3>  
+
+      <div class="bit-compare-row">  
+        <div class="row-label">0x9C (Seq OS)</div>  
+        <div class="bit-box bit-diff" id="hb-9c-7">1</div>  
+        <div class="bit-box bit-same">0</div>  
+        <div class="bit-box bit-same">0</div>  
+        <div class="bit-box bit-same">1</div>  
+        <div class="bit-box bit-same">1</div>  
+        <div class="bit-box bit-same">1</div>  
+        <div class="bit-box bit-same">0</div>  
+        <div class="bit-box bit-same">0</div>  
+        <span class="hamming-result hd-1">HD = 1 bit (bit 7)</span>  
+      </div>  
+
+      <div class="bit-compare-row">  
+        <div class="row-label">0x5C (CtlOS)</div>  
+        <div class="bit-box bit-diff" id="hb-5c-7">0</div>  
+        <div class="bit-box bit-same">1</div>  
+        <div class="bit-box bit-same">0</div>  
+        <div class="bit-box bit-same">1</div>  
+        <div class="bit-box bit-same">1</div>  
+        <div class="bit-box bit-same">1</div>  
+        <div class="bit-box bit-same">0</div>  
+        <div class="bit-box bit-same">0</div>  
+        <span class="hamming-result hd-1">HD = 1 bit (bit 7)</span>  
+      </div>  
+
+      <div class="annotation">  
+        xMII Lane 0 的控制字符空间中，0x9C 和 0x5C 仅差 <strong class="red">1 bit</strong>。<br>  
+        但因为 RS 层在 <strong>TXC 信号有效时</strong> 直接按字节值查表译码，<strong>不存在误判可能</strong> — 单比特翻转会触发 FCS 错误而非类型误判。  
+      </div>  
+    </div>  
+
+    <div class="hamming-visual">  
+      <h3>🔬 O-code Hamming 距离矩阵</h3>  
+
+      <div class="bit-compare-row">  
+        <div class="row-label">O-code 0x0</div>  
+        <div class="bit-box bit-diff">0</div>  
+        <div class="bit-box bit-diff">0</div>  
+        <div class="bit-box bit-same">0</div>  
+        <div class="bit-box bit-same">0</div>  
+        <span class="hamming-result hd-2">HD(0x0, 0x6) = 2 bits ✅</span>  
+      </div>  
+
+      <div class="bit-compare-row">  
+        <div class="row-label" style="color: var(--accent-cyan); font-weight: 700;">O-code 0x6</div>  
+        <div class="bit-box bit-diff" style="border-color: rgba(6,182,212,0.5); color: var(--accent-cyan);">0</div>  
+        <div class="bit-box bit-diff" style="border-color: rgba(6,182,212,0.5); color: var(--accent-cyan);">1</div>  
+        <div class="bit-box bit-same">1</div>  
+        <div class="bit-box bit-same">0</div>  
+        <span class="hamming-result hd-2">单比特翻转安全 ✅</span>  
+      </div>  
+
+      <div style="margin-top: 16px;">  
+        <table class="ocode-table">  
+          <thead>  
+            <tr><th>O-code</th><th>二进制</th><th>HD(0x0)</th><th>HD(0x4)</th><th>HD(0x6)</th><th>用途</th><th>安全评级</th></tr>  
+          </thead>  
+          <tbody>  
+            <tr><td class="code">0x0</td><td>0000</td><td>—</td><td>1</td><td>2</td><td>IEEE Sequence OS</td><td>基准</td></tr>  
+            <tr><td class="code">0x1</td><td>0001</td><td>1</td><td>2</td><td>2</td><td>IEEE Signal OS</td><td>⚠️ HD(0x0)=1</td></tr>  
+            <tr><td class="code">0x2</td><td>0010</td><td>1</td><td>1</td><td>1</td><td>保留</td><td>❌ 多方向 HD=1</td></tr>  
+            <tr><td class="code">0x3</td><td>0011</td><td>2</td><td>1</td><td>2</td><td>保留</td><td>⚠️ HD(0x4)=1</td></tr>  
+            <tr><td class="code">0x4</td><td>0100</td><td>1</td><td>—</td><td>1</td><td>SOP Variant</td><td>⚠️ HD(0x0)=1</td></tr>  
+            <tr><td class="code">0x5</td><td>0101</td><td>2</td><td>1</td><td>2</td><td>保留</td><td>⚠️ HD(0x4)=1</td></tr>  
+            <tr class="row-highlight"><td class="code">0x6</td><td>0110</td><td><strong>2</strong></td><td><strong>2</strong></td><td>—</td><td><strong>UE LLR CtlOS</strong></td><td><strong>✅ 双向 HD≥2</strong></td></tr>  
+            <tr><td class="code">0x7</td><td>0111</td><td>3</td><td>3</td><td>1</td><td>预留（未来扩展）</td><td>✅ 最安全</td></tr>  
+          </tbody>  
+        </table>  
+      </div>  
+
+      <div class="annotation" style="border-left-color: var(--accent-green);">  
+        <strong class="green">O-code 0x6 的选择逻辑：</strong><br>  
+        • 与 <strong>0x0 (Sequence OS)</strong> 的 HD = 2 → 不会因单比特翻转误判为 IEEE 序列有序集<br>  
+        • 与 <strong>0x4 (SOP Variant)</strong> 的 HD = 2 → 不会误判为帧起始变体<br>  
+        • 0x6 是唯一一个对 <strong>所有已占用码点</strong> 都保持 HD ≥ 2 的可用值<br>  
+        • 0x7 虽更安全 (HD=3)，但被预留给 IEEE 未来标准扩展  
+      </div>  
+    </div>  
+  </div>  
+
+  <!-- ========== TAB 7: 流水线时序 ========== -->  
+  <div id="tab-pipeline" class="display-area">  
+
+    <div class="pipeline-demo">  
+      <h3>⏱ RS 层解析流水线：0x5C (单周期判定) vs 0x9C 复用方案 (双周期判定)</h3>  
+
+      <div style="margin-bottom: 20px;">  
+        <div style="font-size: 0.75em; color: var(--accent-green); margin-bottom: 10px; font-weight: 600;">  
+          ✅ 方案 A — 独立 0x5C（UE LLR 采用）  
+        </div>  
+        <div class="pipeline-stage stage-highlight" id="pipe-a-t0">  
+          <div class="clock">T0</div>  
+          <div class="content">  
+            <span>Lane 0 接收: </span>  
+            <span class="status status-active">0x5C 识别</span>  
+            <span style="color: var(--text-dim);">→ 立即确定为 CtlOS</span>  
+          </div>  
+        </div>  
+        <div class="pipeline-stage" id="pipe-a-t1">  
+          <div class="clock">T1</div>  
+          <div class="content">  
+            <span>解析 Lane 1-7: </span>  
+            <span class="status status-done">提取 LLR 信令</span>  
+            <span style="color: var(--text-dim);">→ ACK/NACK/seq 数据可用</span>  
+          </div>  
+        </div>  
+        <div class="pipeline-stage stage-dim" id="pipe-a-t2">  
+          <div class="clock">T2</div>  
+          <div class="content">  
+            <span class="status status-done">信令已就绪</span>  
+            <span style="color: var(--text-dim);">→ 可送入 LLR 状态机处理</span>  
+          </div>  
+        </div>  
+      </div>  
+
+      <div style="margin-bottom: 20px;">  
+        <div style="font-size: 0.75em; color: var(--accent-red); margin-bottom: 10px; font-weight: 600;">  
+          ❌ 方案 B — 复用 0x9C（被拒绝方案）  
+        </div>  
+        <div class="pipeline-stage" id="pipe-b-t0">  
+          <div class="clock">T0</div>  
+          <div class="content">  
+            <span>Lane 0 接收: </span>  
+            <span class="status status-wait">0x9C 接收</span>  
+            <span style="color: var(--text-dim);">→ 无法区分 Seq OS 还是 CtlOS</span>  
+          </div>  
+        </div>  
+        <div class="pipeline-stage" id="pipe-b-t1" style="background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); border-radius: 8px;">  
+          <div class="clock">T1</div>  
+          <div class="content">  
+            <span>解析 Lane 1 区分字段: </span>  
+            <span class="status status-bad">+1 时钟延迟</span>  
+            <span style="color: var(--accent-red);">→ 这里才能判定类型</span>  
+          </div>  
+        </div>  
+        <div class="pipeline-stage" id="pipe-b-t2">  
+          <div class="clock">T2</div>  
+          <div class="content">  
+            <span>解析剩余数据: </span>  
+            <span class="status status-wait">提取信令数据</span>  
+          </div>  
+        </div>  
+        <div class="pipeline-stage stage-dim" id="pipe-b-t3">  
+          <div class="clock">T3</div>  
+          <div class="content">  
+            <span class="status status-done">信令就绪</span>  
+            <span style="color: var(--accent-red);">→ 比方案 A 晚 1 个周期</span>  
+          </div>  
+        </div>  
+      </div>  
+
+      <div class="annotation" style="border-left-color: var(--accent-red);">  
+        <strong class="red">代价量化 @ 100Gb/s per lane：</strong><br>  
+        • 1 个时钟周期 ≈ <strong>0.8 ns</strong> （处理 1 字节 @ 100G/lane）<br>  
+        • 对于 8 字节有序集，解析延迟 = 1/8 = <strong class="red">12.5%</strong> 的额外开销<br>  
+        • 在多级流水线中，这个气泡会影响后续所有阶段的就绪时间<br>  
+        • <strong>硬件流水线设计铁律：判定越早，代价越小</strong>  
+      </div>  
+    </div>  
+
+    <!-- 时序条形图 -->  
+    <div class="timing-diagram">  
+      <h3>📊 时序条形图对比</h3>  
+      <div class="timing-row">  
+        <div class="t-label" style="color: var(--accent-green);">方案 A (0x5C)</div>  
+        <div class="t-bar">  
+          <div class="t-segment v-ctrl" style="flex: 1;" id="timing-a-0">判定</div>  
+          <div class="t-segment v-seq" style="flex: 1;" id="timing-a-1">提取</div>  
+          <div class="t-segment v-data" style="flex: 1;" id="timing-a-2">就绪</div>  
+          <div class="t-segment v-idle" style="flex: 4;">处理/空闲</div>  
+        </div>  
+      </div>  
+      <div class="timing-row" style="margin-top: 4px;">  
+        <div class="t-label" style="color: var(--accent-red);">方案 B (0x9C)</div>  
+        <div class="t-bar">  
+          <div class="t-segment" style="flex: 1; background: rgba(239,68,68,0.1); border: 1px dashed rgba(239,68,68,0.3); color: #fca5a5;" id="timing-b-0">等待</div>  
+          <div class="t-segment v-ctrl" style="flex: 1;" id="timing-b-1">判定</div>  
+          <div class="t-segment v-seq" style="flex: 1;" id="timing-b-2">提取</div>  
+          <div class="t-segment v-data" style="flex: 1;" id="timing-b-3">就绪</div>  
+          <div class="t-segment v-idle" style="flex: 3;">处理/空闲</div>  
+        </div>  
+      </div>  
+      <div style="display: flex; justify-content: space-between; font-size: 0.6em; color: var(--text-dim); margin-top: 6px; padding: 0 100px;">  
+        <span>T0</span><span>T1</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span>  
+      </div>  
+    </div>  
+
+  </div>  
+
+  <!-- ========== TAB 8: 数据流动画 ========== -->  
+  <div id="tab-data-flow" class="display-area">  
+
+    <div class="data-flow">  
+      <h3>🌊 CtlOS 在数据流中的插入动画 — 大帧 (>2KB) Pre-emptive Insertion</h3>  
+
+      <div class="legend">  
+        <div class="legend-item"><div class="legend-color" style="background: rgba(59,130,246,0.3);"></div> 数据 (Data)</div>  
+        <div class="legend-item"><div class="legend-color" style="background: rgba(16,185,129,0.3);"></div> 前导码 (Preamble)</div>  
+        <div class="legend-item"><div class="legend-color" style="background: rgba(236,72,153,0.3);"></div> CtlOS (0x5C)</div>  
+        <div class="legend-item"><div class="legend-color" style="background: rgba(245,158,11,0.3);"></div> Seq OS (0x9C)</div>  
+        <div class="legend-item"><div class="legend-color" style="background: rgba(71,85,105,0.3);"></div> IPG/Idle</div>  
+      </div>  
+
+      <div class="flow-track">  
+        <div class="track-label">xMII TX:</div>  
+        <div class="flow-packet pkt-preamble" style="left: 5%; width: 6%;" id="fp-pre">PRE+SFD</div>  
+        <div class="flow-packet pkt-data" style="left: 12%; width: 14%;" id="fp-d1">Data (256B 保护区)</div>  
+        <div class="flow-packet pkt-ctlos" style="left: 27%; width: 5%;" id="fp-c1">CtlOS</div>  
+        <div class="flow-packet pkt-data" style="left: 33%; width: 20%;" id="fp-d2">Data (~2048B)</div>  
+        <div class="flow-packet pkt-ctlos" style="left: 54%; width: 5%;" id="fp-c2">CtlOS</div>  
+        <div class="flow-packet pkt-data" style="left: 60%; width: 20%;" id="fp-d3">Data (~2048B)</div>  
+        <div class="flow-packet pkt-ctlos" style="left: 81%; width: 5%;" id="fp-c3">CtlOS</div>  
+        <div class="flow-packet pkt-data" style="left: 87%; width: 10%;" id="fp-d4">Data+FCS</div>  
+      </div>  
+
+      <div class="flow-track" style="margin-top: 16px;">  
+        <div class="track-label">64B/66B TX:</div>  
+        <div class="flow-packet" style="left: 5%; width: 6%; background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.4); color: #c4b5fd;" id="fp2-start">10+0x78</div>  
+        <div class="flow-packet" style="left: 12%; width: 14%; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd;">01+Data Blocks</div>  
+        <div class="flow-packet" style="left: 27%; width: 5%; background: rgba(236,72,153,0.25); border: 1px solid rgba(236,72,153,0.5); color: #f9a8d4;" id="fp2-c1">10+0x4B<br>O:0x6</div>  
+        <div class="flow-packet" style="left: 33%; width: 20%; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd;">01+Data Blocks</div>  
+        <div class="flow-packet" style="left: 54%; width: 5%; background: rgba(236,72,153,0.25); border: 1px solid rgba(236,72,153,0.5); color: #f9a8d4;">10+0x4B<br>O:0x6</div>  
+        <div class="flow-packet" style="left: 60%; width: 20%; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd;">01+Data Blocks</div>  
+        <div class="flow-packet" style="left: 81%; width: 5%; background: rgba(236,72,153,0.25); border: 1px solid rgba(236,72,153,0.5); color: #f9a8d4;">10+0x4B<br>O:0x6</div>  
+        <div class="flow-packet" style="left: 87%; width: 10%; background: rgba(148,163,184,0.15); border: 1px solid rgba(148,163,184,0.3); color: #cbd5e1;">10+0x87 Term</div>  
+      </div>  
+
+      <div class="annotation" style="border-left-color: var(--accent-pink); margin-top: 16px;">  
+        <strong style="color: var(--accent-pink);">CtlOS 插入策略（UE Spec v1.0 Section 6.2）：</strong><br>  
+        • 帧起始后 <strong>前 256 字节</strong>：禁止插入 CtlOS（保护帧头解析）<br>  
+        • 最小间隔：<strong>400 字节</strong>（强制要求）<br>  
+        • 推荐间隔：<strong>2048 字节</strong>（带宽占用 < 0.5%）<br>  
+        • CtlOS 使用 <strong>Pre-emptive Insertion</strong>：暂停数据发送，插入 8 字节 CtlOS 块，然后恢复<br>  
+        • 对上层 <strong>透明</strong> — 接收端 RS 层自动剥离 CtlOS，重组连续数据流  
+      </div>  
+    </div>  
+
+    <!-- 4 种 CtlOS 消息类型 -->  
+    <div class="comparison-grid">  
+      <div class="compare-card">  
+        <span class="tag tag-ue">LLR_ACK</span>  
+        <h3>确认接收 — ack_nack_seq</h3>  
+        <div class="byte-row" id="ctlos-ack"></div>  
+        <div class="annotation" style="margin-top: 8px;">周期性发送。ack_nack_seq 告知发送端：此序号之前的帧均已正确接收。</div>  
+      </div>  
+      <div class="compare-card">  
+        <span class="tag tag-ue">LLR_NACK</span>  
+        <h3>报告丢包 — last_good_seq</h3>  
+        <div class="byte-row" id="ctlos-nack"></div>  
+        <div class="annotation" style="margin-top: 8px;">立即触发。last_good_seq 告知发送端最后正确接收的帧号，触发从下一帧开始重传。</div>  
+      </div>  
+      <div class="compare-card">  
+        <span class="tag tag-ue">LLR_INIT</span>  
+        <h3>链路初始化 — init_seq</h3>  
+        <div class="byte-row" id="ctlos-init"></div>  
+        <div class="annotation" style="margin-top: 8px;">LLDP 协商后，TX 周期发送 INIT 携带初始序列号，同步双方状态。</div>  
+      </div>  
+      <div class="compare-card">  
+        <span class="tag tag-ue">LLR_INIT_ECHO</span>  
+        <h3>响应初始化 — init_seq</h3>  
+        <div class="byte-row" id="ctlos-echo"></div>  
+        <div class="annotation" style="margin-top: 8px;">RX 确认收到 INIT，回传 ECHO。TX 收到后从 INIT → ADVANCE 状态。</div>  
+      </div>  
+    </div>  
+
+  </div>  
+
+  <div class="footer-info">  
+    Ultra Ethernet LLR Encoding Comparison | Based on Ultra Ethernet Specification v1.0 & IEEE 802.3-2022<br>  
+    PCS 64B/66B · xMII Control Characters · O-code Design Analysis  
+  </div>  
+
+</div>  
+
+<script>  
+// ========== 全局状态 ==========  
+let animSpeed = 1;  
+let animTimers = [];  
+
+function setSpeed(s) {  
+  animSpeed = s;  
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active-speed'));  
+  event.target.classList.add('active-speed');  
+}  
+
+function switchTab(tabId) {  
+  // 清除所有定时器  
+  animTimers.forEach(t => clearTimeout(t));  
+  animTimers = [];  
+
+  document.querySelectorAll('.display-area').forEach(d => d.classList.remove('active'));  
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));  
+
+  document.getElementById('tab-' + tabId).classList.add('active');  
+  event.target.classList.add('active');  
+
+  // 触发动画  
+  initTabAnimation(tabId);  
+}  
+
+// ========== 字节单元生成器 ==========  
+function createByteCell(label, value, colorClass, sublabel = '', highlight = false) {  
+  return `<div class="byte-cell">  
+    <div class="label">${label}</div>  
+    <div class="value ${colorClass} ${highlight ? 'v-highlight' : ''}">${value}</div>  
+    ${sublabel ? `<div class="sublabel">${sublabel}</div>` : ''}  
+  </div>`;  
+}  
+
+function createBitGroup(label, value, colorClass) {  
+  return `<div class="bit-group">  
+    <div class="bg-label">${label}</div>  
+    <div class="bg-value ${colorClass}">${value}</div>  
+  </div>`;  
+}  
+
+// ========== 初始化所有 Tab 内容 ==========  
+function initAllContent() {  
+  // Tab 1: 标准前导码  
+  document.getElementById('std-preamble-xmii').innerHTML =  
+    createByteCell('Byte 0', '0x55', 'v-preamble', 'Preamble') +  
+    createByteCell('Byte 1', '0x55', 'v-preamble', 'Preamble') +  
+    createByteCell('Byte 2', '0x55', 'v-preamble', 'Preamble') +  
+    createByteCell('Byte 3', '0x55', 'v-preamble', 'Preamble') +  
+    createByteCell('Byte 4', '0x55', 'v-preamble', 'Preamble') +  
+    createByteCell('Byte 5', '0x55', 'v-preamble', 'Preamble') +  
+    createByteCell('Byte 6', '0x55', 'v-preamble', 'Preamble') +  
+    createByteCell('Byte 7', '0xD5', 'v-seq', 'SFD');  
+
+  document.getElementById('std-preamble-pcs').innerHTML =  
+    createBitGroup('Sync', '01', 'v-sync') +  
+    createBitGroup('D0', '0x55', 'v-preamble') +  
+    createBitGroup('D1', '0x55', 'v-preamble') +  
+    createBitGroup('D2', '0x55', 'v-preamble') +  
+    createBitGroup('D3', '0x55', 'v-preamble') +  
+    createBitGroup('D4', '0x55', 'v-preamble') +  
+    createBitGroup('D5', '0x55', 'v-preamble') +  
+    createBitGroup('D6', '0x55', 'v-preamble') +  
+    createBitGroup('D7', '0xD5', 'v-seq');  
+
+  document.getElementById('std-preamble-serial').innerHTML =  
+    '<div class="t-segment v-sync" style="flex: 2;">01</div>' +  
+    '<div class="t-segment v-preamble" style="flex: 7;">55 55 55 55 55 55 55</div>' +  
+    '<div class="t-segment v-seq" style="flex: 1;">D5</div>';  
+
+  // Tab 2: LLR 前导码  
+  document.getElementById('llr-preamble-xmii').innerHTML =  
+    createByteCell('Byte 0', '0xFB', 'v-ctrl', 'LLR Start', true) +  
+    createByteCell('Byte 1', '0x07', 'v-type', 'Eligible flag') +  
+    createByteCell('Byte 1[7:4]', 'seq[19:16]', 'v-seq', '序列号高4位') +  
+    createByteCell('Byte 2', 'seq[15:8]', 'v-seq', '序列号中8位') +  
+    createByteCell('Byte 3', 'seq[7:0]', 'v-seq', '序列号低8位') +  
+    createByteCell('Byte 4', '0x55', 'v-data', 'Reserved') +  
+    createByteCell('Byte 5', '0x55', 'v-data', 'Reserved') +  
+    createByteCell('Byte 6', '0x55', 'v-data', 'Reserved');  
+
+  document.getElementById('llr-preamble-pcs').innerHTML =  
+    createBitGroup('Sync', '10', 'v-sync') +  
+    createBitGroup('BType', '0x78', 'v-block') +  
+    createBitGroup('B0', '0xFB', 'v-ctrl') +  
+    createBitGroup('B1', '0x07', 'v-type') +  
+    createBitGroup('B2-B3', 'seq[19:0]', 'v-seq') +  
+    createBitGroup('B4', '0x55', 'v-data') +  
+    createBitGroup('B5', '0x55', 'v-data') +  
+    createBitGroup('B6', '0x55', 'v-data');  
+
+  // Tab 3: 序列有序集  
+  document.getElementById('seq-os-xmii').innerHTML =  
+    createByteCell('Lane 0', '0x9C', 'v-ctrl', 'Ctrl Char', true) +  
+    createByteCell('Lane 1', 'D0', 'v-data', 'Seq Data') +  
+    createByteCell('Lane 2', 'D1', 'v-data', 'Seq Data') +  
+    createByteCell('Lane 3', 'D2', 'v-data', 'Seq Data') +  
+    createByteCell('Lane 4', 'D3', 'v-data', '') +  
+    createByteCell('Lane 5', 'D4', 'v-data', '') +  
+    createByteCell('Lane 6', 'D5', 'v-data', '') +  
+    createByteCell('Lane 7', 'D6', 'v-data', '');  
+
+  document.getElementById('seq-os-pcs').innerHTML =  
+    createBitGroup('Sync', '10', 'v-sync') +  
+    createBitGroup('BType', '0x4B', 'v-block') +  
+    createBitGroup('O-code', '0x0', 'v-ocode') +  
+    createBitGroup('D0', 'data', 'v-data') +  
+    createBitGroup('D1', 'data', 'v-data') +  
+    createBitGroup('D2', 'data', 'v-data') +  
+    createBitGroup('D3', 'data', 'v-data') +  
+    createBitGroup('D4', 'data', 'v-data') +  
+    createBitGroup('D5', 'data', 'v-data') +  
+    createBitGroup('D6', 'data', 'v-data');  
+
+  // Tab 4: 控制有序集  
+  document.getElementById('ctl-os-xmii').innerHTML =  
+    createByteCell('Lane 0', '0x5C', 'v-ctrl', 'CtlOS Ctrl', true) +  
+    createByteCell('Lane 1', 'Type', 'v-type', 'Msg Type') +  
+    createByteCell('Lane 2', 'seq[19:16]', 'v-seq', '序列号') +  
+    createByteCell('Lane 3', 'seq[15:8]', 'v-seq', '序列号') +  
+    createByteCell('Lane 4', 'seq[7:0]', 'v-seq', '序列号') +  
+    createByteCell('Lane 5', 'Rsvd', 'v-idle', '') +  
+    createByteCell('Lane 6', 'Rsvd', 'v-idle', '') +  
+    createByteCell('Lane 7', 'Rsvd', 'v-idle', '');  
+
+  document.getElementById('ctl-os-pcs').innerHTML =  
+    createBitGroup('Sync', '10', 'v-sync') +  
+    createBitGroup('BType', '0x4B', 'v-block') +  
+    createBitGroup('O-code', '0x6', 'v-ocode') +  
+    createBitGroup('Type', 'MsgT', 'v-type') +  
+    createBitGroup('Seq[19:16]', 'seq', 'v-seq') +  
+    createBitGroup('Seq[15:8]', 'seq', 'v-seq') +  
+    createBitGroup('Seq[7:0]', 'seq', 'v-seq') +  
+    createBitGroup('Rsvd', '...', 'v-idle');  
+
+  // Tab 5: 并排对比  
+  document.getElementById('cmp-seq-xmii').innerHTML =  
+    createByteCell('Lane 0', '0x9C', 'v-ctrl', '', true) +  
+    createByteCell('Lane 1', 'D0', 'v-data') +  
+    createByteCell('Lane 2', 'D1', 'v-data') +  
+    createByteCell('Lane 3', 'D2', 'v-data') +  
+    createByteCell('...', '...', 'v-idle');  
+
+  document.getElementById('cmp-seq-pcs').innerHTML =  
+    createBitGroup('Sync', '10', 'v-sync') +  
+    createBitGroup('BType', '0x4B', 'v-block') +  
+    createBitGroup('O-code', '0x0', 'v-ocode') +  
+    createBitGroup('Payload', 'D0-D6', 'v-data');  
+
+  document.getElementById('cmp-ctl-xmii').innerHTML =  
+    createByteCell('Lane 0', '0x5C', 'v-ctrl', '', true) +  
+    createByteCell('Lane 1', 'Type', 'v-type') +  
+    createByteCell('Lane 2-4', 'Seq', 'v-seq') +  
+    createByteCell('Lane 5-7', 'Rsvd', 'v-idle');  
+
+  document.getElementById('cmp-ctl-pcs').innerHTML =  
+    createBitGroup('Sync', '10', 'v-sync') +  
+    createBitGroup('BType', '0x4B', 'v-block') +  
+    createBitGroup('O-code', '0x6', 'v-ocode') +  
+    createBitGroup('Payload', 'LLR Data', 'v-seq');  
+
+  // Tab 8: 4种 CtlOS 类型  
+  document.getElementById('ctlos-ack').innerHTML =  
+    createByteCell('Lane 0', '0x5C', 'v-ctrl', 'CtlOS') +  
+    createByteCell('Lane 1', '0x01', 'v-type', 'ACK') +  
+    createByteCell('Lane 2', 'seq[19:16]', 'v-seq') +  
+    createByteCell('Lane 3', 'seq[15:8]', 'v-seq') +  
+    createByteCell('Lane 4', 'seq[7:0]', 'v-seq') +  
+    createByteCell('Lane 5-7', 'Reserved', 'v-idle');  
+
+  document.getElementById('ctlos-nack').innerHTML =  
+    createByteCell('Lane 0', '0x5C', 'v-ctrl', 'CtlOS') +  
+    createByteCell('Lane 1', '0x02', 'v-type', 'NACK') +  
+    createByteCell('Lane 2', 'seq[19:16]', 'v-seq') +  
+    createByteCell('Lane 3', 'seq[15:8]', 'v-seq') +  
+    createByteCell('Lane 4', 'seq[7:0]', 'v-seq') +  
+    createByteCell('Lane 5-7', 'Reserved', 'v-idle');  
+
+  document.getElementById('ctlos-init').innerHTML =  
+    createByteCell('Lane 0', '0x5C', 'v-ctrl', 'CtlOS') +  
+    createByteCell('Lane 1', '0x03', 'v-type', 'INIT') +  
+    createByteCell('Lane 2', 'seq[19:16]', 'v-seq') +  
+    createByteCell('Lane 3', 'seq[15:8]', 'v-seq') +  
+    createByteCell('Lane 4', 'seq[7:0]', 'v-seq') +  
+    createByteCell('Lane 5-7', 'Reserved', 'v-idle');  
+
+  document.getElementById('ctlos-echo').innerHTML =  
+    createByteCell('Lane 0', '0x5C', 'v-ctrl', 'CtlOS') +  
+    createByteCell('Lane 1', '0x04', 'v-type', 'ECHO') +  
+    createByteCell('Lane 2', 'seq[19:16]', 'v-seq') +  
+    createByteCell('Lane 3', 'seq[15:8]', 'v-seq') +  
+    createByteCell('Lane 4', 'seq[7:0]', 'v-seq') +  
+    createByteCell('Lane 5-7', 'Reserved', 'v-idle');  
+}  
+
+// ========== 流水线高亮动画 ==========  
+function initTabAnimation(tabId) {  
+  if (tabId === 'pipeline') {  
+    animatePipeline();  
+  } else if (tabId === 'data-flow') {  
+    animateDataFlow();  
+  }  
+}  
+
+function animatePipeline() {  
+  const stages_a = ['pipe-a-t0', 'pipe-a-t1', 'pipe-a-t2'];  
+  const stages_b = ['pipe-b-t0', 'pipe-b-t1', 'pipe-b-t2', 'pipe-b-t3'];  
+
+  let step = 0;  
+  function tick() {  
+    // 方案 A  
+    stages_a.forEach((id, i) => {  
+      const el = document.getElementById(id);  
+      if (!el) return;  
+      el.classList.remove('stage-highlight', 'stage-dim');  
+      if (i === step % 3) el.classList.add('stage-highlight');  
+      else if (i < step % 3) el.classList.add('stage-dim');  
+    });  
+
+    // 方案 B  
+    stages_b.forEach((id, i) => {  
+      const el = document.getElementById(id);  
+      if (!el) return;  
+      el.classList.remove('stage-highlight', 'stage-dim');  
+      if (i === step % 4) el.classList.add('stage-highlight');  
+      else if (i < step % 4) el.classList.add('stage-dim');  
+    });  
+
+    step++;  
+    const timer = setTimeout(tick, 1200 / animSpeed);  
+    animTimers.push(timer);  
+  }  
+  tick();  
+}  
+
+function animateDataFlow() {  
+  // 简单的脉冲效果  
+  const ctlosElements = ['fp-c1', 'fp-c2', 'fp-c3'];  
+  let idx = 0;  
+  function pulse() {  
+    ctlosElements.forEach(id => {  
+      const el = document.getElementById(id);  
+      if (el) el.style.transform = 'scaleY(1)';  
+    });  
+
+    const el = document.getElementById(ctlosElements[idx % ctlosElements.length]);  
+    if (el) {  
+      el.style.transform = 'scaleY(1.3)';  
+      el.style.zIndex = '10';  
+      setTimeout(() => {  
+        el.style.transform = 'scaleY(1)';  
+        el.style.zIndex = '1';  
+      }, 600 / animSpeed);  
+    }  
+    idx++;  
+    const timer = setTimeout(pulse, 1000 / animSpeed);  
+    animTimers.push(timer);  
+  }  
+  pulse();  
+}  
+
+// ========== Hamming 距离动画 ==========  
+// ========== Hamming 距离动画（继续） ==========
+function animateHamming() {
+  const diffBits = ['hb-9c-7', 'hb-5c-7'];
+  let toggle = false;
+  function pulse() {
+    diffBits.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.transform = toggle ? 'scale(1.2)' : 'scale(1)';
+        el.style.boxShadow = toggle ? '0 0 25px rgba(239,68,68,0.8)' : '0 0 4px rgba(239,68,68,0.3)';
+      }
+    });
+    toggle = !toggle;
+    const timer = setTimeout(pulse, 800 / animSpeed);
+    animTimers.push(timer);
+  }
+  pulse();
+}
+
+// ========== 页面加载时初始化 ==========
+window.addEventListener('DOMContentLoaded', () => {
+  initAllContent();
+  // 默认显示第一个 tab 的动画
+  initTabAnimation('std-preamble');
+});
+
+</script>
+
+</body>
+</html>

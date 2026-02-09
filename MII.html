@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>xMII 总线芯片内部架构动画 - Ultra Ethernet LLR</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    background: #0a0e1a;
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    color: #e0e6f0;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  .header {
+    text-align: center;
+    padding: 30px 20px 10px;
+    background: linear-gradient(135deg, #0d1225 0%, #1a1f3a 100%);
+    border-bottom: 2px solid #2a3a6a;
+  }
+  .header h1 {
+    font-size: 28px;
+    background: linear-gradient(90deg, #4fc3f7, #81d4fa, #e1bee7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    color: #8899bb;
+  }
+
+  .main-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 20px;
+  }
+
+  /* ===== 芯片外壳 ===== */
+  .chip-package {
+    position: relative;
+    width: 1100px;
+    max-width: 98vw;
+    background: linear-gradient(145deg, #111830, #0d1225);
+    border: 3px solid #2a3a6a;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 0 60px rgba(40, 80, 200, 0.15), inset 0 0 40px rgba(0,0,0,0.3);
+  }
+  .chip-package::before {
+    content: 'ETHERNET ASIC / SoC';
+    position: absolute;
+    top: -14px;
+    left: 40px;
+    background: #0d1225;
+    padding: 2px 16px;
+    font-size: 13px;
+    color: #5588cc;
+    border: 1px solid #2a3a6a;
+    border-radius: 6px;
+    letter-spacing: 2px;
+  }
+
+  /* ===== Pin引脚 ===== */
+  .pins-top, .pins-bottom {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin: 0 auto;
+    width: 60%;
+  }
+  .pins-top { margin-bottom: 10px; }
+  .pins-bottom { margin-top: 10px; }
+  .pin {
+    width: 8px;
+    height: 18px;
+    background: linear-gradient(180deg, #ffd54f, #ff8f00);
+    border-radius: 2px 2px 0 0;
+    animation: pinGlow 2s ease-in-out infinite alternate;
+  }
+  .pins-bottom .pin {
+    border-radius: 0 0 2px 2px;
+  }
+  @keyframes pinGlow {
+    0% { box-shadow: 0 0 4px rgba(255,213,79,0.3); }
+    100% { box-shadow: 0 0 10px rgba(255,213,79,0.7); }
+  }
+
+  /* ===== 层级架构 ===== */
+  .layer-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .layer {
+    position: relative;
+    border: 2px solid;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 6px 0;
+    transition: all 0.4s ease;
+    cursor: pointer;
+  }
+  .layer:hover {
+    transform: scale(1.01);
+    z-index: 10;
+  }
+
+  .layer-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .layer-title .icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 900;
+  }
+
+  /* 各层颜色 */
+  .layer-app {
+    border-color: #4db6ac;
+    background: linear-gradient(135deg, rgba(77,182,172,0.08), rgba(77,182,172,0.02));
+  }
+  .layer-app .icon { background: #4db6ac; color: #0a0e1a; }
+  .layer-app .layer-title { color: #4db6ac; }
+
+  .layer-llr {
+    border-color: #ff7043;
+    background: linear-gradient(135deg, rgba(255,112,67,0.12), rgba(255,112,67,0.03));
+    animation: llrPulse 3s ease-in-out infinite;
+  }
+  .layer-llr .icon { background: #ff7043; color: #fff; }
+  .layer-llr .layer-title { color: #ff7043; }
+  @keyframes llrPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(255,112,67,0.1); }
+    50% { box-shadow: 0 0 25px rgba(255,112,67,0.25); }
+  }
+
+  .layer-mac {
+    border-color: #7e57c2;
+    background: linear-gradient(135deg, rgba(126,87,194,0.08), rgba(126,87,194,0.02));
+  }
+  .layer-mac .icon { background: #7e57c2; color: #fff; }
+  .layer-mac .layer-title { color: #7e57c2; }
+
+  .layer-rs {
+    border-color: #42a5f5;
+    background: linear-gradient(135deg, rgba(66,165,245,0.08), rgba(66,165,245,0.02));
+  }
+  .layer-rs .icon { background: #42a5f5; color: #fff; }
+  .layer-rs .layer-title { color: #42a5f5; }
+
+  .layer-xmii {
+    border-color: #ffd54f;
+    background: linear-gradient(135deg, rgba(255,213,79,0.15), rgba(255,213,79,0.04));
+    animation: xmiiBus 2s ease-in-out infinite;
+    position: relative;
+  }
+  .layer-xmii .icon { background: #ffd54f; color: #0a0e1a; }
+  .layer-xmii .layer-title { color: #ffd54f; }
+  @keyframes xmiiBus {
+    0%, 100% { box-shadow: 0 0 15px rgba(255,213,79,0.15); }
+    50% { box-shadow: 0 0 35px rgba(255,213,79,0.35); }
+  }
+
+  .layer-pcs {
+    border-color: #26c6da;
+    background: linear-gradient(135deg, rgba(38,198,218,0.08), rgba(38,198,218,0.02));
+  }
+  .layer-pcs .icon { background: #26c6da; color: #0a0e1a; }
+  .layer-pcs .layer-title { color: #26c6da; }
+
+  .layer-pma {
+    border-color: #ec407a;
+    background: linear-gradient(135deg, rgba(236,64,122,0.08), rgba(236,64,122,0.02));
+  }
+  .layer-pma .icon { background: #ec407a; color: #fff; }
+  .layer-pma .layer-title { color: #ec407a; }
+
+  .layer-pmd {
+    border-color: #78909c;
+    background: linear-gradient(135deg, rgba(120,144,156,0.08), rgba(120,144,156,0.02));
+  }
+  .layer-pmd .icon { background: #78909c; color: #fff; }
+  .layer-pmd .layer-title { color: #78909c; }
+
+  /* ===== 层内内容 ===== */
+  .layer-content {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .sub-block {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: #b0bec5;
+    transition: all 0.3s;
+  }
+  .sub-block:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.25);
+  }
+  .sub-block strong {
+    color: #e0e6f0;
+    display: block;
+    font-size: 13px;
+    margin-bottom: 3px;
+  }
+
+  /* ===== 接口箭头连线 ===== */
+  .interface-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    position: relative;
+  }
+  .interface-arrow .arrow-line {
+    width: 4px;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    border-radius: 2px;
+  }
+  .interface-arrow .arrow-line::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 12px;
+    border-radius: 2px;
+    animation: flowDown 1.2s linear infinite;
+  }
+  @keyframes flowDown {
+    0% { top: -12px; }
+    100% { top: 30px; }
+  }
+
+  .interface-label {
+    position: absolute;
+    right: 50px;
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .if-label-xmii {
+    color: #ffd54f;
+    background: rgba(255,213,79,0.1);
+    border: 1px solid rgba(255,213,79,0.3);
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .if-label-normal {
+    color: #90a4ae;
+    background: rgba(144,164,174,0.1);
+    border: 1px solid rgba(144,164,174,0.2);
+  }
+
+  /* ===== xMII 详细展开区域 ===== */
+  .xmii-detail {
+    margin-top: 30px;
+    background: linear-gradient(145deg, #111830, #0d1225);
+    border: 2px solid #ffd54f;
+    border-radius: 16px;
+    padding: 24px;
+    width: 1100px;
+    max-width: 98vw;
+    position: relative;
+  }
+  .xmii-detail::before {
+    content: '⚡ xMII 总线内部详细架构';
+    position: absolute;
+    top: -14px;
+    left: 30px;
+    background: #0d1225;
+    padding: 2px 14px;
+    color: #ffd54f;
+    font-weight: 700;
+    font-size: 14px;
+    border: 1px solid #ffd54f;
+    border-radius: 6px;
+  }
+
+  .bus-lanes {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 20px 0 16px;
+    flex-wrap: wrap;
+  }
+  .lane {
+    width: 100px;
+    height: 60px;
+    border: 2px solid;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .lane::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    animation: laneFlow 0.8s linear infinite;
+  }
+  @keyframes laneFlow {
+    0% { background: linear-gradient(90deg, transparent, currentColor, transparent); transform: translateX(-100%); }
+    100% { background: linear-gradient(90deg, transparent, currentColor, transparent); transform: translateX(100%); }
+  }
+  .lane-data {
+    border-color: #4fc3f7;
+    color: #4fc3f7;
+    background: rgba(79,195,247,0.05);
+  }
+  .lane-ctrl {
+    border-color: #ff7043;
+    color: #ff7043;
+    background: rgba(255,112,67,0.05);
+  }
+  .lane-clk {
+    border-color: #66bb6a;
+    color: #66bb6a;
+    background: rgba(102,187,106,0.05);
+  }
+  .lane span:first-child { font-weight: 700; font-size: 13px; }
+  .lane span:last-child { font-size: 10px; opacity: 0.7; }
+
+  /* ===== 数据包动画 ===== */
+  .packet-animation {
+    position: relative;
+    height: 100px;
+    margin: 20px 0;
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 10px;
+    background: rgba(0,0,0,0.2);
+    overflow: hidden;
+  }
+  .packet-track {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(255,213,79,0.15);
+    transform: translateY(-50%);
+  }
+  .packet {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    animation: packetMove 4s linear infinite;
+  }
+  .pkt-data {
+    background: linear-gradient(135deg, #1565c0, #1976d2);
+    color: #bbdefb;
+    border: 1px solid #42a5f5;
+  }
+  .pkt-ctrl {
+    background: linear-gradient(135deg, #e65100, #f57c00);
+    color: #ffe0b2;
+    border: 1px solid #ff9800;
+  }
+  .pkt-ack {
+    background: linear-gradient(135deg, #2e7d32, #388e3c);
+    color: #c8e6c9;
+    border: 1px solid #66bb6a;
+  }
+
+  @keyframes packetMove {
+    0% { left: -150px; opacity: 0; }
+    5% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { left: calc(100% + 50px); opacity: 0; }
+  }
+
+  .pkt-1 { animation-delay: 0s; }
+  .pkt-2 { animation-delay: 1.2s; }
+  .pkt-3 { animation-delay: 2.4s; }
+
+  .packet-labels {
+    position: absolute;
+    top: 6px;
+    left: 12px;
+    font-size: 11px;
+    color: #607d8b;
+  }
+
+  /* ===== 64B/66B 编码展示 ===== */
+  .encoding-demo {
+    margin-top: 20px;
+    padding: 16px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    border: 1px solid rgba(38,198,218,0.2);
+  }
+  .encoding-demo h3 {
+    color: #26c6da;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .encode-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 0;
+    flex-wrap: wrap;
+  }
+  .encode-bit {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    text-align: center;
+    min-width: 40px;
+    transition: all 0.3s;
+  }
+  .bit-sync-d { background: #1565c0; color: #bbdefb; border: 1px solid #42a5f5; }
+  .bit-sync-c { background: #e65100; color: #ffe0b2; border: 1px solid #ff9800; }
+  .bit-data { background: rgba(66,165,245,0.15); color: #90caf9; border: 1px solid rgba(66,165,245,0.3); }
+  .bit-type { background: rgba(255,112,67,0.15); color: #ffab91; border: 1px solid rgba(255,112,67,0.3); }
+  .bit-ocode { background: rgba(255,213,79,0.15); color: #fff176; border: 1px solid rgba(255,213,79,0.3); }
+  .bit-payload { background: rgba(102,187,106,0.12); color: #a5d6a7; border: 1px solid rgba(102,187,106,0.3); }
+
+  .encode-label {
+    font-size: 11px;
+    color: #78909c;
+    min-width: 80px;
+  }
+  .encode-arrow {
+    color: #ffd54f;
+    font-size: 18px;
+    margin: 4px 0;
+    padding-left: 84px;
+  }
+
+  /* ===== 控制面板 ===== */
+  .controls {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 20px 0;
+  }
+  .ctrl-btn {
+    padding: 10px 22px;
+    border: 2px solid;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: inherit;
+  }
+  .ctrl-btn:hover { transform: translateY(-2px); }
+  .btn-normal { border-color: #4fc3f7; color: #4fc3f7; }
+  .btn-normal:hover { background: rgba(79,195,247,0.15); box-shadow: 0 4px 15px rgba(79,195,247,0.3); }
+  .btn-llr { border-color: #ff7043; color: #ff7043; }
+  .btn-llr:hover { background: rgba(255,112,67,0.15); box-shadow: 0 4px 15px rgba(255,112,67,0.3); }
+  .btn-ctlos { border-color: #ffd54f; color: #ffd54f; }
+  .btn-ctlos:hover { background: rgba(255,213,79,0.15); box-shadow: 0 4px 15px rgba(255,213,79,0.3); }
+  .btn-active {
+    transform: translateY(-2px);
+  }
+  .btn-normal.btn-active { background: rgba(79,195,247,0.2); box-shadow: 0 4px 15px rgba(79,195,247,0.4); }
+  .btn-llr.btn-active { background: rgba(255,112,67,0.2); box-shadow: 0 4px 15px rgba(255,112,67,0.4); }
+  .btn-ctlos.btn-active { background: rgba(255,213,79,0.2); box-shadow: 0 4px 15px rgba(255,213,79,0.4); }
+
+  /* ===== 信息弹出卡片 ===== */
+  .info-card {
+    background: linear-gradient(145deg, #1a2040, #151b30);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease, padding 0.5s ease, opacity 0.3s ease;
+    opacity: 0;
+  }
+  .info-card.visible {
+    max-height: 600px;
+    opacity: 1;
+  }
+  .info-card h4 {
+    margin-bottom: 10px;
+    font-size: 15px;
+  }
+  .info-card p, .info-card li {
+    font-size: 13px;
+    color: #b0bec5;
+    line-height: 1.7;
+  }
+  .info-card ul {
+    padding-left: 18px;
+  }
+
+  /* ===== xMII 变种表格 ===== */
+  .variant-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 12px;
+  }
+  .variant-table th {
+    background: rgba(255,213,79,0.12);
+    color: #ffd54f;
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 2px solid rgba(255,213,79,0.3);
+    font-size: 13px;
+  }
+  .variant-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: #b0bec5;
+  }
+  .variant-table tr:hover td {
+    background: rgba(255,255,255,0.03);
+  }
+  .variant-table .highlight-row td {
+    color: #ffd54f;
+    font-weight: 600;
+    background: rgba(255,213,79,0.05);
+  }
+
+  /* ===== 时钟波形 ===== */
+  .waveform-container {
+    margin: 16px 0;
+    padding: 12px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .waveform-label {
+    font-size: 11px;
+    color: #78909c;
+    margin-bottom: 6px;
+  }
+  .waveform-svg {
+    width: 100%;
+    height: 50px;
+  }
+  .wave-line {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: drawWave 3s linear infinite;
+  }
+  @keyframes drawWave {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* ===== 连接线动画指示器 ===== */
+  .connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0;
+    position: relative;
+  }
+  .connector-bar {
+    width: 6px;
+    height: 20px;
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+  .connector-bar::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 8px;
+    border-radius: 3px;
+    animation: connectorPulse 1s linear infinite;
+  }
+  @keyframes connectorPulse {
+    0% { top: -8px; background: currentColor; opacity: 0.8; }
+    100% { top: 20px; background: currentColor; opacity: 0.2; }
+  }
+  .conn-green { color: #66bb6a; background: rgba(102,187,106,0.2); }
+  .conn-blue { color: #42a5f5; background: rgba(66,165,245,0.2); }
+  .conn-yellow { color: #ffd54f; background: rgba(255,213,79,0.2); }
+  .conn-orange { color: #ff7043; background: rgba(255,112,67,0.2); }
+
+  .conn-label {
+    position: absolute;
+    right: calc(50% - 180px);
+    font-size: 11px;
+    padding: 1px 10px;
+    border-radius: 3px;
+    background: rgba(0,0,0,0.4);
+  }
+
+  /* ===== 侧面说明标注 ===== */
+  .side-annotations {
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .annotation-tag {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    border: 1px solid;
+  }
+
+  /* ===== 底部说明面板 ===== */
+  .legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 16px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+    margin-top: 12px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #90a4ae;
+  }
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+
+  /* ===== 响应式 ===== */
+  @media (max-width: 768px) {
+    .chip-package, .xmii-detail { padding: 14px; }
+    .layer { padding: 10px 12px; }
+    .bus-lanes { gap: 4px; }
+    .lane { width: 70px; height: 50px; }
+    .header h1 { font-size: 20px; }
+  }
+
+  /* ===== 整体流向指示 ===== */
+  .flow-indicator {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    margin-bottom: 10px;
+  }
+  .flow-side {
+    font-size: 11px;
+    padding: 4px 14px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .flow-up { color: #66bb6a; background: rgba(102,187,106,0.1); border: 1px solid rgba(102,187,106,0.2); }
+  .flow-down { color: #ef5350; background: rgba(239,83,80,0.1); border: 1px solid rgba(239,83,80,0.2); }
+
+  /* ===== Tooltip ===== */
+  .tooltip-trigger { 
+    cursor: help;
+    border-bottom: 1px dashed currentColor;
+  }
+
+  /* ===== 特殊编码高亮动画 ===== */
+  .highlight-encode {
+    animation: highlightFlash 1.5s ease-in-out infinite;
+  }
+  @keyframes highlightFlash {
+    0%, 100% { background: rgba(255,213,79,0.15); }
+    50% { background: rgba(255,213,79,0.35); }
+  }
+
+  /* ===== CtlOS 信令流动画 ===== */
+  .ctlos-flow {
+    position: relative;
+    height: 80px;
+    margin: 16px 0;
+    display: flex;
+    align-items: center;
+  }
+  .ctlos-node {
+    width: 100px;
+    height: 55px;
+    border: 2px solid;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    z-index: 2;
+    background: #0d1225;
+  }
+  .ctlos-wire {
+    flex: 1;
+    height: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ctlos-wire::after {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 100%;
+    border-radius: 2px;
+    animation: ctlosMove 1.5s linear infinite;
+  }
+  .ctlos-wire.wire-right::after {
+    background: linear-gradient(90deg, transparent, #4fc3f7, transparent);
+    animation-name: ctlosRight;
+  }
+  .ctlos-wire.wire-left::after {
+    background: linear-gradient(90deg, transparent, #66bb6a, transparent);
+    animation-name: ctlosLeft;
+  }
+  @keyframes ctlosRight {
+    0% { left: -30px; }
+    100% { left: 100%; }
+  }
+  @keyframes ctlosLeft {
+    0% { right: -30px; left: auto; }
+    100% { right: 100%; left: auto; }
+  }
+  .node-tx { border-color: #4fc3f7; color: #4fc3f7; }
+  .node-rx { border-color: #66bb6a; color: #66bb6a; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>xMII 总线芯片内部架构 — 交互式动画展示</h1>
+  <p>基于 Ultra Ethernet LLR Specification v1.0 | IEEE 802.3 分层模型 | PCS 64B/66B 编码</p>
+</div>
+
+<div class="main-container">
+
+  <!-- 控制按钮 -->
+  <div class="controls">
+    <button class="ctrl-btn btn-normal btn-active" onclick="showMode('normal')">📡 普通数据传输</button>
+    <button class="ctrl-btn btn-llr" onclick="showMode('llr')">🔄 LLR 重传模式</button>
+    <button class="ctrl-btn btn-ctlos" onclick="showMode('ctlos')">⚡ CtlOS 控制信令</button>
+  </div>
+
+  <!-- ===== 芯片封装 ===== -->
+  <div class="chip-package">
+    
+    <div class="pins-top">
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+    </div>
+
+    <div class="flow-indicator">
+      <div class="flow-side flow-up">▲ 上层协议（TCP/IP / RDMA）</div>
+      <div class="flow-side flow-down">▼ 物理链路（光纤 / DAC）</div>
+    </div>
+
+    <div class="layer-stack">
+
+      <!-- Layer 1: LLC / MAC Client -->
+      <div class="layer layer-app" onclick="toggleInfo('info-app')">
+        <div class="layer-title">
+          <span class="icon">APP</span>
+          LLC / MAC Client — 上层协议接口
+        </div>
+        <div class="layer-content">
+          <div class="sub-block"><strong>TCP/UDP 协议栈</strong>传输层数据封装</div>
+          <div class="sub-block"><strong>RDMA / RoCEv2</strong>远程直接内存访问</div>
+          <div class="sub-block"><strong>帧分类器</strong>LLR-eligible 判定</div>
+          <div class="sub-block"><strong>QoS 引擎</strong>优先级队列管理</div>
+        </div>
+      </div>
+      <div class="info-card" id="info-app">
+        <h4 style="color:#4db6ac">📋 MAC Client 层说明</h4>
+        <p>MAC Client 是数据帧的来源。帧在此处被分类为 <strong>LLR-eligible</strong>（可重传）或 <strong>LLR-ineligible</strong>（不可重传，如 Pause/PFC 帧）。分类决定了帧在下层的处理方式。</p>
+      </div>
+
+      <!-- 连接线 -->
+      <div class="connector">
+        <div class="connector-bar conn-green"></div>
+        <span class="conn-label" style="color:#4db6ac">MAC Client Interface</span>
+      </div>
+
+      <!-- Layer 2: LLR -->
+      <div class="layer layer-llr" onclick="toggleInfo('info-llr')">
+        <div class="layer-title">
+          <span class="icon">LLR</span>
+          Link Layer Retry — 链路层重传引擎 <span style="font-size:11px; opacity:0.7">(Ultra Ethernet 新增)</span>
+        </div>
+        <div class="layer-content">
+          <div class="sub-block" style="border-color:rgba(255,112,67,0.3)">
+            <strong>TX 状态机</strong>
+            INIT → ADVANCE → REPLAY<br>
+            序列号分配 (20-bit frame_seq)
+          </div>
+          <div class="sub-block" style="border-color:rgba(255,112,67,0.3)">
+            <strong>Replay Buffer (RAM)</strong>
+            存储未确认帧副本<br>
+            大小 ≤ BDP (带宽延迟积)
+          </div>
+          <div class="sub-block" style="border-color:rgba(255,112,67,0.3)">
+            <strong>RX 去重引擎</strong>
+            next_rx_seq 连续性监测<br>
+            Gap → NACK / Match → ACK
+          </div>
+          <div class="sub-block" style="border-color:rgba(255,112,67,0.3)">
+            <strong>定时器</strong>
+            Replay Timer / Data Age Timer<br>
+            replay_ct_max 重传上限
+          </div>
+        </div>
+      </div>
+      <div class="info-card" id="info-llr">
+        <h4 style="color:#ff7043">🔄 LLR 引擎关键特性</h4>
+        <ul>
+          <li><strong>架构位置：</strong>插入在 MAC Client 与 MAC Control 之间，对上层完全透明</li>
+          <li><strong>非阻塞：</strong>LLR 重传期间，MAC Control 仍可发送 Pause/PFC 帧</li>
+          <li><strong>Preamble 嵌入：</strong>在前导码中嵌入 0xFB 起始标识 + 20-bit 序列号</li>
+          <li><strong>Poisoning 机制：</strong>RAM 不可修复错误时，主动污染 FCS (XOR 0xAAAAAAAA) 防止无限重传</li>
+        </ul>
+      </div>
+
+      <!-- 连接线 -->
+      <div class="connector">
+        <div class="connector-bar conn-orange"></div>
+        <span class="conn-label" style="color:#ff7043">LLR ↔ MAC Control (逻辑旁路)</span>
+      </div>
+
+      <!-- Layer 3: MAC Control -->
+      <div class="layer layer-mac" onclick="toggleInfo('info-mac')">
+        <div class="layer-title">
+          <span class="icon">MAC</span>
+          MAC Control + RS (Reconciliation Sublayer)
+        </div>
+        <div class="layer-content">
+          <div class="sub-block"><strong>Pause / PFC</strong>流控帧生成与响应</div>
+          <div class="sub-block"><strong>CBFC 信用管理</strong>S_VC_CC / R_VC_CC</div>
+          <div class="sub-block"><strong>FCS 计算</strong>CRC-32 校验生成</div>
+          <div class="sub-block"><strong>RS 子层</strong>MAC ↔ PCS 数据适配</div>
+          <div class="sub-block"><strong>LLDP 协商</strong>Llr_mode ON/OFF</div>
+        </div>
+      </div>
+      <div class="info-card" id="info-mac">
+        <h4 style="color:#7e57c2">⚙️ MAC Control 与 RS 子层</h4>
+        <ul>
+          <li><strong>RS (Reconciliation Sublayer)：</strong>负责 MAC 与 PHY 之间的数据格式转换</li>
+          <li><strong>流控交互：</strong>PFC/Pause 帧强制标记为 LLR-ineligible，不参与重传</li>
+          <li><strong>CBFC 保护：</strong>重传帧不扣除信用分（首次发送已扣除），丢弃窗口内不更新接收计数器</li>
+        </ul>
+      </div>
+
+      <!-- ===== xMII 总线（高亮核心） ===== -->
+      <div class="connector">
+        <div class="connector-bar conn-yellow"></div>
+      </div>
+
+      <div class="layer layer-xmii" onclick="toggleInfo('info-xmii')" id="xmii-layer">
+        <div class="layer-title">
+          <span class="icon">BUS</span>
+          ★ xMII 总线 — 媒体独立接口
+          <span style="font-size:11px; background:rgba(255,213,79,0.2); padding:2px 8px; border-radius:4px;">XGMII / XLGMII / CGMII</span>
+        </div>
+        <div class="layer-content">
+          <div class="sub-block" style="border-color:rgba(255,213,79,0.3)">
+            <strong>TXD[n:0] 发送数据</strong>
+            并行数据通道 (32/64/256-bit)
+          </div>
+          <div class="sub-block" style="border-color:rgba(255,213,79,0.3)">
+            <strong>TXC[m:0] 发送控制</strong>
+            每字节控制标志位
+          </div>
+          <div class="sub-block" style="border-color:rgba(255,213,79,0.3)">
+            <strong>RXD[n:0] 接收数据</strong>
+            并行数据通道
+          </div>
+          <div class="sub-block" style="border-color:rgba(255,213,79,0.3)">
+            <strong>RXC[m:0] 接收控制</strong>
+            每字节控制标志位
+          </div>
+          <div class="sub-block" style="border-color:rgba(255,213,79,0.3)">
+            <strong>TX_CLK / RX_CLK</strong>
+            同步时钟信号
+          </div>
+          <div class="sub-block" style="border-color:rgba(255,213,79,0.3)">
+            <strong>控制字符 0x5C</strong>
+            LLR CtlOS 标识 → PCS 0x4B
+          </div>
+        </div>
+      </div>
+      <div class="info-card" id="info-xmii">
+        <h4 style="color:#ffd54f">⚡ xMII 总线核心作用</h4>
+        <p>xMII 是 MAC/RS 与 PCS 之间的标准化并行接口，实现<strong>物理层无关性</strong>。关键特征：</p>
+        <ul>
+          <li><strong>数据 + 控制分离：</strong>每个 Lane 同时传输一字节数据(TXD)和一位控制标志(TXC)</li>
+          <li><strong>控制字符 0x5C：</strong>在 Lane 0 表示 LLR CtlOS（控制有序集），PCS 编码为 Block Type 0x4B + O-code 0x6</li>
+          <li><strong>Lane 0 特殊地位：</strong>起始分隔符(0xFB)、终止符(0xFD)、有序集均从 Lane 0 发起</li>
+          <li><strong>速率适配：</strong>通过增减 Lane 数和时钟频率支持 1G 到 800G+</li>
+        </ul>
+      </div>
+
+      <!-- 连接线 -->
+      <div class="connector">
+        <div class="connector-bar conn-yellow"></div>
+      </div>
+
+      <!-- Layer 5: PCS -->
+      <div class="layer layer-pcs" onclick="toggleInfo('info-pcs')">
+        <div class="layer-title">
+          <span class="icon">PCS</span>
+          PCS — 物理编码子层 (64B/66B Encoding)
+        </div>
+        <div class="layer-content">
+          <div class="sub-block"><strong>64B/66B 编码器</strong>Scrambler + Sync Header</div>
+          <div class="sub-block"><strong>Block Type 映射</strong>0x5C → 0x4B + O-code 0x6</div>
+          <div class="sub-block"><strong>AM (Alignment Marker)</strong>多 Lane 对齐标记</div>
+          <div class="sub-block"><strong>FEC 编码</strong>RS(544,514) 前向纠错</div>
+        </div>
+      </div>
+      <div class="info-card" id="info-pcs">
+        <h4 style="color:#26c6da">🔐 PCS 64B/66B 编码机制</h4>
+        <ul>
+          <li><strong>数据块：</strong>Sync = 01 + 64-bit 纯数据 → 传输效率 64/66 ≈ 97%</li>
+          <li><strong>控制块：</strong>Sync = 10 + Block Type + 控制信息</li>
+          <li><strong>LLR 关键编码：</strong>xMII Lane 0 的 0x5C 控制字符 → PCS Block Type 0x4B，O-code = 0x6</li>
+          <li><strong>FEC：</strong>Reed-Solomon RS(544,514) 纠正突发错误，与 LLR 形成双层保护</li>
+        </ul>
+      </div>
+
+      <!-- 连接线 -->
+      <div class="connector">
+        <div class="connector-bar conn-blue"></div>
+        <span class="conn-label" style="color:#42a5f5">PCS Service Interface</span>
+      </div>
+
+      <!-- Layer 6: PMA -->
+      <div class="layer layer-pma" onclick="toggleInfo('info-pma')">
+        <div class="layer-title">
+          <span class="icon">PMA</span>
+          PMA — 物理介质附着子层
+        </div>
+        <div class="layer-content">
+          <div class="sub-block"><strong>SerDes</strong>串行化/解串行化</div>
+          <div class="sub-block"><strong>CDR</strong>时钟数据恢复</div>
+          <div class="sub-block"><strong>均衡器</strong>CTLE / DFE / FFE</div>
+          <div class="sub-block"><strong>Lane 分发</strong>多通道并行传输</div>
+        </div>
+      </div>
+      <div class="info-card" id="info-pma">
+        <h4 style="color:#ec407a">📡 PMA 子层</h4>
+        <p>PMA 负责将 PCS 编码后的数字信号转换为适合物理介质传输的模拟信号。SerDes 以 112Gbps/lane（PAM4）运行，800G 需要 8 个 Lane。</p>
+      </div>
+
+      <!-- Layer 7: PMD -->
+      <div class="layer layer-pmd">
+        <div class="layer-title">
+          <span class="icon">PMD</span>
+          PMD — 物理介质相关子层 → 光模块 / DAC / 铜缆
+        </div>
+        <div class="layer-content">
+          <div class="sub-block"><strong>光模块</strong>QSFP-DD800 / OSFP</div>
+          <div class="sub-block"><strong>电调制</strong>PAM4 / NRZ</div>
+          <div class="sub-block"><strong>链路检测</strong>信号完整性监控</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pins-bottom">
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+      <div class="pin"></div><div class="pin"></div><div class="pin"></div><div class="pin"></div>
+    </div>
+  </div>
+
+  <!-- ===== xMII 详细展开 ===== -->
+  <div class="xmii-detail">
+
+    <!-- Lane 结构 -->
+    <h3 style="color:#ffd54f; font-size:15px; margin-top:14px;">📊 xMII 总线 Lane 结构（以 CGMII 800GbE 为例）</h3>
+    <div class="bus-lanes" id="bus-lanes">
+      <!-- 动态生成 -->
+    </div>
+
+    <!-- xMII 变种表格 -->
+    <h3 style="color:#ffd54f; font-size:15px; margin-top:20px;">📋 xMII 接口家族变种</h3>
+    <table class="variant-table">
+      <thead>
+        <tr>
+          <th>接口名称</th>
+          <th>速率</th>
+          <th>数据宽度</th>
+          <th>Lane数</th>
+          <th>时钟频率</th>
+          <th>控制信号</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>MII</td>
+          <td>10/100 Mbps</td>
+          <td>4-bit (nibble)</td>
+          <td>1</td>
+          <td>2.5/25 MHz</td>
+          <td>TX_EN, TX_ER</td>
+        </tr>
+        <tr>
+          <td>GMII</td>
+          <td>1 Gbps</td>
+          <td>8-bit</td>
+          <td>1</td>
+          <td>125 MHz</td>
+          <td>TXC[0]</td>
+        </tr>
+        <tr>
+          <td>XGMII</td>
+          <td>10 Gbps</td>
+          <td>32/64-bit</td>
+          <td>4/8</td>
+          <td>156.25 MHz DDR</td>
+          <td>TXC[3:0]/[7:0]</td>
+        </tr>
+        <tr>
+          <td>XLGMII</td>
+          <td>40/50 Gbps</td>
+          <td>128-bit</td>
+          <td>16</td>
+          <td>312.5 MHz</td>
+          <td>TXC[15:0]</td>
+        </tr>
+        <tr class="highlight-row">
+          <td>CGMII ★</td>
+          <td>100/200/400/800G</td>
+          <td>256-bit+</td>
+          <td>32+</td>
+          <td>可变</td>
+          <td>TXC[31:0]+</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- 数据包在总线上的流动动画 -->
+    <h3 style="color:#ffd54f; font-size:15px; margin-top:20px;">🔄 xMII 总线上的数据包流动</h3>
+    <div class="packet-animation" id="packet-anim">
+      <div class="packet-labels" id="pkt-label">模式: 普通数据传输</div>
+      <div class="packet-track"></div>
+      <div class="packet pkt-data pkt-1" id="pkt1">📦 DATA Frame (seq=10)</div>
+      <div class="packet pkt-data pkt-2" id="pkt2">📦 DATA Frame (seq=11)</div>
+      <div class="packet pkt-data pkt-3" id="pkt3">📦 DATA Frame (seq=12)</div>
+    </div>
+
+    <!-- 64B/66B 编码对照 -->
+    <div class="encoding-demo">
+      <h3>🔐 PCS 64B/66B 编码对照 — xMII 控制字符到线路编码的转换</h3>
+      
+      <div style="margin-top:14px">
+        <div class="encode-label" style="font-weight:700; color:#90caf9; margin-bottom:6px;">▎ 数据块 (Data Block):</div>
+        <div class="encode-row">
+          <span class="encode-label">Sync Header</span>
+          <span class="encode-bit bit-sync-d">01</span>
+          <span class="encode-bit bit-data">D0</span>
+          <span class="encode-bit bit-data">D1</span>
+          <span class="encode-bit bit-data">D2</span>
+          <span class="encode-bit bit-data">D3</span>
+          <span class="encode-bit bit-data">D4</span>
+          <span class="encode-bit bit-data">D5</span>
+          <span class="encode-bit bit-data">D6</span>
+          <span class="encode-bit bit-data">D7</span>
+          <span style="font-size:11px; color:#607d8b; margin-left:8px">← 纯数据，64-bit payload</span>
+        </div>
+      </div>
+
+      <div style="margin-top:16px">
+        <div class="encode-label" style="font-weight:700; color:#ffab91; margin-bottom:6px;">▎ 控制块 — LLR CtlOS (0x5C → 0x4B):</div>
+        <div class="encode-row">
+          <span class="encode-label">xMII 输入</span>
+          <span class="encode-bit bit-type">Lane0: 0x5C</span>
+          <span class="encode-bit bit-payload">Lane1</span>
+          <span class="encode-bit bit-payload">Lane2</span>
+          <span class="encode-bit bit-payload">Lane3</span>
+          <span class="encode-bit bit-payload">...</span>
+          <span class="encode-bit bit-payload">Lane7</span>
+          <span style="font-size:11px; color:#607d8b; margin-left:8px">← xMII 并行输入</span>
+        </div>
+        <div class="encode-arrow">⬇ PCS 64B/66B 编码转换</div>
+        <div class="encode-row">
+          <span class="encode-label">PCS 输出</span>
+          <span class="encode-bit bit-sync-c">10</span>
+          <span class="encode-bit bit-type highlight-encode">0x4B</span>
+          <span class="encode-bit bit-ocode highlight-encode">O-code=0x6</span>
+          <span class="encode-bit bit-payload">ACK/NACK Type</span>
+          <span class="encode-bit bit-payload">ack_nack_seq</span>
+          <span class="encode-bit bit-payload">Padding</span>
+          <span style="font-size:11px; color:#607d8b; margin-left:8px">← 66-bit 控制块</span>
+        </div>
+      </div>
+
+      <div style="margin-top:16px">
+        <div class="encode-label" style="font-weight:700; color:#a5d6a7; margin-bottom:6px;">▎ 帧起始块 (Start Block):</div>
+        <div class="encode-row">
+          <span class="encode-label">PCS 输出</span>
+          <span class="encode-bit bit-sync-c">10</span>
+          <span class="encode-bit bit-type">0x78</span>
+          <span class="encode-bit bit-ocode">Preamble[1:6]</span>
+          <span class="encode-bit bit-data">SFD</span>
+          <span style="font-size:11px; color:#607d8b; margin-left:8px">← 帧起始标识</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TX ↔ RX 控制信令流 -->
+    <h3 style="color:#ffd54f; font-size:15px; margin-top:24px;">📡 LLR 控制信令通过 xMII 的传输路径</h3>
+    <div class="ctlos-flow">
+      <div class="ctlos-node node-tx">
+        <span style="font-weight:700">TX 端</span>
+        <span style="font-size:10px; opacity:0.7">发送 Data + CtlOS</span>
+      </div>
+      <div class="ctlos-wire wire-right"></div>
+      <div class="ctlos-node" style="border-color:#ffd54f; color:#ffd54f; min-width:130px;">
+        <span style="font-weight:700">⚡ xMII 总线</span>
+        <span style="font-size:10px; opacity:0.7">0x5C CtlOS 传输</span>
+      </div>
+      <div class="ctlos-wire wire-right"></div>
+      <div class="ctlos-node" style="border-color:#26c6da; color:#26c6da; min-width:120px;">
+        <span style="font-weight:700">PCS 编码</span>
+        <span style="font-size:10px; opacity:0.7">0x4B + O-code 0x6</span>
+      </div>
+      <div class="ctlos-wire wire-right"></div>
+      <div class="ctlos-node node-rx">
+        <span style="font-weight:700">RX 端</span>
+        <span style="font-size:10px; opacity:0.7">ACK / NACK 响应</span>
+      </div>
+    </div>
+    <div class="ctlos-flow">
+      <div class="ctlos-node node-rx" style="width:100px;">
+        <span style="font-weight:700">RX 端</span>
+        <span style="font-size:10px;">返回 ACK/NACK</span>
+      </div>
+      <div class="ctlos-wire wire-left"></div>
+      <div class="ctlos-node" style="border-color:#ffd54f; color:#ffd54f; min-width:130px;">
+        <span style="font-weight:700">⚡ xMII 总线</span>
+        <span style="font-size:10px;">反向控制通道</span>
+      </div>
+      <div class="ctlos-wire wire-left"></div>
+      <div class="ctlos-node" style="border-color:#26c6da; color:#26c6da; min-width:120px;">
+        <span style="font-weight:700">PCS 解码</span>
+        <span style="font-size:10px;">恢复 CtlOS 信息</span>
+      </div>
+      <div class="ctlos-wire wire-left"></div>
+      <div class="ctlos-node node-tx" style="width:100px;">
+        <span style="font-weight:700">TX 端</span>
+        <span style="font-size:10px;">处理 ACK/NACK</span>
+      </div>
+    </div>
+
+    <!-- 波形展示 -->
+    <div class="waveform-container">
+      <div class="waveform-label">xMII TX_CLK 时钟信号 & TXD 数据时序</div>
+      <svg class="waveform-svg" viewBox="0 0 800 50">
+        <!-- CLK -->
+        <polyline class="wave-line" points="0,35 20,35 20,15 40,15 40,35 60,35 60,15 80,15 80,35 100,35 100,15 120,15 120,35 140,35 140,15 160,15 160,35 180,35 180,15 200,15 200,35 220,35 220,15 240,15 240,35 260,35 260,15 280,15 280,35 300,35 300,15 320,15 320,35 340,35 340,15 360,15 360,35 380,35 380,15 400,15 400,35 420,35 420,15 440,15 440,35 460,35 460,15 480,15 480,35 500,35 500,15 520,15 520,35 540,35 540,15 560,15 560,35 580,35 580,15 600,15 600,35 620,35 620,15 640,15 640,35 660,35 660,15 680,15 680,35 700,35 700,15 720,15 720,35 740,35 740,15 760,15 760,35 780,35 780,15 800,15" fill="none" stroke="#66bb6a" stroke-width="2"/>
+        <text x="5" y="12" fill="#66bb6a" font-size="9">TX_CLK</text>
+        <!-- Data valid -->
+        <rect x="20" y="38" width="18" height="10" rx="2" fill="rgba(79,195,247,0.3)" stroke="#4fc3f7" stroke-width="0.5"/>
+        <rect x="60" y="38" width="18" height="10" rx="2" fill="rgba(79,195,247,0.3)" stroke="#4fc3f7" stroke-width="0.5"/>
+        <rect x="100" y="38" width="18" height="10" rx="2" fill="rgba(79,195,247,0.3)" stroke="#4fc3f7" stroke-width="0.5"/>
+        <rect x="140" y="38" width="18" height="10" rx="2" fill="rgba(255,112,67,0.4)" stroke="#ff7043" stroke-width="0.5"/>
+        <rect x="180" y="38" width="18" height="10" rx="2" fill="rgba(79,195,247,0.3)" stroke="#4fc3f7" stroke-width="0.5"/>
+        <rect x="220" y="38" width="18" height="10" rx="2" fill="rgba(79,195,247,0.3)" stroke="#4fc3f7" stroke-width="0.5"/>
+        <text x="23" y="46" fill="#4fc3f7" font-size="7">D0</text>
+        <text x="63" y="46" fill="#4fc3f7" font-size="7">D1</text>
+        <text x="103" y="46" fill="#4fc3f7" font-size="7">D2</text>
+        <text x="138" y="46" fill="#ff7043" font-size="6">0x5C</text>
+        <text x="183" y="46" fill="#4fc3f7" font-size="7">D3</text>
+        <text x="223" y="46" fill="#4fc3f7" font-size="7">D4</text>
+      </svg>
+    </div>
+
+    <!-- 图例 -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#4fc3f7"></div> 数据字节 (TXC=0)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff7043"></div> 控制字符 (TXC=1)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffd54f"></div> xMII 总线接口</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#66bb6a"></div> 时钟信号</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#7e57c2"></div> MAC 控制层</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#26c6da"></div> PCS 编码层</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// 生成 Lane 结构
+function generateLanes() {
+  const container = document.getElementById('bus-lanes');
+  container.innerHTML = '';
+  
+  // Lane 0 特殊
+  const lane0 = document.createElement('div');
+  lane0.className = 'lane lane-ctrl';
+  lane0.innerHTML = '<span>Lane 0</span><span>控制起始</span>';
+  lane0.title = '0xFB=帧起始 | 0x5C=CtlOS | 0xFD=终止';
+  container.appendChild(lane0);
+  
+  // Lane 1-6 数据
+  for (let i = 1; i <= 6; i++) {
+    const lane = document.createElement('div');
+    lane.className = 'lane lane-data';
+    lane.innerHTML = `<span>Lane ${i}</span><span>数据/控制</span>`;
+    container.appendChild(lane);
+  }
+  
+  // Lane 7
+  const lane7 = document.createElement('div');
+  lane7.className = 'lane lane-data';
+  lane7.innerHTML = '<span>Lane 7</span><span>数据/控制</span>';
+  container.appendChild(lane7);
+  
+  // CLK
+  const clk = document.createElement('div');
+  clk.className = 'lane lane-clk';
+  clk.innerHTML = '<span>TX_CLK</span><span>同步时钟</span>';
+  container.appendChild(clk);
+  
+  // TXC
+  const txc = document.createElement('div');
+  txc.className = 'lane lane-ctrl';
+  txc.innerHTML = '<span>TXC[7:0]</span><span>控制标志</span>';
+  txc.title = '0=数据字节 1=控制字符';
+  container.appendChild(txc);
+}
+
+// Info card 切换
+function toggleInfo(id) {
+  const card = document.getElementById(id);
+  if (card) {
+    card.classList.toggle('visible');
+  }
+}
+
+// 模式切换
+function showMode(mode) {
+  const btns = document.querySelectorAll('.ctrl-btn');
+  btns.forEach(b => b.classList.remove('btn-active'));
+  
+  const pkt1 = document.getElementById('pkt1');
+  const pkt2 = document.getElementById('pkt2');
+  const pkt3 = document.getElementById('pkt3');
+  const label = document.getElementById('pkt-label');
+  
+  if (mode === 'normal') {
+    btns[0].classList.add('btn-active');
+    label.textContent = '模式: 普通数据传输 — 连续帧通过 xMII 发送';
+    pkt1.className = 'packet pkt-data pkt-1';
+    pkt1.textContent = '📦 DATA Frame (seq=10)';
+    pkt2.className = 'packet pkt-data pkt-2';
+    pkt2.textContent = '📦 DATA Frame (seq=11)';
+    pkt3.className = 'packet pkt-data pkt-3';
+    pkt3.textContent = '📦 DATA Frame (seq=12)';
+  } else if (mode === 'llr') {
+    btns[1].classList.add('btn-active');
+    label.textContent = '模式: LLR 重传 — NACK 触发 Replay Buffer 回放';
+    pkt1.className = 'packet pkt-data pkt-1';
+    pkt1.textContent = '🔄 REPLAY Frame (seq=11)';
+    pkt2.className = 'packet pkt-data pkt-2';
+    pkt2.textContent = '🔄 REPLAY Frame (seq=12)';
+    pkt3.className = 'packet pkt-ack pkt-3';
+    pkt3.textContent = '✅ ACK (ack_seq=12)';
+  } else if (mode === 'ctlos') {
+    btns[2].classList.add('btn-active');
+    label.textContent = '模式: CtlOS 控制信令 — 0x5C 插入数据流间隙';
+    pkt1.className = 'packet pkt-data pkt-1';
+    pkt1.textContent = '📦 DATA (2KB chunk)';
+    pkt2.className = 'packet pkt-ctrl pkt-2';
+    pkt2.textContent = '⚡ CtlOS [0x5C→0x4B] ACK seq=10';
+    pkt3.className = 'packet pkt-data pkt-3';
+    pkt3.textContent = '📦 DATA (continued)';
+  }
+  
+  // 重启动画
+  [pkt1, pkt2, pkt3].forEach(p => {
+    p.style.animation = 'none';
+    p.offsetHeight; // 触发重排
+    p.style.animation = '';
+  });
+}
+
+// 初始化
+generateLanes();
+
+// Lane 悬停效果
+document.querySelectorAll('.lane').forEach(lane => {
+  lane.addEventListener('mouseenter', () => {
+    lane.style.transform = 'scale(1.08)';
+    lane.style.transition = 'transform 0.2s';
+  });
+  lane.addEventListener('mouseleave', () => {
+    lane.style.transform = 'scale(1)';
+  });
+});
+</script>
+
+</body>
+</html>
