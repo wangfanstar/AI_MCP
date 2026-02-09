@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIC (Deficit Idle Count) 补偿机制动画演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #0a0e27;
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a3e, #2d1b69);
+            border-bottom: 2px solid #4a9eff;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            color: #4a9eff;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: #8892b0;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            gap: 15px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .top-section {
+            display: flex;
+            gap: 15px;
+        }
+
+        .control-panel {
+            background: #111336;
+            border: 1px solid #2a2d5a;
+            border-radius: 10px;
+            padding: 15px;
+            min-width: 280px;
+        }
+
+        .control-panel h3 {
+            color: #4a9eff;
+            margin-bottom: 12px;
+            font-size: 14px;
+            border-bottom: 1px solid #2a2d5a;
+            padding-bottom: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            color: #8892b0;
+            margin-bottom: 4px;
+        }
+
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 6px 10px;
+            background: #1a1d45;
+            border: 1px solid #3a3d6a;
+            border-radius: 5px;
+            color: #e0e0e0;
+            font-family: inherit;
+            font-size: 12px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #4a9eff;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #6db3ff;
+        }
+
+        .btn-danger {
+            background: #ff4a6a;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #ff6d88;
+        }
+
+        .btn-secondary {
+            background: #3a3d6a;
+            color: #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background: #4a4d7a;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .chip-diagram {
+            flex: 1;
+            background: #111336;
+            border: 1px solid #2a2d5a;
+            border-radius: 10px;
+            padding: 15px;
+            position: relative;
+        }
+
+        .chip-diagram h3 {
+            color: #4a9eff;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .chip-svg-container {
+            width: 100%;
+            overflow: visible;
+        }
+
+        .pipeline-section {
+            background: #111336;
+            border: 1px solid #2a2d5a;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .pipeline-section h3 {
+            color: #4a9eff;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .pipeline-view {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pipeline-stage {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-label {
+            min-width: 100px;
+            font-size: 11px;
+            color: #8892b0;
+            text-align: right;
+        }
+
+        .stage-content {
+            flex: 1;
+            display: flex;
+            gap: 2px;
+            overflow-x: auto;
+            padding: 4px 0;
+        }
+
+        .byte-cell {
+            min-width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            border-radius: 3px;
+            font-weight: bold;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .byte-preamble {
+            background: #2d5a1b;
+            color: #8aff6a;
+        }
+
+        .byte-sfd {
+            background: #1b5a2d;
+            color: #6affaa;
+        }
+
+        .byte-data {
+            background: #1b3a5a;
+            color: #6ab3ff;
+        }
+
+        .byte-fcs {
+            background: #5a3a1b;
+            color: #ffb36a;
+        }
+
+        .byte-idle {
+            background: #3a1b5a;
+            color: #b36aff;
+        }
+
+        .byte-start {
+            background: #ff4a6a;
+            color: #fff;
+        }
+
+        .byte-term {
+            background: #ff6a4a;
+            color: #fff;
+        }
+
+        .byte-block-sep {
+            min-width: 3px;
+            background: #4a9eff33;
+        }
+
+        .block-wrapper {
+            display: flex;
+            gap: 1px;
+            border: 1px solid #4a9eff44;
+            border-radius: 4px;
+            padding: 2px;
+            margin-right: 3px;
+            position: relative;
+        }
+
+        .block-wrapper.s-block {
+            border-color: #ff4a6a88;
+        }
+
+        .block-wrapper.d-block {
+            border-color: #4a9eff44;
+        }
+
+        .block-wrapper.t-block {
+            border-color: #ff6a4a88;
+        }
+
+        .block-wrapper.c-block {
+            border-color: #b36aff44;
+        }
+
+        .block-label {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 8px;
+            color: #8892b0;
+            white-space: nowrap;
+        }
+
+        .sync-header {
+            min-width: 16px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            border-radius: 2px;
+            background: #5a1b3a;
+            color: #ff6ab3;
+        }
+
+        .dic-display {
+            background: #1a1d45;
+            border: 2px solid #ffaa4a;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+
+        .dic-display h4 {
+            color: #ffaa4a;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .dic-value {
+            font-size: 36px;
+            color: #ffaa4a;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .dic-detail {
+            font-size: 11px;
+            color: #8892b0;
+            margin-top: 6px;
+        }
+
+        .dic-detail span {
+            color: #ffaa4a;
+        }
+
+        .stats-panel {
+            background: #111336;
+            border: 1px solid #2a2d5a;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .stats-panel h3 {
+            color: #4a9eff;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: #1a1d45;
+            border: 1px solid #2a2d5a;
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #8892b0;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .stat-value.blue { color: #4a9eff; }
+        .stat-value.green { color: #4aff6a; }
+        .stat-value.orange { color: #ffaa4a; }
+        .stat-value.red { color: #ff4a6a; }
+        .stat-value.purple { color: #b36aff; }
+
+        .history-section {
+            background: #111336;
+            border: 1px solid #2a2d5a;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .history-section h3 {
+            color: #4a9eff;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .history-table th {
+            background: #1a1d45;
+            color: #4a9eff;
+            padding: 6px 8px;
+            text-align: center;
+            border: 1px solid #2a2d5a;
+            position: sticky;
+            top: 0;
+        }
+
+        .history-table td {
+            padding: 5px 8px;
+            text-align: center;
+            border: 1px solid #2a2d5a;
+        }
+
+        .history-table tr:nth-child(even) {
+            background: #131540;
+        }
+
+        .history-table tr.highlight {
+            background: #2a1d45;
+            animation: rowFlash 0.5s ease;
+        }
+
+        @keyframes rowFlash {
+            0% { background: #4a9eff33; }
+            100% { background: #2a1d45; }
+        }
+
+        .history-container {
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .ipg-bar {
+            display: inline-block;
+            height: 14px;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        .ipg-short { background: #ff4a6a; }
+        .ipg-normal { background: #4aff6a; }
+        .ipg-long { background: #4a9eff; }
+
+        .legend {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            padding: 8px;
+            background: #1a1d45;
+            border-radius: 5px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+        }
+
+        .avg-ipg-chart {
+            margin-top: 10px;
+            background: #1a1d45;
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        .chart-title {
+            font-size: 11px;
+            color: #8892b0;
+            margin-bottom: 6px;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .speed-control label {
+            font-size: 11px;
+            color: #8892b0;
+        }
+
+        .speed-control input[type="range"] {
+            flex: 1;
+        }
+
+        .explanation-box {
+            background: #1a1d45;
+            border-left: 3px solid #ffaa4a;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 0 5px 5px 0;
+            font-size: 11px;
+            color: #ccd0e0;
+            line-height: 1.6;
+        }
+
+        .explanation-box .highlight-text {
+            color: #ffaa4a;
+            font-weight: bold;
+        }
+
+        .arrow-indicator {
+            display: inline-block;
+            animation: arrowPulse 1s infinite;
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .module-active {
+            animation: moduleGlow 0.5s ease;
+        }
+
+        @keyframes moduleGlow {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(1.5); }
+            100% { filter: brightness(1); }
+        }
+
+        .bottom-section {
+            display: flex;
+            gap: 15px;
+        }
+
+        .bottom-section > * {
+            flex: 1;
+        }
+
+        .ipg-visual {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin: 8px 0;
+            flex-wrap: wrap;
+        }
+
+        .ipg-byte {
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+
+        .ipg-kept {
+            background: #4aff6a33;
+            border: 1px solid #4aff6a;
+            color: #4aff6a;
+        }
+
+        .ipg-removed {
+            background: #ff4a6a33;
+            border: 1px dashed #ff4a6a;
+            color: #ff4a6a;
+            text-decoration: line-through;
+        }
+
+        .ipg-added {
+            background: #4a9eff33;
+            border: 1px solid #4a9eff;
+            color: #4a9eff;
+            animation: addedPulse 0.5s ease;
+        }
+
+        @keyframes addedPulse {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .step-indicator {
+            display: flex;
+            gap: 4px;
+            margin: 8px 0;
+        }
+
+        .step-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            background: #2a2d5a;
+            color: #8892b0;
+            transition: all 0.3s;
+        }
+
+        .step-dot.active {
+            background: #4a9eff;
+            color: #fff;
+        }
+
+        .step-dot.done {
+            background: #4aff6a;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ IEEE 802.3 DIC (Deficit Idle Count) 补偿机制动画演示</h1>
+        <p>64B/66B PCS 编码 | TX PCS 模块内部 | IPG Idle 补偿全过程</p>
+    </div>
+
+    <div class="main-container">
+        <!-- 顶部：控制面板 + 芯片架构图 -->
+        <div class="top-section">
+            <div class="control-panel">
+                <h3>⚙️ 参数控制</h3>
+
+                <div class="control-group">
+                    <label>帧长度模式</label>
+                    <select id="frameLenMode">
+                        <option value="fixed64">固定 64 字节（最小帧）</option>
+                        <option value="fixed128">固定 128 字节</option>
+                        <option value="fixed256">固定 256 字节</option>
+                        <option value="fixed1518">固定 1518 字节（最大帧）</option>
+                        <option value="random">随机长度</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>MAC IPG（字节）</label>
+                    <input type="number" id="macIpg" value="12" min="12" max="20">
+                </div>
+
+                <div class="control-group">
+                    <label>动画速度</label>
+                    <div class="speed-control">
+                        <label>慢</label>
+                        <input type="range" id="animSpeed" min="200" max="2000" value="800" step="100">
+                        <label>快</label>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="btnStep" onclick="stepOnce()">▶ 单步</button>
+                    <button class="btn btn-primary" id="btnAutoPlay" onclick="toggleAutoPlay()">⏩ 自动</button>
+                    <button class="btn btn-danger" onclick="resetAll()">⟲ 重置</button>
+                </div>
+
+                <!-- DIC 显示 -->
+                <div class="dic-display">
+                    <h4>📊 DIC 寄存器</h4>
+                    <div class="dic-value" id="dicValue">0</div>
+                    <div class="dic-detail">
+                        二进制: <span id="dicBinary">00</span> &nbsp;|&nbsp;
+                        范围: 0~3
+                    </div>
+                    <div class="dic-detail" id="dicExplanation">
+                        等待第一帧发送...
+                    </div>
+                </div>
+
+                <!-- 当前步骤说明 -->
+                <div class="explanation-box" id="stepExplanation">
+                    <strong>📝 操作说明:</strong><br>
+                    点击「单步」逐帧查看 DIC 补偿过程，<br>
+                    或点击「自动」连续播放。<br><br>
+                    观察固定帧长下，DIC 如何形成<br>
+                    <span class="highlight-text">周期性补偿模式</span>。
+                </div>
+            </div>
+
+            <!-- 芯片架构图 -->
+            <div class="chip-diagram">
+                <h3>🔲 芯片内部架构 — TX 路径</h3>
+                <div class="chip-svg-container">
+                    <svg viewBox="0 0 800 220" width="100%" height="220">
+                        <!-- 芯片外框 -->
+                        <rect x="5" y="10" width="790" height="200" rx="10" ry="10"
+                              fill="none" stroke="#4a9eff44" stroke-width="2" stroke-dasharray="5,5"/>
+                        <text x="15" y="28" fill="#4a9eff66" font-size="11">ASIC / FPGA</text>
+
+                        <!-- MAC TX -->
+                        <rect id="mod-mac" x="20" y="55" width="120" height="90" rx="8"
+                              fill="#1a2d1b" stroke="#4aff6a" stroke-width="2"/>
+                        <text x="80" y="85" text-anchor="middle" fill="#4aff6a" font-size="13" font-weight="bold">MAC TX</text>
+                        <text x="80" y="105" text-anchor="middle" fill="#8892b0" font-size="10">生成帧</text>
+                        <text x="80" y="120" text-anchor="middle" fill="#8892b0" font-size="10">+ 12B IPG</text>
+
+                        <!-- 箭头 MAC → RS -->
+                        <line x1="140" y1="100" x2="170" y2="100" stroke="#4aff6a" stroke-width="2" marker-end="url(#arrowGreen)"/>
+                        <text x="155" y="92" text-anchor="middle" fill="#8892b0" font-size="8">GMII/</text>
+                        <text x="155" y="80" text-anchor="middle" fill="#8892b0" font-size="8">XGMII</text>
+
+                        <!-- TX RS -->
+                        <rect id="mod-rs" x="175" y="55" width="110" height="90" rx="8"
+                              fill="#1b1a2d" stroke="#b36aff" stroke-width="2"/>
+                        <text x="230" y="85" text-anchor="middle" fill="#b36aff" font-size="13" font-weight="bold">TX RS</text>
+                        <text x="230" y="105" text-anchor="middle" fill="#8892b0" font-size="10">Reconciliation</text>
+                        <text x="230" y="120" text-anchor="middle" fill="#8892b0" font-size="10">添加 /S/ /T/</text>
+
+                        <!-- 箭头 RS → PCS -->
+                        <line x1="285" y1="100" x2="320" y2="100" stroke="#b36aff" stroke-width="2" marker-end="url(#arrowPurple)"/>
+
+                        <!-- TX PCS (主要模块) -->
+                        <rect id="mod-pcs" x="325" y="40" width="220" height="165" rx="8"
+                              fill="#1b2a3d" stroke="#4a9eff" stroke-width="2.5"/>
+                        <text x="435" y="60" text-anchor="middle" fill="#4a9eff" font-size="14" font-weight="bold">TX PCS</text>
+
+                        <!-- PCS 内部 - DIC -->
+                        <rect id="mod-dic" x="340" y="70" width="90" height="50" rx="5"
+                              fill="#2d1b00" stroke="#ffaa4a" stroke-width="2"/>
+                        <text x="385" y="92" text-anchor="middle" fill="#ffaa4a" font-size="11" font-weight="bold">DIC 计算</text>
+                        <text x="385" y="108" text-anchor="middle" fill="#ffaa4a" font-size="10" id="dicChipVal">DIC=0</text>
+
+                        <!-- PCS 内部 - IPG调整 -->
+                        <rect id="mod-ipg" x="445" y="70" width="90" height="50" rx="5"
+                              fill="#001b2d" stroke="#6ab3ff" stroke-width="1.5"/>
+                        <text x="490" y="92" text-anchor="middle" fill="#6ab3ff" font-size="11" font-weight="bold">IPG 调整</text>
+                        <text x="490" y="108" text-anchor="middle" fill="#6ab3ff" font-size="9" id="ipgAdjustVal">±0 Idle</text>
+
+                        <!-- PCS 内部 - 64B/66B 编码 -->
+                        <rect id="mod-encode" x="340" y="130" width="100" height="40" rx="5"
+                              fill="#1b002d" stroke="#ff6ab3" stroke-width="1.5"/>
+                        <text x="390" y="155" text-anchor="middle" fill="#ff6ab3" font-size="11" font-weight="bold">64B/66B 编码</text>
+
+                        <!-- PCS 内部 - Scrambler -->
+                        <rect id="mod-scramble" x="455" y="130" width="80" height="40" rx="5"
+                              fill="#002d1b" stroke="#6affaa" stroke-width="1.5"/>
+                        <text x="495" y="155" text-anchor="middle" fill="#6affaa" font-size="11" font-weight="bold">Scrambler</text>
+
+                        <!-- PCS 内部箭头 -->
+                        <line x1="430" y1="95" x2="445" y2="95" stroke="#ffaa4a" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+                        <line x1="390" y1="120" x2="390" y2="130" stroke="#ff6ab3" stroke-width="1.5" marker-end="url(#arrowPink)"/>
+                        <line x1="440" y1="150" x2="455" y2="150" stroke="#6affaa" stroke-width="1.5" marker-end="url(#arrowCyan)"/>
+
+                        <!-- 箭头 PCS → PMA -->
+                        <line x1="545" y1="100" x2="580" y2="100" stroke="#4a9eff" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+                        <!-- TX PMA -->
+                        <rect id="mod-pma" x="585" y="55" width="100" height="90" rx="8"
+                              fill="#2d1b1b" stroke="#ff6a4a" stroke-width="2"/>
+                        <text x="635" y="85" text-anchor="middle" fill="#ff6a4a" font-size="13" font-weight="bold">TX PMA</text>
+                        <text x="635" y="105" text-anchor="middle" fill="#8892b0" font-size="10">SerDes</text>
+                        <text x="635" y="120" text-anchor="middle" fill="#8892b0" font-size="10">发送</text>
+
+                        <!-- 箭头 PMA → 线路 -->
+                        <line x1="685" y1="100" x2="750" y2="100" stroke="#ff6a4a" stroke-width="2" marker-end="url(#arrowRed)"/>
+                        <text x="755" y="95" fill="#ff6a4a" font-size="11">→ 线路</text>
+                        <text x="755" y="110" fill="#8892b0" font-size="9">光纤/铜缆</text>
+
+                        <!-- 箭头定义 -->
+                        <defs>
+                            <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#4aff6a"/>
+                            </marker>
+                            <marker id="arrowPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#b36aff"/>
+                            </marker>
+                            <marker id="arrowBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a9eff"/>
+                            </marker>
+                            <marker id="arrowOrange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#ffaa4a"/>
+                            </marker>
+                            <marker id="arrowPink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff6ab3"/>
+                            </marker>
+                            <marker id="arrowCyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#6affaa"/>
+                            </marker>
+                            <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff6a4a"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- 中间：流水线视图 -->
+        <div class="pipeline-section">
+            <h3>📦 编码块视图 — 当前帧的 64B/66B 块结构（帧尾 + IPG 区域）</h3>
+            <div class="pipeline-view" id="pipelineView">
+                <div class="pipeline-stage">
+                    <div class="stage-label">MAC 层输出:</div>
+                    <div class="stage-content" id="macOutput">
+                        <span style="color:#8892b0; font-size:11px;">等待发送...</span>
+                    </div>
+                </div>
+                <div class="pipeline-stage">
+                    <div class="stage-label">PCS 编码后:</div>
+                    <div class="stage-content" id="pcsOutput">
+                        <span style="color:#8892b0; font-size:11px;">等待编码...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IPG 可视化 -->
+            <div style="margin-top:12px;">
+                <div style="font-size:12px; color:#8892b0;">IPG Idle 字节调整详情:</div>
+                <div class="ipg-visual" id="ipgVisual">
+                    <span style="color:#8892b0; font-size:11px;">等待...</span>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background:#2d5a1b;"></div> Preamble</div>
+                <div class="legend-item"><div class="legend-color" style="background:#1b5a2d;"></div> SFD</div>
+                <div class="legend-item"><div class="legend-color" style="background:#1b3a5a;"></div> Data</div>
+                <div class="legend-item"><div class="legend-color" style="background:#5a3a1b;"></div> FCS</div>
+                <div class="legend-item"><div class="legend-color" style="background:#3a1b5a;"></div> Idle</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff4a6a;"></div> /S/ Start</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff6a4a;"></div> /T/ Term</div>
+                <div class="legend-item"><div class="legend-color" style="background:#5a1b3a;"></div> Sync(01/10)</div>
+            </div>
+        </div>
+
+        <!-- 底部：统计 + 历史 -->
+        <div class="bottom-section">
+            <div class="stats-panel">
+                <h3>📈 统计数据</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">已发送帧数</div>
+                        <div class="stat-value blue" id="statFrames">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">当前帧长</div>
+                        <div class="stat-value green" id="statFrameLen">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">当前 /T/ 位置</div>
+                        <div class="stat-value orange" id="statTermPos">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">当前 Deficit</div>
+                        <div class="stat-value red" id="statDeficit">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">实际 IPG</div>
+                        <div class="stat-value purple" id="statActualIpg">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">平均 IPG</div>
+                        <div class="stat-value green" id="statAvgIpg">-</div>
+                    </div>
+                </div>
+
+                <!-- 平均IPG图表 -->
+                <div class="avg-ipg-chart">
+                    <div class="chart-title">实际 IPG 分布（最近发送）</div>
+                    <canvas id="ipgChart" width="500" height="100"></canvas>
+                </div>
+            </div>
+
+            <div class="history-section">
+                <h3>📋 逐帧历史记录</h3>
+                <div class="history-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>帧#</th>
+                                <th>帧长</th>
+                                <th>/T/位置</th>
+                                <th>Deficit</th>
+                                <th>DIC旧</th>
+                                <th>DIC新</th>
+                                <th>溢出?</th>
+                                <th>IPG调整</th>
+                                <th>实际IPG</th>
+                                <th>IPG可视化</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============== 状态管理 ==============
+        let state = {
+            dic: 0,
+            frameCount: 0,
+            totalIpg: 0,
+            autoPlay: false,
+            autoTimer: null,
+            history: [],
+            ipgValues: []
+        };
+
+        // ============== 帧长度计算 ==============
+        function getFrameLength() {
+            const mode = document.getElementById('frameLenMode').value;
+            switch (mode) {
+                case 'fixed64': return 64;
+                case 'fixed128': return 128;
+                case 'fixed256': return 256;
+                case 'fixed1518': return 1518;
+                case 'random': return 64 + Math.floor(Math.random() * (1518 - 64 + 1));
+                default: return 64;
+            }
+        }
+
+        // ============== 核心 DIC 计算 ==============
+        function calculateDIC(frameLen) {
+            const macIpg = parseInt(document.getElementById('macIpg').value) || 12;
+
+            // 计算从 /S/ 到 /T/ 的总字节数
+            // S-block 吃掉 preamble 的前 7 字节 (位置1~7)
+            // 剩余字节 = SFD(1) + frameLen + FCS(4) = frameLen + 5
+            // 但 Preamble(7) + SFD(1) = 8 字节，其中 7 字节在 S-block 中
+            // 所以帧 payload 从 S-block 之后开始:
+            // 剩余 = 1(SFD) + frameLen(包含header+payload) ... 
+            // 
+            // 简化计算: 帧在线上的总数据字节(不含/S/和/T/本身) = Preamble(7在S-block) + SFD(1) + frameLen + FCS(4)
+            // S-block 携带 7 字节数据
+            // 所以 S-block 之后还需传输: SFD(1) + DA(6) + SA(6) + Type/Len(2) + Payload + FCS(4) 
+            // = 1 + frameLen + 4 = frameLen + 5 字节
+            // 但这里 frameLen 已经包含 DA+SA+Type+Payload，所以:
+            // 剩余字节 = 1(SFD) + frameLen + 4(FCS) = frameLen + 5
+
+            const remainBytes = frameLen + 5; // SFD(1) + frame(包括DA/SA/Type/Payload) + FCS(4)
+            const termPosInBlock = remainBytes % 8;
+            // /T/ 紧跟在最后一个数据字节之后
+            // termPosInBlock 表示 T-block 中 /T/ 前面有多少个数据字节
+            // /T/ 的位置就是 termPosInBlock
+
+            const deficit = termPosInBlock % 4;
+
+            const dicOld = state.dic;
+            let actualIpg;
+            let dicNew;
+            let overflow = false;
+
+            if (dicOld + deficit < 4) {
+                actualIpg = macIpg - deficit;
+                dicNew = dicOld + deficit;
+            } else {
+                overflow = true;
+                actualIpg = macIpg - deficit + 4;
+                dicNew = dicOld + deficit - 4;
+            }
+
+            return {
+                frameLen,
+                termPosInBlock,
+                deficit,
+                dicOld,
+                dicNew,
+                overflow,
+                actualIpg,
+                macIpg
+            };
+        }
+
+        // ============== 单步执行 ==============
+        function stepOnce() {
+            const frameLen = getFrameLength();
+            const result = calculateDIC(frameLen);
+
+            state.dic = result.dicNew;
+            state.frameCount++;
+            state.totalIpg += result.actualIpg;
+            state.ipgValues.push(result.actualIpg);
+
+            const record = {
+                frame: state.frameCount,
+                ...result
+            };
+            state.history.push(record);
+
+            // 更新所有显示
+            updateDICDisplay(result);
+            updateChipDiagram(result);
+            updatePipelineView(result);
+            updateIPGVisual(result);
+            updateStats(result);
+            updateHistory(record);
+            updateChart();
+            updateExplanation(result);
+
+            // 高亮模块动画
+            animateModules();
+        }
+
+        // ============== 自动播放 ==============
+        function toggleAutoPlay() {
+            state.autoPlay = !state.autoPlay;
+            const btn = document.getElementById('btnAutoPlay');
+
+            if (state.autoPlay) {
+                btn.textContent = '⏸ 暂停';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-secondary');
+                autoStep();
+            } else {
+                btn.textContent = '⏩ 自动';
+                btn.classList.remove('btn-secondary');
+                btn.classList.add('btn-primary');
+                if (state.autoTimer) {
+                    clearTimeout(state.autoTimer);
+                    state.autoTimer = null;
+                }
+            }
+        }
+
+        function autoStep() {
+            if (!state.autoPlay) return;
+            stepOnce();
+            const speed = parseInt(document.getElementById('animSpeed').value);
+            state.autoTimer = setTimeout(autoStep, speed);
+        }
+
+        // ============== 重置 ==============
+        function resetAll() {
+            if (state.autoPlay) toggleAutoPlay();
+            state.dic = 0;
+            state.frameCount = 0;
+            state.totalIpg = 0;
+            state.history = [];
+            state.ipgValues = [];
+
+            document.getElementById('dicValue').textContent = '0';
+            document.getElementById('dicBinary').textContent = '00';
+            document.getElementById('dicChipVal').textContent = 'DIC=0';
+            document.getElementById('ipgAdjustVal').textContent = '±0 Idle';
+            document.getElementById('dicExplanation').textContent = '等待第一帧发送...';
+            document.getElementById('stepExplanation').innerHTML = `
+                <strong>📝 操作说明:</strong><br>
+                点击「单步」逐帧查看 DIC 补偿过程，<br>
+                或点击「自动」连续播放。<br><br>
+                观察固定帧长下，DIC 如何形成<br>
+                <span class="highlight-text">周期性补偿模式</span>。
+            `;
+            document.getElementById('macOutput').innerHTML = '<span style="color:#8892b0; font-size:11px;">等待发送...</span>';
+            document.getElementById('pcsOutput').innerHTML = '<span style="color:#8892b0; font-size:11px;">等待编码...</span>';
+            document.getElementById('ipgVisual').innerHTML = '<span style="color:#8892b0; font-size:11px;">等待...</span>';
+            document.getElementById('historyBody').innerHTML = '';
+            document.getElementById('statFrames').textContent = '0';
+            document.getElementById('statFrameLen').textContent = '-';
+            document.getElementById('statTermPos').textContent = '-';
+            document.getElementById('statDeficit').textContent = '-';
+            document.getElementById('statActualIpg').textContent = '-';
+            document.getElementById('statAvgIpg').textContent = '-';
+
+            const canvas = document.getElementById('ipgChart');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // ============== UI 更新函数 ==============
+
+        function updateDICDisplay(result) {
+            const dicEl = document.getElementById('dicValue');
+            dicEl.textContent = result.dicNew;
+            dicEl.style.transition = 'transform 0.2s';
+            dicEl.style.transform = 'scale(1.3)';
+            setTimeout(() => dicEl.style.transform = 'scale(1)', 200);
+
+            document.getElementById('dicBinary').textContent =
+                result.dicNew.toString(2).padStart(2, '0');
+
+            const arrow = result.dicNew > result.dicOld ? '↑' : (result.dicNew < result.dicOld ? '↓' : '=');
+            document.getElementById('dicExplanation').innerHTML =
+                `DIC: <span>${result.dicOld}</span> ${arrow} <span>${result.dicNew}</span> &nbsp;|&nbsp; ` +
+                `亏欠: <span>${result.deficit}</span> &nbsp;|&nbsp; ` +
+                (result.overflow ?
+                    `<span style="color:#ff4a6a">溢出! 多发4个Idle还债</span>` :
+                    `<span style="color:#4aff6a">正常扣减</span>`);
+        }
+
+        function updateChipDiagram(result) {
+            document.getElementById('dicChipVal').textContent = `DIC=${result.dicNew}`;
+
+            const adj = result.actualIpg - result.macIpg;
+            const sign = adj >= 0 ? '+' : '';
+            document.getElementById('ipgAdjustVal').textContent = `${sign}${adj} Idle`;
+        }
+
+        function animateModules() {
+            const modules = ['mod-mac', 'mod-rs', 'mod-dic', 'mod-ipg', 'mod-encode', 'mod-scramble', 'mod-pma'];
+            modules.forEach((id, i) => {
+                setTimeout(() => {
+                    const el = document.getElementById(id);
+                    el.style.transition = 'filter 0.3s';
+                    el.style.filter = 'brightness(1.8) drop-shadow(0 0 8px rgba(74,158,255,0.5))';
+                    setTimeout(() => {
+                        el.style.filter = 'brightness(1)';
+                    }, 300);
+                }, i * 80);
+            });
+        }
+
+        function updatePipelineView(result) {
+            // MAC 输出 - 显示帧尾 + IPG
+            const macHtml = buildMacView(result);
+            document.getElementById('macOutput').innerHTML = macHtml;
+
+            // PCS 编码后 - 显示 66B 块
+            const pcsHtml = buildPcsView(result);
+            document.getElementById('pcsOutput').innerHTML = pcsHtml;
+        }
+
+        function buildMacView(result) {
+            let html = '';
+
+            // 显示帧的最后几个字节
+            html += '<div class="byte-cell byte-data">...</div>';
+            for (let i = 0; i < 3; i++) {
+                html += `<div class="byte-cell byte-data">D</div>`;
+            }
+            for (let i = 0; i < 4; i++) {
+                html += `<div class="byte-cell byte-fcs">FC${i}</div>`;
+            }
+
+            // MAC 层的 IPG
+            for (let i = 0; i < result.macIpg; i++) {
+                html += `<div class="byte-cell byte-idle">I</div>`;
+            }
+
+            // 下一帧开始
+            html += `<div class="byte-cell byte-preamble">P0</div>`;
+            html += `<div class="byte-cell byte-preamble">P1</div>`;
+            html += `<div class="byte-cell byte-preamble">...</div>`;
+
+            return html;
+        }
+
+        function buildPcsView(result) {
+            let html = '';
+            const tPos = result.termPosInBlock;
+
+            // T-block
+            html += '<div class="block-wrapper t-block" style="margin-top:16px;">';
+            html += '<div class="block-label">T-block (10)</div>';
+            html += '<div class="sync-header">10</div>';
+
+            for (let i = 0; i < tPos; i++) {
+                html += `<div class="byte-cell byte-data">D</div>`;
+            }
+            html += `<div class="byte-cell byte-term">/T/</div>`;
+            const tBlockIdles = 7 - tPos;
+            for (let i = 0; i < tBlockIdles; i++) {
+                html += `<div class="byte-cell byte-idle">I</div>`;
+            }
+            html += '</div>';
+
+            // Idle blocks (C-blocks)
+            const idleBlockBytes = result.actualIpg - tBlockIdles;
+            const fullIdleBlocks = Math.max(0, Math.floor(idleBlockBytes / 8));
+            const remainIdles = Math.max(0, idleBlockBytes % 8);
+
+            for (let b = 0; b < fullIdleBlocks; b++) {
+                html += '<div class="block-wrapper c-block" style="margin-top:16px;">';
+                html += `<div class="block-label">C-block (10)</div>`;
+                html += '<div class="sync-header">10</div>';
+                for (let i = 0; i < 8; i++) {
+                    html += `<div class="byte-cell byte-idle">I</div>`;
+                }
+                html += '</div>';
+            }
+
+            // S-block for next frame
+            html += '<div class="block-wrapper s-block" style="margin-top:16px;">';
+            html += '<div class="block-label">S-block (10)</div>';
+            html += '<div class="sync-header">10</div>';
+            html += `<div class="byte-cell byte-start">/S/</div>`;
+            for (let i = 0; i < 7; i++) {
+                html += `<div class="byte-cell byte-preamble">P${i}</div>`;
+            }
+            html += '</div>';
+
+            return html;
+        }
+
+        function updateIPGVisual(result) {
+            let html = '';
+            const macIpg = result.macIpg;
+            const actualIpg = result.actualIpg;
+
+            if (actualIpg < macIpg) {
+                // IPG 被缩短
+                for (let i = 0; i < actualIpg; i++) {
+                    html += `<div class="ipg-byte ipg-kept">I</div>`;
+                }
+                for (let i = 0; i < macIpg - actualIpg; i++) {
+                    html += `<div class="ipg-byte ipg-removed">I</div>`;
+                }
+                html += `<span style="font-size:11px; color:#ff4a6a; margin-left:8px;">
+                    ← 删除 ${macIpg - actualIpg} 个 Idle（欠债，DIC +${result.deficit}）</span>`;
+            } else if (actualIpg > macIpg) {
+                // IPG 被拉长
+                for (let i = 0; i < macIpg; i++) {
+                    html += `<div class="ipg-byte ipg-kept">I</div>`;
+                }
+                for (let i = 0; i < actualIpg - macIpg; i++) {
+                    html += `<div class="ipg-byte ipg-added">+I</div>`;
+                }
+                html += `<span style="font-size:11px; color:#4a9eff; margin-left:8px;">
+                    ← 额外插入 ${actualIpg - macIpg} 个 Idle（还债，DIC 溢出归零）</span>`;
+            } else {
+                for (let i = 0; i < macIpg; i++) {
+                    html += `<div class="ipg-byte ipg-kept">I</div>`;
+                }
+                html += `<span style="font-size:11px; color:#4aff6a; margin-left:8px;">
+                    ← 无需调整（deficit=0）</span>`;
+            }
+
+            document.getElementById('ipgVisual').innerHTML = html;
+        }
+
+        function updateStats(result) {
+            document.getElementById('statFrames').textContent = state.frameCount;
+            document.getElementById('statFrameLen').textContent = result.frameLen + 'B';
+            document.getElementById('statTermPos').textContent = `Pos ${result.termPosInBlock}`;
+            document.getElementById('statDeficit').textContent = result.deficit;
+            document.getElementById('statActualIpg').textContent = result.actualIpg + 'B';
+
+            const avg = (state.totalIpg / state.frameCount).toFixed(3);
+            document.getElementById('statAvgIpg').textContent = avg + 'B';
+        }
+
+        function updateHistory(record) {
+            const tbody = document.getElementById('historyBody');
+            const tr = document.createElement('tr');
+            tr.className = 'highlight';
+
+            const ipgDiff = record.actualIpg - record.macIpg;
+            const barWidth = Math.max(5, record.actualIpg * 4);
+            let barClass = 'ipg-normal';
+            if (record.actualIpg < record.macIpg) barClass = 'ipg-short';
+            else if (record.actualIpg > record.macIpg) barClass = 'ipg-long';
+
+            tr.innerHTML = `
+                <td>${record.frame}</td>
+                <td>${record.frameLen}B</td>
+                <td>Pos ${record.termPosInBlock}</td>
+                <td>${record.deficit}</td>
+                <td>${record.dicOld}</td>
+                <td style="font-weight:bold; color:${record.dicNew !== record.dicOld ? '#ffaa4a' : '#4aff6a'}">${record.dicNew}</td>
+                <td style="color:${record.overflow ? '#ff4a6a' : '#4aff6a'}">${record.overflow ? '✓ 还债' : '✗'}</td>
+                <td style="color:${ipgDiff < 0 ? '#ff4a6a' : (ipgDiff > 0 ? '#4a9eff' : '#4aff6a')}">${ipgDiff >= 0 ? '+' : ''}${ipgDiff}</td>
+                <td style="font-weight:bold; color:${record.actualIpg < record.macIpg ? '#ff4a6a' : (record.actualIpg > record.macIpg ? '#4a9eff' : '#4aff6a')}">${record.actualIpg}B</td>
+                <td><div class="ipg-bar ${barClass}" style="width:${barWidth}px;"></div></td>
+            `;
+
+            tbody.appendChild(tr);
+
+            // 滚动到底部
+            const container = tbody.closest('.history-container');
+            container.scrollTop = container.scrollHeight;
+
+            // 移除之前行的高亮
+            setTimeout(() => tr.classList.remove('highlight'), 500);
+        }
+
+        function updateChart() {
+            const canvas = document.getElementById('ipgChart');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width;
+            const H = canvas.height;
+
+            ctx.clearRect(0, 0, W, H);
+
+            const values = state.ipgValues.slice(-60); // 最近60帧
+            if (values.length === 0) return;
+
+            const macIpg = parseInt(document.getElementById('macIpg').value) || 12;
+            const minVal = Math.min(...values, macIpg - 4);
+            const maxVal = Math.max(...values, macIpg + 4);
+            const range = maxVal - minVal || 1;
+
+            // 画参考线 (MAC IPG = 12)
+            const refY = H - ((macIpg - minVal) / range) * (H - 20) - 10;
+            ctx.strokeStyle = '#4aff6a44';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(0, refY);
+            ctx.lineTo(W, refY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#4aff6a66';
+            ctx.font = '9px monospace';
+            ctx.fillText(`← MAC IPG=${macIpg}`, 5, refY - 3);
+
+            // 画 IPG 值
+            const barW = Math.max(2, (W - 20) / 60);
+
+            values.forEach((v, i) => {
+                const x = 10 + i * barW;
+                const y = H - ((v - minVal) / range) * (H - 20) - 10;
+                const barH = H - 10 - y;
+
+                if (v < macIpg) {
+                    ctx.fillStyle = '#ff4a6a';
+                } else if (v > macIpg) {
+                    ctx.fillStyle = '#4a9eff';
+                } else {
+                    ctx.fillStyle = '#4aff6a';
+                }
+
+                ctx.fillRect(x, y, Math.max(1, barW - 1), barH);
+            });
+
+            // 画平均线
+            if (state.frameCount > 0) {
+                const avg = state.totalIpg / state.frameCount;
+                const avgY = H - ((avg - minVal) / range) * (H - 20) - 10;
+                ctx.strokeStyle = '#ffaa4a';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.moveTo(0, avgY);
+                ctx.lineTo(W, avgY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = '#ffaa4a';
+                ctx.fillText(`← 平均=${avg.toFixed(2)}`, W - 80, avgY - 3);
+            }
+        }
+
+        function updateExplanation(result) {
+            const mode = document.getElementById('frameLenMode').value;
+            let modeStr = mode === 'random' ? '随机' : '固定';
+
+            let cycleInfo = '';
+            if (mode !== 'random' && result.deficit > 0) {
+                const cyclePeriod = 4 / gcd(result.deficit, 4);
+                cycleInfo = `<br><br>🔄 <span class="highlight-text">固定帧长下补偿周期 = ${cyclePeriod} 帧</span>
+                    <br>deficit=${result.deficit}, 每 ${cyclePeriod} 帧完成一次完整的欠债-还债循环`;
+            } else if (result.deficit === 0) {
+                cycleInfo = `<br><br>✨ <span class="highlight-text">deficit=0，完美对齐！</span>
+                    <br>/T/ 恰好对齐块边界，无需任何补偿`;
+            }
+
+            document.getElementById('stepExplanation').innerHTML = `
+                <strong>📝 帧 #${state.frameCount} 处理过程:</strong><br>
+                1️⃣ MAC 发出 ${result.frameLen}B 帧 + ${result.macIpg}B IPG<br>
+                2️⃣ TX RS 添加 /S/ 和 /T/ 标记<br>
+                3️⃣ TX PCS 检测 /T/ 在块内位置 = <span class="highlight-text">${result.termPosInBlock}</span><br>
+                4️⃣ deficit = ${result.termPosInBlock} mod 4 = <span class="highlight-text">${result.deficit}</span><br>
+                5️⃣ DIC: ${result.dicOld} + ${result.deficit} = ${result.dicOld + result.deficit}
+                   ${result.overflow ?
+                    `≥ 4 → <span class="highlight-text" style="color:#ff4a6a">溢出! IPG +4 还债</span>` :
+                    `< 4 → <span class="highlight-text" style="color:#4aff6a">正常记账</span>`}<br>
+                6️⃣ 实际 IPG = ${result.actualIpg}B（${result.actualIpg < result.macIpg ? '缩短' + (result.macIpg - result.actualIpg) : (result.actualIpg > result.macIpg ? '拉长+' + (result.actualIpg - result.macIpg) : '不变')}）<br>
+                7️⃣ DIC 更新: ${result.dicOld} → <span class="highlight-text">${result.dicNew}</span>
+                ${cycleInfo}
+            `;
+        }
+
+        function gcd(a, b) {
+            while (b) { [a, b] = [b, a % b]; }
+            return a;
+        }
+    </script>
+</body>
+</html>
