@@ -1450,8 +1450,9 @@ function initAllContent() {
     createBitGroup('Sync', '10', 'v-sync') +
     createBitGroup('BType', '0x78', 'v-block') +
     createBitGroup('B0', '0xFB', 'v-ctrl') +
-    createBitGroup('B1', '0x_5', 'v-ineligible') +
-    createBitGroup('B1[7:4]+B2+B3', '0x00000', 'v-idle') +
+    createBitGroup('B1', '0x55', 'v-preamble') +
+    createBitGroup('B2', '0x55', 'v-preamble') +
+    createBitGroup('B3', '0x55', 'v-preamble') +
     createBitGroup('B4', '0x55', 'v-preamble') +
     createBitGroup('B5', '0x55', 'v-preamble') +
     createBitGroup('B6', '0x55', 'v-preamble');
@@ -1486,9 +1487,13 @@ function initAllContent() {
   document.getElementById('cmp-ineligible-pcs').innerHTML =
     createBitGroup('Sync', '10', 'v-sync') +
     createBitGroup('BType', '0x78', 'v-block') +
-    createBitGroup('0xFB', 'Start', 'v-ctrl') +
-    createBitGroup('0x5', 'Ineligible', 'v-ineligible') +
-    createBitGroup('20-bit', '0x00000', 'v-idle');
+    createBitGroup('B0', '0xFB', 'v-ctrl') +
+    createBitGroup('B1', '0x55', 'v-preamble') +
+    createBitGroup('B2', '0x55', 'v-preamble') +
+    createBitGroup('B3', '0x55', 'v-preamble') +
+    createBitGroup('B4', '0x55', 'v-preamble') +
+    createBitGroup('B5', '0x55', 'v-preamble') +
+    createBitGroup('B6', '0x55', 'v-preamble');
 
   // Tab 3: 序列有序集
   document.getElementById('seq-os-xmii').innerHTML =
