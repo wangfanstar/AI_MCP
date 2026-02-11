@@ -1409,9 +1409,10 @@ function initAllContent() {
     createBitGroup('D7', '0xD5', 'v-seq');
 
   document.getElementById('std-preamble-serial').innerHTML =
-    '<div class="t-segment v-sync" style="flex: 2;">01</div>' +
-    '<div class="t-segment v-preamble" style="flex: 7;">55 55 55 55 55 55 55</div>' +
-    '<div class="t-segment v-seq" style="flex: 1;">D5</div>';
+    '<div class="t-segment v-sync" style="flex: 2;">0x01</div>' +
+    '<div class="t-segment v-ctrl" style="flex: 1;">0xFB</div>' +
+    '<div class="t-segment v-preamble" style="flex: 6;">0x55 0x55 0x55 0x55 0x55 0x55</div>' +
+    '<div class="t-segment v-seq" style="flex: 1;">0xD5</div>';
 
   // Tab 2: LLR-Eligible 前导码
   document.getElementById('llr-eligible-xmii').innerHTML =
@@ -1486,14 +1487,14 @@ function initAllContent() {
 
   document.getElementById('cmp-ineligible-pcs').innerHTML =
     createBitGroup('Sync', '10', 'v-sync') +
-    createBitGroup('BType', '0x78', 'v-block') +
     createBitGroup('B0', '0xFB', 'v-ctrl') +
     createBitGroup('B1', '0x55', 'v-preamble') +
     createBitGroup('B2', '0x55', 'v-preamble') +
     createBitGroup('B3', '0x55', 'v-preamble') +
     createBitGroup('B4', '0x55', 'v-preamble') +
     createBitGroup('B5', '0x55', 'v-preamble') +
-    createBitGroup('B6', '0x55', 'v-preamble');
+    createBitGroup('B6', '0x55', 'v-preamble') +
+    createBitGroup('B7', '0xD5', 'v-seq');
 
   // Tab 3: 序列有序集
   document.getElementById('seq-os-xmii').innerHTML =
